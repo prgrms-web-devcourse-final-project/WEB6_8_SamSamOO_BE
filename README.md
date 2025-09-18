@@ -1,4 +1,4 @@
-# AI Lawyey
+# AI Lawyer
 "AI 변호사"는 복잡하고 어려운 법률 문제에 직면한 일반인들을 위해 AI 기술을 활용하여 법률 정보의 문턱을 낮추는 서비스입니다. 
 
 ## 주요 기능
@@ -38,21 +38,21 @@
 - **로딩 스켈레톤**: 데이터 로딩 중 콘텐츠 윤곽 먼저 표시로 체감 로딩 시간 단축
 
 ## 실행방법
-# 1. 저장소 클론
-'''
+### 1. 저장소 클론
+```
 git clone https://github.com/prgrms-web-devcourse-final-project/WEB6_8_SamSamOO_BE.git
 cd WEB6_8_SamSamOO_BE/backend
-'''
+```
 
-# 2. 의존 서비스 실행 (PostgreSQL, Redis 등)
-'''
+### 2. 의존 서비스 실행 (PostgreSQL, Redis 등)
+```
 docker-compose up -d
-'''
+```
 
-# 3. Spring Boot 실행
-'''
+### 3. Spring Boot 실행
+```
 ./gradlew bootRun
-'''
+```
 
 ## **기술 스택**
 
