@@ -1,14 +1,17 @@
 name: CI-CD_Pipeline
+
 permissions:
   contents: read
   packages: write
   id-token: write
+
 on:
   push:
     branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
+
 jobs:
   tests:
     strategy:
@@ -38,6 +41,10 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
+      # ✅ gradlew 실행 권한 부여
+      - name: Grant execute permission for gradlew
+        run: chmod +x backend/gradlew
+
       - name: Run unit, integration, and domain tests
         run: ${{ matrix.gradle_cmd }} clean test integrationTest ${{ matrix.domain_tasks }}
         working-directory: backend
@@ -63,6 +70,10 @@ jobs:
           distribution: temurin
           java-version: 21
           cache: gradle
+
+      # ✅ gradlew 실행 권한 부여
+      - name: Grant execute permission for gradlew
+        run: chmod +x backend/gradlew
 
       - name: Gradle bootJar
         working-directory: backend
