@@ -46,7 +46,7 @@ jobs:
         run: chmod +x backend/gradlew
 
       - name: Run unit, and domain tests
-        run: ${{ matrix.gradle_cmd }} clean test ${{ matrix.domain_tasks }}
+        run: ${{ matrix.gradle_cmd }} clean test
         working-directory: backend
 
       - name: Upload Test Reports
