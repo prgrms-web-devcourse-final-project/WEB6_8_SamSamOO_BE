@@ -8,6 +8,7 @@ body:
       label: 기능 요약
       description: 어떤 기능을 추가하나요?
       placeholder: "예: 커뮤니티 게시판 작성 기능"
+      value: "/branch-name 기능명"
     validations:
       required: true
 
