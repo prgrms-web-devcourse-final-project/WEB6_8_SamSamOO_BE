@@ -43,7 +43,10 @@ jobs:
           SANITIZED_TITLE=$(echo "$ISSUE_TITLE" | iconv -t ascii//translit | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-')
           
           if [ -n "${{ steps.custom.outputs.custom_name }}" ]; then
-            BRANCH_NAME="${{ steps.prefix.outputs.prefix }}/${ISSUE_NUMBER}-${{ steps.custom.outputs.custom_name }}"
+            RAW_NAME="${{ steps.custom.outputs.custom_name }}"
+            # 앞뒤 공백 제거
+            CUSTOM_NAME=$(echo "$RAW_NAME" | xargs)
+            BRANCH_NAME="${{ steps.prefix.outputs.prefix }}/${ISSUE_NUMBER}-${CUSTOM_NAME}"
           else
             BRANCH_NAME="${{ steps.prefix.outputs.prefix }}/${ISSUE_NUMBER}-${SANITIZED_TITLE}"
           fi

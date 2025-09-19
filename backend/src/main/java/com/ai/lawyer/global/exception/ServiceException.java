@@ -1,6 +1,5 @@
 package com.ai.lawyer.global.exception;
 
-import com.ai.lawyer.global.rsData.RsData;
 
 public class ServiceException extends RuntimeException {
     private final String resultCode;
@@ -12,7 +11,4 @@ public class ServiceException extends RuntimeException {
         this.msg = msg;
     }
 
-    public RsData<Void> getRsData() {
-        return new RsData<>(resultCode, msg, null);
-    }
 }
