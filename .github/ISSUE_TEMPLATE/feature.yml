@@ -21,20 +21,3 @@ body:
     validations:
       required: true
 
-  - type: textarea
-    id: todo
-    attributes:
-      label: To-do
-      description: 해야 할 작업을 체크리스트로 작성해주세요.
-      value: |
-        - [ ] 작업 1
-        - [ ] 작업 2
-
-  - type: input
-    id: branch
-    attributes:
-      label: 브랜치 이름 (영문)
-      description: 브랜치 네이밍 규칙을 참고해 입력해주세요.
-      placeholder: "예: ai-apply-llm"
-    validations:
-      required: false
