@@ -6,6 +6,8 @@ on:
 jobs:
   create-branch:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -44,6 +46,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git fetch origin main
+          git fetch ${{ github.event.repository.default_branch }}
           git checkout -b "$BRANCH_NAME" origin/main
           git push origin "$BRANCH_NAME"
