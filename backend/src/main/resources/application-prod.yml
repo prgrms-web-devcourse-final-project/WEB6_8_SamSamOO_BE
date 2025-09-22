@@ -1,14 +1,31 @@
 spring:
   datasource:
-    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
-    driver-class-name: org.postgresql.Driver
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Seoul
+    driver-class-name: com.mysql.cj.jdbc.Driver
     username: ${DB_USER}
     password: ${DB_PASS}
+    hikari:
+      maximum-pool-size: 20          # 트래픽에 맞춰 조정
+      minimum-idle: 5
+      idle-timeout: 30000
+      connection-timeout: 30000
+      max-lifetime: 1800000          # MySQL wait_timeout(기본 28800)보다 짧게
   jpa:
+    open-in-view: false              # 프로덕션 권장
     hibernate:
-      ddl-auto: validate
-  thymeleaf:
-    cache: true
+      ddl-auto: validate             # 운영 DB는 보통 validate (또는 none)
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect  # 부트가 자동 감지하지만 명시해도 OK
+        format_sql: false
+  sql:
+    init:
+      mode: never                    # 운영에서 스키마 자동 실행 금지
+server:
+  tomcat:
+    threads:
+      max: 200
 logging:
   level:
     root: INFO
+    org.hibernate.SQL: WARN
