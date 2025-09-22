@@ -13,16 +13,6 @@ services:
       - "${DB_PORT}:${DB_PORT}"
     volumes:
       - postgres-data:/var/lib/postgresql/data
-  # Redis 서비스
-  redis:
-    image: redis:latest
-    container_name: redis
-    restart: always
-    ports:
-      - "${REDIS_PORT}:${REDIS_PORT}"
-    volumes:
-      - redis-data:/data
 
 volumes:
   postgres-data:
-  redis-data:
