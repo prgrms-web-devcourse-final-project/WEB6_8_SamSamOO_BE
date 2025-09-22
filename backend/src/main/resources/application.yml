@@ -4,7 +4,7 @@ spring:
   application:
     name: back
   profiles:
-    active: prod
+    active: dev
   output:
     ansi:
       enabled: always
