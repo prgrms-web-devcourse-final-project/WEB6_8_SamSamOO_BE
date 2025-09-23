@@ -18,7 +18,7 @@ public class Post {
     @Column(name = "post_id")
     private Long postId;
 
-    @Column(name = "member_id")
+    @Column(name = "member_id")  // 회원 ID 추후 추가
     private Long memberId;
 
     @Column(name = "post_name", length = 100, nullable = false)
