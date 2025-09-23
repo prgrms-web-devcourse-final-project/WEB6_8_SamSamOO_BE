@@ -26,7 +26,7 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     env:
-      SPRING_PROFILES_ACTIVE: test
+      SPRING_PROFILES_ACTIVE: test-ci
 
     # ✅ Redis 서비스 추가
     services:

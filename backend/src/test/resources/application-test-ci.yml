@@ -1,6 +1,6 @@
 spring:
   application:
-    name: back-test
+    name: test-ci
   output:
     ansi:
       enabled: always
@@ -21,6 +21,7 @@ spring:
         format_sql: true
         highlight_sql: true
 
+  # CI/CD 환경: 실제 Redis 서비스 사용
   data:
     redis:
       host: ${TEST_REDIS_HOST}
