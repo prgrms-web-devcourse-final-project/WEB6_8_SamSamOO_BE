@@ -39,6 +39,8 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+        env:
+          REDIS_PASSWORD: ""
 
     steps:
       - uses: actions/checkout@v4
@@ -79,6 +81,9 @@ jobs:
           TEST_REDIS_HOST=localhost
           TEST_REDIS_PORT=6379
           TEST_REDIS_PASSWORD=
+          
+          # CI/CD 환경에서는 Embedded Redis 끄기
+          SPRING_DATA_REDIS_EMBEDDED=false
 
           # JWT 설정 (application-test.yml에서 참조)
           CUSTOM_JWT_SECRET_KEY=test-secret-key-for-testing-purposes-only-minimum-256-bits
