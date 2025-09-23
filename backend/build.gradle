@@ -31,6 +31,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
     // API Documentation (문서화)
     implementation 'org.apache.commons:commons-lang3:3.18.0'
@@ -39,6 +40,10 @@ dependencies {
     // Database (데이터베이스)
     runtimeOnly 'com.h2database:h2'
     runtimeOnly 'com.mysql:mysql-connector-j'
+    implementation 'com.google.guava:guava:32.1.2-jre'
+    implementation 'commons-io:commons-io:2.15.1'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.session:spring-session-data-redis'
 
     // Development Tools (개발 도구)
     compileOnly 'org.projectlombok:lombok'
@@ -51,6 +56,12 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    implementation("it.ozimov:embedded-redis:0.7.3") {
+        exclude group: "org.slf4j", module: "slf4j-simple"
+        exclude group: "com.google.guava", module: "guava"
+        exclude group: "commons-io", module: "commons-io"
+        exclude group: "commons-logging", module: "commons-logging"
+    }
 }
 
 tasks.named('test') {
