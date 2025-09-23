@@ -79,6 +79,14 @@ public class PostServiceImpl implements PostService {
         postRepository.delete(post);
     }
 
+    @Override
+    public List<PostDto> getAllPosts() {
+        List<Post> posts = postRepository.findAll();
+        return posts.stream()
+                .map(this::convertToDto)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
     // 엔티티/DTO 변환 메서드들
     private Post convertToEntity(PostDto dto) {
         return Post.builder()
