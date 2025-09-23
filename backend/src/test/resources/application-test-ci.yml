@@ -21,12 +21,17 @@ spring:
         format_sql: true
         highlight_sql: true
 
-  # CI/CD 환경: 실제 Redis 서비스 사용
+  # CI/CD 환경: 실제 Redis 서비스 사용, Embedded Redis 비활성화
   data:
     redis:
       host: ${TEST_REDIS_HOST}
       port: ${TEST_REDIS_PORT}
       password: ${TEST_REDIS_PASSWORD}
+
+  # Embedded Redis 비활성화
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
 
   security:
     oauth2:
