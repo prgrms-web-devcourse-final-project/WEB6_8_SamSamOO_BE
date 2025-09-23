@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@OpenAPIDefinition(info = @Info(title = "API 서버", version = "beta", description = "API 서버 문서입니다."))
+@OpenAPIDefinition(info = @Info(title = "AI Lawyer API", version = "beta", description = "AI 변호사 서비스 API 문서입니다."))
 @SecurityScheme(
         name = "bearerAuth",
         type = SecuritySchemeType.HTTP,
@@ -17,19 +17,40 @@ import org.springframework.context.annotation.Configuration;
         scheme = "bearer"
 )
 public class SpringDocConfig {
+
     @Bean
-    public GroupedOpenApi groupApiV1() {
+    public GroupedOpenApi memberApi() {
         return GroupedOpenApi.builder()
-                .group("apiV1")
-                .pathsToMatch("/api/v1/**")
+                .group("Member API")
+                .pathsToMatch("/api/auth/**")
+                .packagesToScan("com.ai.lawyer.domain.member.controller")
                 .build();
     }
 
     @Bean
-    public GroupedOpenApi groupController() {
+    public GroupedOpenApi postApi() {
         return GroupedOpenApi.builder()
-                .group("home")
-                .pathsToExclude("/api/**")
+                .group("Post API")
+                .pathsToMatch("/api/posts/**")
+                .packagesToScan("com.ai.lawyer.domain.post.controller")
+                .build();
+    }
+
+    @Bean
+    public GroupedOpenApi pollApi() {
+        return GroupedOpenApi.builder()
+                .group("Poll API")
+                .pathsToMatch("/api/polls/**")
+                .packagesToScan("com.ai.lawyer.domain.poll.controller")
+                .build();
+    }
+
+    @Bean
+    public GroupedOpenApi allApi() {
+        return GroupedOpenApi.builder()
+                .group("All APIs")
+                .pathsToMatch("/api/**")
+                .packagesToScan("com.ai.lawyer.domain")
                 .build();
     }
 }

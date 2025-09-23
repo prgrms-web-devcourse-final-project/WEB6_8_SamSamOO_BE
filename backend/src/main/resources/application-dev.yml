@@ -1,6 +1,15 @@
 spring:
   datasource:
-    url: jdbc:h2:./db_dev;MODE=MySQL
-    username: sa
-    password:
-    driver-class-name: org.h2.Driver
+    url: ${DEV_DATASOURCE_URL}
+    username: ${DEV_DATASOURCE_USERNAME}
+    password: ${DEV_DATASOURCE_PASSWORD}
+    driver-class-name: ${DEV_DATASOURCE_DRIVER}
+  jpa:
+    hibernate:
+      ddl-auto: ${DEV_JPA_HIBERNATE_DDL_AUTO}
+  data:
+    redis:
+      host: ${DEV_REDIS_HOST}
+      port: ${DEV_REDIS_PORT}
+      password: ${DEV_REDIS_PASSWORD}
+      embedded: true

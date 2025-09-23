@@ -26,10 +26,21 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     env:
-      SPRING_PROFILES_ACTIVE: test
-      JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
-      REDIS_PORT: ${{ secrets.REDIS_PORT }}
-      REDIS_HOST: ${{ secrets.REDIS_HOST }}
+      SPRING_PROFILES_ACTIVE: test-ci
+
+    # ✅ Redis 서비스 추가
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        env:
+          REDIS_PASSWORD: ""
 
     steps:
       - uses: actions/checkout@v4
@@ -44,6 +55,40 @@ jobs:
       # ✅ gradlew 실행 권한 부여
       - name: Grant execute permission for gradlew
         run: chmod +x backend/gradlew
+
+      # ✅ Redis 연결 테스트
+      - name: Test Redis connection
+        run: |
+          echo "Testing Redis connection..."
+          timeout 10s bash -c 'until printf "" 2>>/dev/null >>/dev/tcp/localhost/6379; do sleep 1; done'
+          echo "Redis is ready!"
+
+      # ✅ application-test.yml에서 사용하는 모든 환경변수를 .env 파일에 생성
+      - name: Create test .env file
+        working-directory: backend
+        run: |
+          cat > .env << 'EOF'
+          # Datasource 설정 (application-test.yml에서 참조)
+          TEST_DATASOURCE_URL=jdbc:h2:mem:db_test;MODE=MySQL
+          TEST_DATASOURCE_USERNAME=sa
+          TEST_DATASOURCE_PASSWORD=
+          TEST_DATASOURCE_DRIVER=org.h2.Driver
+
+          # JPA 설정 (application-test.yml에서 참조)
+          TEST_JPA_HIBERNATE_DDL_AUTO=create-drop
+
+          # Redis 설정 (application-test.yml에서 참조, GitHub Actions 서비스 사용)
+          TEST_REDIS_HOST=localhost
+          TEST_REDIS_PORT=6379
+          TEST_REDIS_PASSWORD=
+          
+          # CI/CD 환경에서는 Embedded Redis 끄기
+          SPRING_DATA_REDIS_EMBEDDED=false
+
+          # JWT 설정 (application-test.yml에서 참조)
+          CUSTOM_JWT_SECRET_KEY=test-secret-key-for-testing-purposes-only-minimum-256-bits
+          CUSTOM_JWT_ACCESS_TOKEN_EXPIRATION_SECONDS=3600
+          EOF
 
       - name: Run unit, and domain tests
         run: ${{ matrix.gradle_cmd }} clean test
@@ -74,6 +119,16 @@ jobs:
       # ✅ gradlew 실행 권한 부여
       - name: Grant execute permission for gradlew
         run: chmod +x backend/gradlew
+
+      # ✅ 빌드용 .env 파일 생성 (Configuration Properties 바인딩용 최소 환경변수만)
+      - name: Create build .env file
+        working-directory: backend
+        run: |
+          cat > .env << 'EOF'
+          # JWT Configuration Properties 바인딩용 (빌드 시 필요)
+          CUSTOM_JWT_SECRET_KEY=build-dummy-key-for-configuration-properties-binding
+          CUSTOM_JWT_ACCESS_TOKEN_EXPIRATION_SECONDS=3600
+          EOF
 
       - name: Gradle bootJar
         working-directory: backend
@@ -123,7 +178,7 @@ jobs:
           file: backend/Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/back9-backend:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/back9-backend:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/backend:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/backend:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
