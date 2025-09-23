@@ -16,11 +16,6 @@ spring:
     hikari:
       auto-commit: false
 
-  data:
-    redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT}
-
   jpa:
     show-sql: true
     hibernate:
