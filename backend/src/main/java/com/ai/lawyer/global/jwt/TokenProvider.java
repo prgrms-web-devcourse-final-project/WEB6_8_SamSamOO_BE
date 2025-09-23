@@ -1,6 +1,8 @@
 package com.ai.lawyer.global.jwt;
 
 import com.ai.lawyer.domain.member.entity.Member;
+import com.ai.lawyer.global.config.JwtProperties;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -8,7 +10,10 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
+@RequiredArgsConstructor
 public class TokenProvider {
+
+    private final JwtProperties jwtProperties;
 
     // 임시로 토큰과 사용자 정보를 매핑하는 메모리 저장소 (추후 레디스로 대체)
     private final Map<String, String> tokenToLoginIdMap = new ConcurrentHashMap<>();
