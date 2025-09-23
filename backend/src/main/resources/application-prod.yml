@@ -13,7 +13,7 @@ spring:
   jpa:
     open-in-view: false              # 프로덕션 권장
     hibernate:
-      ddl-auto: update          # 운영 DB는 보통 validate (또는 none) validate
+      ddl-auto: validate       # 운영 DB는 보통 validate (또는 none)
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect  # 부트가 자동 감지하지만 명시해도 OK
