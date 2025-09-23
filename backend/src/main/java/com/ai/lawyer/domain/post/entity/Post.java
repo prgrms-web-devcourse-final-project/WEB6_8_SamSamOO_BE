@@ -1,5 +1,6 @@
 package com.ai.lawyer.domain.post.entity;
 
+import com.ai.lawyer.domain.poll.entity.Poll;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -32,4 +33,8 @@ public class Post {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true) // 포스트 삭제 시 연관된 투표도 삭제
+    @JoinColumn(name = "poll_id")
+    private Poll poll;
 }
