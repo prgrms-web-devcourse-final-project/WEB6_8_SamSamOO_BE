@@ -226,6 +226,9 @@ jobs:
             PROD_REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
             EOF
             
+            # EC2에서 GHCR 로그인
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u doohyojeong --password-stdin
+  
             # 최신 이미지 pull & 컨테이너 실행
             docker pull ghcr.io/doohyojeong/${{ env.DOCKER_IMAGE_NAME }}:latest
             docker stop app1 2>/dev/null
