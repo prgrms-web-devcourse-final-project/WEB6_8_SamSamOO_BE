@@ -10,5 +10,5 @@ import lombok.*;
 public class PostDetailDto {
 
     private PostDto post;
-    private PollDto poll;  // 추후추가
+    private PollDto poll;
 }

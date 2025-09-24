@@ -3,6 +3,8 @@ package com.ai.lawyer.domain.post.controller;
 import com.ai.lawyer.domain.post.dto.PostDto;
 import com.ai.lawyer.domain.post.entity.Post;
 import com.ai.lawyer.domain.post.service.PostService;
+import com.ai.lawyer.domain.member.entity.Member;
+import com.ai.lawyer.domain.member.repositories.MemberRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,13 +36,28 @@ public class PostControllerTest {
     private MockMvc mvc;
     @Autowired
     private PostService postService;
+    @Autowired
+    private MemberRepository memberRepository;
 
     private Long postId;
+    private Long memberId;
 
     @BeforeEach
     void setUp() {
+        // 테스트용 회원 저장
+        Member member = Member.builder()
+            .loginId("test1@email.com")
+            .password("pw")
+            .age(20)
+            .gender(Member.Gender.MALE)
+            .role(Member.Role.USER)
+            .name("테스트회원")
+            .build();
+        member = memberRepository.save(member); // 실제 PK 할당
+        this.memberId = member.getMemberId();
+
         PostDto postDto = PostDto.builder()
-                .memberId(1L)
+                .memberId(member.getMemberId())
                 .postName("테스트 제목")
                 .postContent("테스트 내용")
                 .category("일반")
@@ -53,16 +70,18 @@ public class PostControllerTest {
     @Test
     @DisplayName("게시글 등록")
     void t1() throws Exception {
+        String body = String.format("""
+            {
+                \"memberId\": %d,
+                \"postName\": \"이혼하고 싶어요\",
+                \"postContent\": \"이혼하고 싶은데 어떻게 해야 하나요?\",
+                \"category\": \"이혼\"
+            }
+        """, memberId);
+
         ResultActions resultActions = mvc.perform(post("/api/posts")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                        "memberId": 2,
-                        "postName": "이혼하고 싶어요",
-                        "postContent": "이혼하고 싶은데 어떻게 해야 하나요?",
-                        "category": "이혼"
-                    }
-                """.stripIndent()))
+                .content(body))
                 .andDo(print());
 
         resultActions

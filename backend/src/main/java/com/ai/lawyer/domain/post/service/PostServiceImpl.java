@@ -1,5 +1,7 @@
 package com.ai.lawyer.domain.post.service;
 
+import com.ai.lawyer.domain.member.entity.Member;
+import com.ai.lawyer.domain.member.repositories.MemberRepository;
 import com.ai.lawyer.domain.post.dto.PostDto;
 import com.ai.lawyer.domain.post.dto.PostDetailDto;
 import com.ai.lawyer.domain.post.entity.Post;
@@ -16,15 +18,25 @@ import java.util.stream.Collectors;
 public class PostServiceImpl implements PostService {
 
     private final PostRepository postRepository;
+    private final MemberRepository memberRepository;
 
-    public PostServiceImpl(PostRepository postRepository) {
+    public PostServiceImpl(PostRepository postRepository, MemberRepository memberRepository) {
         this.postRepository = postRepository;
+        this.memberRepository = memberRepository;
     }
 
     @Override
     public PostDto createPost(PostDto postDto) {
-        Post post = convertToEntity(postDto);
-        post.setCreatedAt(LocalDateTime.now());
+        Member member = memberRepository.findById(postDto.getMemberId())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 정보를 찾을 수 없습니다."));
+        Post post = Post.builder()
+            .postId(postDto.getPostId())
+            .member(member)
+            .postName(postDto.getPostName())
+            .postContent(postDto.getPostContent())
+            .category(postDto.getCategory())
+            .createdAt(LocalDateTime.now())
+            .build();
         Post saved = postRepository.save(post);
         return convertToDto(saved);
     }
@@ -40,16 +52,17 @@ public class PostServiceImpl implements PostService {
     @Override
     public PostDetailDto getPostDetailById(Long postId) {
         PostDto postDto = getPostById(postId);
-        // PollDto pollDto = null; // poll 도메인 완성 후 추가
         return PostDetailDto.builder()
                 .post(postDto)
-                // .poll(pollDto)
+                .poll(null)
                 .build();
     }
 
     @Override
     public List<PostDto> getPostsByMemberId(Long memberId) {
-        List<Post> posts = postRepository.findByMemberId(memberId);
+        Member member = memberRepository.findById(memberId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 정보를 찾을 수 없습니다."));
+        List<Post> posts = postRepository.findByMember(member);
         if (posts.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "해당 회원의 게시글이 없습니다.");
         }
@@ -63,17 +76,6 @@ public class PostServiceImpl implements PostService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "수정할 게시글을 찾을 수 없습니다."));
-        // 투표가 있으면 투표 참여자 수 체크
-        if (post.getVoteCount() > 0) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN, "투표가 진행된 게시글은 수정할 수 없습니다.");
-        }
-        // 게시글에 연결된 투표가 있으면 투표 참여자 수 체크
-        // (PollService를 주입받아 getVoteCountByPostId(postId) > 0 체크)
-        // ...PollService pollService 선언 및 생성자 주입 필요...
-        // if (pollService.getVoteCountByPostId(postId) > 0) {
-        //     throw new ResponseStatusException(HttpStatus.FORBIDDEN, "투표가 진행된 게시글은 수정할 수 없습니다.");
-        // }
         post.setPostName(postDto.getPostName());
         post.setPostContent(postDto.getPostContent());
         post.setCategory(postDto.getCategory());
@@ -94,36 +96,21 @@ public class PostServiceImpl implements PostService {
         List<Post> posts = postRepository.findAll();
         return posts.stream()
                 .map(this::convertToDto)
-                .collect(java.util.stream.Collectors.toList());
-    }
-
-    // 엔티티/DTO 변환 메서드들
-    private Post convertToEntity(PostDto dto) {
-        return Post.builder()
-                .postId(dto.getPostId())
-                .memberId(dto.getMemberId())
-                .postName(dto.getPostName())
-                .postContent(dto.getPostContent())
-                .category(dto.getCategory())
-                .createdAt(dto.getCreatedAt())
-                .build();
+                .collect(Collectors.toList());
     }
 
     private PostDto convertToDto(Post entity) {
+        Long memberId = null;
+        if (entity.getMember() != null) {
+            memberId = entity.getMember().getMemberId();
+        }
         return PostDto.builder()
                 .postId(entity.getPostId())
-                .memberId(entity.getMemberId())
+                .memberId(memberId)
                 .postName(entity.getPostName())
                 .postContent(entity.getPostContent())
                 .category(entity.getCategory())
                 .createdAt(entity.getCreatedAt())
-                .build();
-    }
-
-    private PostDetailDto convertToDetailDto(Post entity) {
-        return PostDetailDto.builder()
-                .post(convertToDto(entity))
-                // .poll(null) // poll 도메인 완성 후 추가
                 .build();
     }
 }

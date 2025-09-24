@@ -3,6 +3,8 @@ package com.ai.lawyer.domain.poll.service;
 import com.ai.lawyer.domain.poll.entity.*;
 import com.ai.lawyer.domain.poll.repository.*;
 import com.ai.lawyer.domain.poll.dto.PollDto;
+import com.ai.lawyer.domain.member.entity.Member;
+import com.ai.lawyer.domain.member.repositories.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -20,6 +22,7 @@ public class PollServiceImpl implements PollService {
     private final PollOptionsRepository pollOptionsRepository;
     private final PollVoteRepository pollVoteRepository;
     private final PollStaticsRepository pollStaticsRepository;
+    private final MemberRepository memberRepository;
 
     @Override
     public PollDto getPoll(Long pollId) {
@@ -41,11 +44,12 @@ public class PollServiceImpl implements PollService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "투표를 찾을 수 없습니다."));
         PollOptions pollOptions = pollOptionsRepository.findById(pollItemsId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "투표 항목을 찾을 수 없습니다."));
-
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 정보를 찾을 수 없습니다."));
         PollVote pollVote = PollVote.builder()
                 .poll(poll)
                 .pollOptions(pollOptions)
-                .memberId(memberId)
+                .member(member)
                 .build();
         return pollVoteRepository.save(pollVote);
     }
@@ -120,5 +124,17 @@ public class PollServiceImpl implements PollService {
                 .createdAt(poll.getCreatedAt())
                 .closedAt(poll.getClosedAt())
                 .build();
+    }
+
+    private String getAgeGroup(Integer age) {
+        if (age == null) return "기타";
+        if (age < 20) return "10대";
+        if (age < 30) return "20대";
+        if (age < 40) return "30대";
+        if (age < 50) return "40대";
+        if (age < 60) return "50대";
+        if (age < 70) return "60대";
+        if (age < 80) return "70대";
+        return "80대 이상";
     }
 }

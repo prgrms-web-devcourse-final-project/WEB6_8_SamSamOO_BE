@@ -1,5 +1,7 @@
 package com.ai.lawyer.domain.post.service;
 
+import com.ai.lawyer.domain.member.entity.Member;
+import com.ai.lawyer.domain.member.repositories.MemberRepository;
 import com.ai.lawyer.domain.post.dto.PostDto;
 import com.ai.lawyer.domain.post.entity.Post;
 import com.ai.lawyer.domain.post.repository.PostRepository;
@@ -9,7 +11,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -27,18 +28,25 @@ class PostServiceImplTest {
 
     @Mock
     private PostRepository postRepository;
+    @Mock
+    private MemberRepository memberRepository;
 
     @InjectMocks
     private PostServiceImpl postService;
 
+    private Member member;
     private Post post;
     private PostDto postDto;
 
     @BeforeEach
     void setUp() {
+        member = Member.builder()
+                .memberId(2L)
+                .name("테스트회원")
+                .build();
         post = Post.builder()
                 .postId(1L)
-                .memberId(2L)
+                .member(member)
                 .postName("테스트 제목")
                 .postContent("테스트 내용")
                 .category("일반")
@@ -57,6 +65,7 @@ class PostServiceImplTest {
     @Test
     @DisplayName("게시글 생성 성공")
     void t1() {
+        when(memberRepository.findById(2L)).thenReturn(Optional.of(member));
         when(postRepository.save(any(Post.class))).thenReturn(post);
         PostDto result = postService.createPost(postDto);
         assertThat(result.getPostName()).isEqualTo(postDto.getPostName());
@@ -69,6 +78,7 @@ class PostServiceImplTest {
         when(postRepository.findById(1L)).thenReturn(Optional.of(post));
         PostDto result = postService.getPostById(1L);
         assertThat(result.getPostId()).isEqualTo(1L);
+        assertThat(result.getMemberId()).isEqualTo(member.getMemberId());
     }
 
     @Test
@@ -83,17 +93,19 @@ class PostServiceImplTest {
     @Test
     @DisplayName("회원별 게시글 목록 조회 성공")
     void t4() {
-        when(postRepository.findByMemberId(2L)).thenReturn(Arrays.asList(post));
-        List<PostDto> results = postService.getPostsByMemberId(2L);
+        when(memberRepository.findById(2L)).thenReturn(Optional.of(member));
+        when(postRepository.findByMember(member)).thenReturn(Arrays.asList(post));
+        List<PostDto> results = postService.getPostsByMemberId(member.getMemberId());
         assertThat(results).hasSize(1);
-        assertThat(results.get(0).getMemberId()).isEqualTo(2L);
+        assertThat(results.get(0).getMemberId()).isEqualTo(member.getMemberId());
     }
 
     @Test
     @DisplayName("회원별 게시글 목록 조회 실패 - 게시글 없음")
     void t5() {
-        when(postRepository.findByMemberId(2L)).thenReturn(List.of());
-        assertThatThrownBy(() -> postService.getPostsByMemberId(2L))
+        when(memberRepository.findById(2L)).thenReturn(Optional.of(member));
+        when(postRepository.findByMember(member)).thenReturn(List.of());
+        assertThatThrownBy(() -> postService.getPostsByMemberId(member.getMemberId()))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("해당 회원의 게시글이 없습니다.");
     }
@@ -101,6 +113,7 @@ class PostServiceImplTest {
     @Test
     @DisplayName("게시글 수정 성공")
     void t6() {
+        // postRepository.findById(1L)에서 반환되는 post의 member가 setUp에서 생성한 member와 동일해야 함
         when(postRepository.findById(1L)).thenReturn(Optional.of(post));
         when(postRepository.save(any(Post.class))).thenReturn(post);
         PostDto updateDto = postDto.toBuilder().postName("수정 제목").build();
@@ -120,6 +133,7 @@ class PostServiceImplTest {
     @Test
     @DisplayName("게시글 삭제 성공")
     void t8() {
+        // postRepository.findById(1L)에서 반환되는 post의 member가 setUp에서 생성한 member와 동일해야 함
         when(postRepository.findById(1L)).thenReturn(Optional.of(post));
         doNothing().when(postRepository).delete(post);
         postService.deletePost(1L);
@@ -133,5 +147,16 @@ class PostServiceImplTest {
         assertThatThrownBy(() -> postService.deletePost(1L))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("삭제할 게시글을 찾을 수 없습니다.");
+    }
+
+    @Test
+    @DisplayName("전체 게시글 조회 성공")
+    void t10() {
+        // post의 member가 setUp에서 생성한 member와 동일해야 함
+        when(postRepository.findAll()).thenReturn(Arrays.asList(post));
+        List<PostDto> results = postService.getAllPosts();
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).getPostId()).isEqualTo(1L);
+        assertThat(results.get(0).getMemberId()).isEqualTo(member.getMemberId());
     }
 }

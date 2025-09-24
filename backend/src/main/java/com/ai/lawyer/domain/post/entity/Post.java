@@ -1,5 +1,6 @@
 package com.ai.lawyer.domain.post.entity;
 
+import com.ai.lawyer.domain.member.entity.Member;
 import com.ai.lawyer.domain.poll.entity.Poll;
 import jakarta.persistence.*;
 import lombok.*;
@@ -12,6 +13,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@EqualsAndHashCode(of = "postId")
 public class Post {
 
     @Id
@@ -19,8 +21,9 @@ public class Post {
     @Column(name = "post_id")
     private Long postId;
 
-    @Column(name = "member_id")  // 회원 ID 추후 추가
-    private Long memberId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "member_id", nullable = false)
+    private Member member;
 
     @Column(name = "post_name", length = 100, nullable = false)
     private String postName;
