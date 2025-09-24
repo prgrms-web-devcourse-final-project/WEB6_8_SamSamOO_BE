@@ -228,6 +228,15 @@ docker run -d \
   -v /dockerProjects/npm_1/volumes/etc/letsencrypt:/etc/letsencrypt \
   jc21/nginx-proxy-manager:latest
 
+# redis 설치
+docker run -d \
+  --name=redis_1 \
+  --restart unless-stopped \
+  --network common \
+  -p 6379:6379 \
+  -e TZ=Asia/Seoul \
+  redis --requirepass ${var.password_1}
+
 # mysql 설치
 docker run -d \
   --name mysql_1 \
