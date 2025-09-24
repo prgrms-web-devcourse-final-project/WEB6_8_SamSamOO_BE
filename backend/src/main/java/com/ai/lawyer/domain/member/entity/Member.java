@@ -36,10 +36,6 @@ public class Member {
     @NotBlank(message = "비밀번호는 필수입니다")
     private String password;
 
-    @Column(name = "nickname", nullable = false, length = 50)
-    @NotBlank(message = "닉네임은 필수입니다")
-    private String nickname;
-
     @Column(name = "age", nullable = false)
     @NotNull(message = "나이는 필수입니다")
     @Min(value = 14, message = "최소 14세 이상이어야 합니다")
