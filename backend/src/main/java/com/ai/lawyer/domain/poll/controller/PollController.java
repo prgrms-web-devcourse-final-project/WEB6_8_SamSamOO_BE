@@ -46,4 +46,14 @@ public class PollController {
     public void deletePoll(@PathVariable Long pollId) {
         pollService.deletePoll(pollId);
     }
+
+    @GetMapping("/top/ongoing")
+    public PollDto getTopOngoingPoll() {
+        return pollService.getTopPollByStatus(PollDto.PollStatus.ONGOING);
+    }
+
+    @GetMapping("/top/closed")
+    public PollDto getTopClosedPoll() {
+        return pollService.getTopPollByStatus(PollDto.PollStatus.CLOSED);
+    }
 }

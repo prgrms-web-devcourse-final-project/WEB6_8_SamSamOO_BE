@@ -14,4 +14,7 @@ public interface PollService {
     List<PollStatics> getPollStatics(Long pollId);
     void closePoll(Long pollId);
     void deletePoll(Long pollId);
+    PollDto getTopPollByStatus(PollDto.PollStatus status);
+    Long getVoteCountByPollId(Long pollId);
+    Long getVoteCountByPostId(Long postId);
 }
