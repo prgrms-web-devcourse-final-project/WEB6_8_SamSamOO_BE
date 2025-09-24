@@ -2,6 +2,9 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.5.5'
     id 'io.spring.dependency-management' version '1.1.7'
+
+    id("org.jetbrains.kotlin.jvm") version "1.9.25"
+    id("com.google.devtools.ksp") version "1.9.25-1.0.20"
 }
 
 group = 'com.ai.lawyer'
@@ -56,6 +59,10 @@ dependencies {
 
     // Annotation Processing (어노테이션 처리)
     annotationProcessor 'org.projectlombok:lombok'
+
+    // Querydsl
+    implementation("io.github.openfeign.querydsl:querydsl-jpa:7.0")
+    ksp("io.github.openfeign.querydsl:querydsl-ksp-codegen:7.0")
 
     // Testing (테스트)
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
