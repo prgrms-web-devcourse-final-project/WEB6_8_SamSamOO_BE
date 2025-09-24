@@ -246,8 +246,11 @@ jobs:
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ env.DOCKER_IMAGE_NAME }}:latest
             docker stop app1 2>/dev/null || true
             docker rm app1 2>/dev/null || true
-            docker run --env-file /home/ec2-user/prod.env -d --name app1 -p 8080:8080 \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ env.DOCKER_IMAGE_NAME }}:latest
+            docker run --env-file /home/ec2-user/prod.env \ 
+              -d --name app1 \
+              --network common \
+              -p 8080:8080 \
+              ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ env.DOCKER_IMAGE_NAME }}:latest
             
             # dangling image 정리 + .env 삭제
             docker rmi $(docker images -f "dangling=true" -q)
