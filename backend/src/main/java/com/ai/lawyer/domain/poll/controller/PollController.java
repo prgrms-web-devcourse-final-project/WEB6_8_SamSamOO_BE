@@ -5,6 +5,8 @@ import com.ai.lawyer.domain.poll.entity.PollVote;
 import com.ai.lawyer.domain.poll.entity.PollOptions;
 import com.ai.lawyer.domain.poll.entity.PollStatics;
 import com.ai.lawyer.domain.poll.service.PollService;
+import com.ai.lawyer.domain.post.dto.PostDetailDto;
+import com.ai.lawyer.domain.post.service.PostService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,6 +18,7 @@ import java.util.List;
 public class PollController {
 
     private final PollService pollService;
+    private final PostService postService;
 
     @GetMapping("/{pollId}")
     public PollDto getPoll(@PathVariable Long pollId) {
@@ -55,5 +58,17 @@ public class PollController {
     @GetMapping("/top/closed")
     public PollDto getTopClosedPoll() {
         return pollService.getTopPollByStatus(PollDto.PollStatus.CLOSED);
+    }
+
+    @GetMapping("/top/ongoing-detail")
+    public PostDetailDto getTopOngoingPollDetail() {
+        PollDto pollDto = pollService.getTopPollByStatus(PollDto.PollStatus.ONGOING);
+        return postService.getPostDetailById(pollDto.getPostId());
+    }
+
+    @GetMapping("/top/closed-detail")
+    public PostDetailDto getTopClosedPollDetail() {
+        PollDto pollDto = pollService.getTopPollByStatus(PollDto.PollStatus.CLOSED);
+        return postService.getPostDetailById(pollDto.getPostId());
     }
 }
