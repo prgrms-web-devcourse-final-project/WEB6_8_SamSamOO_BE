@@ -229,7 +229,7 @@ jobs:
             CUSTOM_JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
             CUSTOM_JWT_ACCESS_TOKEN_EXPIRATION_SECONDS=3600
             
-            PROD_DATASOURCE_URL=jdbc:mysql://mysql_1:3306/mydb?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Seoul
+            PROD_DATASOURCE_URL=jdbc:mysql://mysql_1:3306/DB_NAME?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
             PROD_DATASOURCE_DRIVER=com.mysql.cj.jdbc.Driver
             PROD_DATASOURCE_USERNAME=${{ secrets.DB_USER }}
             PROD_DATASOURCE_PASSWORD=${{ secrets.DB_PASSWORD }}
@@ -246,12 +246,12 @@ jobs:
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ env.DOCKER_IMAGE_NAME }}:latest
             docker stop app1 2>/dev/null || true
             docker rm app1 2>/dev/null || true
-            docker run --env-file /home/ec2-user/prod.env \ 
+            docker run --env-file /home/ec2-user/prod.env \
               -d --name app1 \
               --network common \
               -p 8080:8080 \
               ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ env.DOCKER_IMAGE_NAME }}:latest
             
             # dangling image 정리 + .env 삭제
-            docker rmi $(docker images -f "dangling=true" -q)
+            docker rmi $(docker images -f "dangling=true" -q) || true
             rm -f /home/ec2-user/prod.env
