@@ -68,7 +68,6 @@ class MemberControllerTest {
         signupRequest = MemberSignupRequest.builder()
                 .loginId("test@example.com")
                 .password("password123")
-                .nickname("tester")
                 .age(25)
                 .gender(Member.Gender.MALE)
                 .name("테스트")
@@ -82,7 +81,6 @@ class MemberControllerTest {
         memberResponse = MemberResponse.builder()
                 .memberId(1L)
                 .loginId("test@example.com")
-                .nickname("tester")
                 .age(25)
                 .gender(Member.Gender.MALE)
                 .name("테스트")
@@ -111,7 +109,6 @@ class MemberControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.memberId").value(1L))
                 .andExpect(jsonPath("$.loginId").value("test@example.com"))
-                .andExpect(jsonPath("$.nickname").value("tester"))
                 .andExpect(jsonPath("$.age").value(25))
                 .andExpect(jsonPath("$.gender").value("MALE"))
                 .andExpect(jsonPath("$.name").value("테스트"))
@@ -145,7 +142,6 @@ class MemberControllerTest {
         MemberSignupRequest invalidRequest = MemberSignupRequest.builder()
                 .loginId("invalid-email") // 잘못된 이메일 형식
                 .password("123") // 너무 짧은 비밀번호
-                .nickname("")  // 빈 닉네임
                 .age(10) // 최소 나이 미만
                 .gender(Member.Gender.MALE)
                 .name("")  // 빈 이름
@@ -177,8 +173,7 @@ class MemberControllerTest {
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.memberId").value(1L))
-                .andExpect(jsonPath("$.loginId").value("test@example.com"))
-                .andExpect(jsonPath("$.nickname").value("tester"));
+                .andExpect(jsonPath("$.loginId").value("test@example.com"));
 
         verify(memberService).login(any(MemberLoginRequest.class), any());
     }
@@ -220,22 +215,35 @@ class MemberControllerTest {
     }
 
     @Test
-    @DisplayName("로그아웃 성공")
-    void logout_Success() throws Exception {
+    @DisplayName("로그아웃 성공 - Authentication에서 loginId 추출하여 Redis 삭제")
+    void logout_Success() {
         // given
-        doNothing().when(memberService).logout(any());
+        doNothing().when(memberService).logout(eq("test@example.com"), eq(response));
 
-        // when and then
-        mockMvc.perform(post("/api/auth/logout")
-                        .with(csrf()))
-                .andDo(print())
-                .andExpect(status().isOk());
+        // when
+        ResponseEntity<Void> result = memberController.logout(authentication, response);
 
-        verify(memberService).logout(any());
+        // then
+        assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
+        verify(memberService).logout(eq("test@example.com"), eq(response));
     }
 
     @Test
-    @DisplayName("토큰 재발급 성공")
+    @DisplayName("로그아웃 성공 - 인증되지 않은 상태에서도 쿠키 클리어")
+    void logout_Success_Unauthenticated() {
+        // given
+        doNothing().when(memberService).logout(eq(""), eq(response));
+
+        // when
+        ResponseEntity<Void> result = memberController.logout(null, response);
+
+        // then
+        assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
+        verify(memberService).logout(eq(""), eq(response));
+    }
+
+    @Test
+    @DisplayName("토큰 재발급 성공 - 쿠키에서 Refresh Token 추출하여 Redis 검증")
     void refreshToken_Success() {
         // given
         Cookie[] cookies = {new Cookie("refreshToken", "validRefreshToken")};
@@ -249,6 +257,8 @@ class MemberControllerTest {
         // then
         assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(result.getBody()).isEqualTo(memberResponse);
+
+        // 쿠키에서 refreshToken이 정상적으로 추출되어 서비스에 전달되는지 검증
         verify(memberService).refreshToken(eq("validRefreshToken"), eq(response));
     }
 
@@ -293,7 +303,7 @@ class MemberControllerTest {
                 .build();
         given(memberService.findByLoginId("test@example.com")).willReturn(mockMember);
         doNothing().when(memberService).withdraw(1L);
-        doNothing().when(memberService).logout(eq(response));
+        doNothing().when(memberService).logout(eq("test@example.com"), eq(response));
 
         // when
         ResponseEntity<Void> result = memberController.withdraw(authentication, response);
@@ -302,7 +312,7 @@ class MemberControllerTest {
         assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
         verify(memberService).findByLoginId("test@example.com");
         verify(memberService).withdraw(1L);
-        verify(memberService).logout(eq(response));
+        verify(memberService).logout(eq("test@example.com"), eq(response));
     }
 
     @Test
@@ -314,7 +324,7 @@ class MemberControllerTest {
         // then
         assertThat(result.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         verify(memberService, never()).withdraw(anyLong());
-        verify(memberService, never()).logout(any());
+        verify(memberService, never()).logout(anyString(), any());
     }
 
     @Test
@@ -331,7 +341,7 @@ class MemberControllerTest {
         assertThat(result.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         verify(memberService).findByLoginId("test@example.com");
         verify(memberService, never()).withdraw(anyLong());
-        verify(memberService, never()).logout(any());
+        verify(memberService, never()).logout(anyString(), any());
     }
 
     @Test

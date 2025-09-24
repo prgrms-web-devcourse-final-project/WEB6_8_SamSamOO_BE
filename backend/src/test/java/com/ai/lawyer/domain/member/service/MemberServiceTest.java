@@ -61,7 +61,6 @@ class MemberServiceTest {
         signupRequest = MemberSignupRequest.builder()
                 .loginId("test@example.com")
                 .password("password123")
-                .nickname("tester")
                 .age(25)
                 .gender(Member.Gender.MALE)
                 .name("테스트")
@@ -76,7 +75,6 @@ class MemberServiceTest {
                 .memberId(1L)
                 .loginId("test@example.com")
                 .password("encodedPassword")
-                .nickname("tester")
                 .age(25)
                 .gender(Member.Gender.MALE)
                 .name("테스트")
@@ -89,10 +87,9 @@ class MemberServiceTest {
     void signup_Success() {
         // given
         log.info("=== 회원가입 성공 테스트 시작 ===");
-        log.info("테스트 데이터: 이메일={}, 닉네임={}", signupRequest.getLoginId(), signupRequest.getNickname());
+        log.info("테스트 데이터: 이메일={}", signupRequest.getLoginId());
 
         given(memberRepository.existsByLoginId(signupRequest.getLoginId())).willReturn(false);
-        given(memberRepository.existsByNickname(signupRequest.getNickname())).willReturn(false);
         given(passwordEncoder.encode(signupRequest.getPassword())).willReturn("encodedPassword");
         given(memberRepository.save(any(Member.class))).willReturn(member);
         log.info("Mock 설정 완료: 이메일 중복 없음, 닉네임 중복 없음, 비밀번호 인코딩 성공");
@@ -106,7 +103,6 @@ class MemberServiceTest {
         log.info("검증 시작: 반환된 회원 정보 확인");
         assertThat(result).as("회원가입 결과가 null이 아님").isNotNull();
         assertThat(result.getLoginId()).as("로그인 ID 일치").isEqualTo("test@example.com");
-        assertThat(result.getNickname()).as("닉네임 일치").isEqualTo("tester");
         assertThat(result.getAge()).as("나이 일치").isEqualTo(25);
         assertThat(result.getGender()).as("성별 일치").isEqualTo(Member.Gender.MALE);
         assertThat(result.getName()).as("이름 일치").isEqualTo("테스트");
@@ -115,9 +111,6 @@ class MemberServiceTest {
 
         log.info(MOCK_VERIFICATION_START_LOG);
         verify(memberRepository).existsByLoginId(signupRequest.getLoginId());
-        log.info("이메일 중복 체크 호출 확인");
-        verify(memberRepository).existsByNickname(signupRequest.getNickname());
-        log.info("닉네임 중복 체크 호출 확인");
         verify(passwordEncoder).encode(signupRequest.getPassword());
         log.info("비밀번호 인코딩 호출 확인");
         verify(memberRepository).save(any(Member.class));
@@ -148,32 +141,11 @@ class MemberServiceTest {
 
         log.info("호출 검증: 이메일 중복으로 인한 early return 확인");
         verify(memberRepository).existsByLoginId(signupRequest.getLoginId());
-        log.info("이메일 중복 체크 호출됨");
-        verify(memberRepository, never()).existsByNickname(anyString());
-        log.info("닉네임 체크는 호출되지 않음 (이메일 중복으로 early return)");
         verify(passwordEncoder, never()).encode(anyString());
         log.info("비밀번호 인코딩 호출되지 않음");
         verify(memberRepository, never()).save(any(Member.class));
         log.info("회원 저장 호출되지 않음");
         log.info("=== 회원가입 실패(이메일 중복) 테스트 완료 ===");
-    }
-
-    @Test
-    @DisplayName("회원가입 실패 - 닉네임 중복")
-    void signup_Fail_DuplicateNickname() {
-        // given
-        given(memberRepository.existsByLoginId(signupRequest.getLoginId())).willReturn(false);
-        given(memberRepository.existsByNickname(signupRequest.getNickname())).willReturn(true);
-
-        // when and then
-        assertThatThrownBy(() -> memberService.signup(signupRequest))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("이미 존재하는 닉네임입니다.");
-
-        verify(memberRepository).existsByLoginId(signupRequest.getLoginId());
-        verify(memberRepository).existsByNickname(signupRequest.getNickname());
-        verify(passwordEncoder, never()).encode(anyString());
-        verify(memberRepository, never()).save(any(Member.class));
     }
 
     @Test
@@ -259,12 +231,12 @@ class MemberServiceTest {
         String refreshToken = "validRefreshToken";
         log.info("리프레시 토큰: {}", refreshToken);
 
-        given(tokenProvider.validateToken(refreshToken)).willReturn(true);
-        given(tokenProvider.getUsernameFromToken(refreshToken)).willReturn("test@example.com");
+        given(tokenProvider.findUsernameByRefreshToken(refreshToken)).willReturn("test@example.com");
+        given(tokenProvider.validateRefreshToken("test@example.com", refreshToken)).willReturn(true);
         given(memberRepository.findByLoginId("test@example.com")).willReturn(Optional.of(member));
         given(tokenProvider.generateAccessToken(member)).willReturn("newAccessToken");
         given(tokenProvider.generateRefreshToken(member)).willReturn("newRefreshToken");
-        log.info("Mock 설정 완료: 토큰 유효, 회원 존재, 새 토큰 생성 준비");
+        log.info("Mock 설정 완료: Redis 토큰 유효, 회원 존재, 새 토큰 생성 준비");
 
         // when
         log.info("토큰 재발급 서비스 호출 중...");
@@ -277,19 +249,21 @@ class MemberServiceTest {
         assertThat(result.getLoginId()).as("재발급된 토큰의 회원 이메일 일치").isEqualTo("test@example.com");
         log.info("토큰 재발급 결과 검증 완료");
 
-        log.info("{}: RTR(Refresh Token Rotation) 패턴 확인", MOCK_VERIFICATION_START_LOG);
-        verify(tokenProvider).validateToken(refreshToken);
-        log.info("1단계: 리프레시 토큰 유효성 검증");
-        verify(tokenProvider).getUsernameFromToken(refreshToken);
-        log.info("2단계: 토큰에서 사용자명 추출");
+        log.info("{}: RTR(Refresh Token Rotation) 패턴 및 Redis 검증", MOCK_VERIFICATION_START_LOG);
+        verify(tokenProvider).findUsernameByRefreshToken(refreshToken);
+        log.info("1단계: Redis에서 refreshToken 으로 사용자명 찾기");
+        verify(tokenProvider).validateRefreshToken("test@example.com", refreshToken);
+        log.info("2단계: Redis에서 리프레시 토큰 유효성 검증");
         verify(memberRepository).findByLoginId("test@example.com");
         log.info("3단계: 회원 정보 조회");
+        verify(tokenProvider).deleteRefreshToken("test@example.com");
+        log.info("4단계: 기존 리프레시 토큰 Redis에서 삭제 (RTR 패턴)");
         verify(tokenProvider).generateAccessToken(member);
-        log.info("4단계: 새 액세스 토큰 생성");
+        log.info("5단계: 새 액세스 토큰 생성");
         verify(tokenProvider).generateRefreshToken(member);
-        log.info("5단계: 새 리프레시 토큰 생성 (RTR 패턴)");
+        log.info("6단계: 새 리프레시 토큰 생성 후 Redis에 저장 (RTR 패턴)");
         verify(cookieUtil).setTokenCookies(response, "newAccessToken", "newRefreshToken");
-        log.info("6단계: 새 토큰들을 쿠키로 설정");
+        log.info("7단계: 새 토큰들을 쿠키로 설정");
         log.info("=== 토큰 재발급 성공 테스트 완료 ===");
     }
 
@@ -298,15 +272,15 @@ class MemberServiceTest {
     void refreshToken_Fail_InvalidToken() {
         // given
         String refreshToken = "invalidRefreshToken";
-        given(tokenProvider.validateToken(refreshToken)).willReturn(false);
+        given(tokenProvider.findUsernameByRefreshToken(refreshToken)).willReturn(null);
 
         // when and then
         assertThatThrownBy(() -> memberService.refreshToken(refreshToken, response))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("유효하지 않은 리프레시 토큰입니다.");
 
-        verify(tokenProvider).validateToken(refreshToken);
-        verify(tokenProvider, never()).getUsernameFromToken(anyString());
+        verify(tokenProvider).findUsernameByRefreshToken(refreshToken);
+        verify(tokenProvider, never()).validateRefreshToken(anyString(), anyString());
         verify(memberRepository, never()).findByLoginId(anyString());
         verify(cookieUtil, never()).setTokenCookies(any(), anyString(), anyString());
     }
@@ -376,12 +350,24 @@ class MemberServiceTest {
     }
 
     @Test
-    @DisplayName("로그아웃 성공")
+    @DisplayName("로그아웃 성공 - Redis 토큰 삭제 및 쿠키 클리어")
     void logout_Success() {
+        // given
+        log.info("=== 로그아웃 성공 테스트 시작 ===");
+        String loginId = "test@example.com";
+        log.info("로그아웃 대상 사용자: {}", loginId);
+
         // when
-        memberService.logout(response);
+        log.info("로그아웃 서비스 호출 중...");
+        memberService.logout(loginId, response);
+        log.info("로그아웃 완료");
 
         // then
+        log.info("검증 시작: Redis 토큰 삭제 및 쿠키 클리어 확인");
+        verify(tokenProvider).deleteRefreshToken(loginId);
+        log.info("Redis에서 리프레시 토큰 삭제 호출 확인");
         verify(cookieUtil).clearTokenCookies(response);
+        log.info("쿠키에서 토큰 클리어 호출 확인");
+        log.info("=== 로그아웃 성공 테스트 완료 ===");
     }
 }
