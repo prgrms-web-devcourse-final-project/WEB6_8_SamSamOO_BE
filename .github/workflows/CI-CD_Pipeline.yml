@@ -229,7 +229,7 @@ jobs:
             CUSTOM_JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
             CUSTOM_JWT_ACCESS_TOKEN_EXPIRATION_SECONDS=3600
             
-            PROD_DATASOURCE_URL=jdbc:mysql://mysql_1:3306/${{ secrets.DB_NAME }}
+            PROD_DATASOURCE_URL=jdbc:mysql://mysql_1:3306/mydb?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Seoul
             PROD_DATASOURCE_DRIVER=com.mysql.cj.jdbc.Driver
             PROD_DATASOURCE_USERNAME=${{ secrets.DB_USER }}
             PROD_DATASOURCE_PASSWORD=${{ secrets.DB_PASSWORD }}
