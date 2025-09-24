@@ -126,7 +126,7 @@ jobs:
         run: |
           cat > .env << 'EOF'
           # JWT Configuration Properties 바인딩용 (빌드 시 필요)
-          CUSTOM_JWT_SECRET_KEY=build-dummy-key-for-configuration-properties-binding
+          CUSTOM_JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
           CUSTOM_JWT_ACCESS_TOKEN_EXPIRATION_SECONDS=3600
           EOF
 
@@ -178,7 +178,29 @@ jobs:
           file: backend/Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/backend:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/backend:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/balaw:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/balaw:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+  deploy:
+    needs: docker-build
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_IMAGE_NAME: balaw
+    steps:
+      - name: AWS SSM Send-Command
+        uses: peterkimzz/aws-ssm-send-command@master
+        id: ssm
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          instance-ids: "i-0b903187bca01a1c4"
+          working-directory: /
+          comment: Deploy
+          command: |
+            docker pull ghcr.io/doohyojeong/${{ env.DOCKER_IMAGE_NAME }}:latest
+            docker stop app1 2>/dev/null
+            docker rm app1 2>/dev/null
+            docker run -d --name app1 -p 8080:8080 ghcr.io/doohyojeong/${{ env.DOCKER_IMAGE_NAME }}:latest
+            docker rmi $(docker images -f "dangling=true" -q)
