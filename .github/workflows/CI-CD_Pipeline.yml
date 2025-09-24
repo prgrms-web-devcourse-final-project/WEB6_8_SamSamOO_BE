@@ -231,7 +231,7 @@ jobs:
             
             PROD_DATASOURCE_URL=jdbc:mysql://mysql_1:3306/DB_NAME?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
             PROD_DATASOURCE_DRIVER=com.mysql.cj.jdbc.Driver
-            PROD_DATASOURCE_USERNAME=${{ secrets.DB_USER }}
+            PROD_DATASOURCE_USERNAME=root
             PROD_DATASOURCE_PASSWORD=${{ secrets.DB_PASSWORD }}
       
             PROD_REDIS_HOST=redis_1
