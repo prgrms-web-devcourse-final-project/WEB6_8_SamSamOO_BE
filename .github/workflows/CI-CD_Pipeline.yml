@@ -185,9 +185,23 @@ jobs:
   deploy:
     needs: docker-build
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'   # ✅ main 브랜치일 때만 실행
     env:
       DOCKER_IMAGE_NAME: balaw
     steps:
+      - name: Create prod .env file
+        run: |
+          cat > .env << 'EOF'
+          SPRING_PROFILES_ACTIVE=prod
+          PROD_DATASOURCE_URL=jdbc:mysql://mysql_1:3306/${{ secrets.DB_NAME }}
+          PROD_DATASOURCE_USERNAME=${{ secrets.DB_USER }}
+          PROD_DATASOURCE_PASSWORD=${{ secrets.DB_PASSWORD }}
+      
+          PROD_REDIS_HOST=redis_1
+          PROD_REDIS_PORT=6379
+          PROD_REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+          EOF
+
       - name: AWS SSM Send-Command
         uses: peterkimzz/aws-ssm-send-command@master
         id: ssm
@@ -195,12 +209,30 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          instance-ids: "i-006c2e31391fac356"
+          instance-ids: "i-094fd5f8988b7330b"
           working-directory: /
           comment: Deploy
           command: |
+            # EC2 내부에서 prod.env 파일 생성
+            cat > /home/ec2-user/prod.env << 'EOF'
+            SPRING_PROFILES_ACTIVE=prod
+      
+            PROD_DATASOURCE_URL=jdbc:mysql://mysql_1:3306/${{ secrets.DB_NAME }}
+            PROD_DATASOURCE_USERNAME=${{ secrets.DB_USER }}
+            PROD_DATASOURCE_PASSWORD=${{ secrets.DB_PASSWORD }}
+      
+            PROD_REDIS_HOST=redis_1
+            PROD_REDIS_PORT=6379
+            PROD_REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+            EOF
+            
+            # 최신 이미지 pull & 컨테이너 실행
             docker pull ghcr.io/doohyojeong/${{ env.DOCKER_IMAGE_NAME }}:latest
             docker stop app1 2>/dev/null
             docker rm app1 2>/dev/null
-            docker run -d --name app1 -p 8080:8080 ghcr.io/doohyojeong/${{ env.DOCKER_IMAGE_NAME }}:latest
+            docker run --env-file /home/ec2-user/prod.env -d --name app1 -p 8080:8080 \
+            ghcr.io/doohyojeong/${{ env.DOCKER_IMAGE_NAME }}:latest
+            
+            # dangling image 정리 + .env 삭제
             docker rmi $(docker images -f "dangling=true" -q)
+            rm -f /home/ec2-user/prod.env
