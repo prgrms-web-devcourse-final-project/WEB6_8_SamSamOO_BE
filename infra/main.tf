@@ -171,7 +171,7 @@ resource "aws_iam_role_policy_attachment" "s3_full_access" {
 # EC2 역할에 AmazonEC2RoleforSSM 정책을 부착
 resource "aws_iam_role_policy_attachment" "ec2_ssm" {
   role       = aws_iam_role.ec2_role_1.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM"
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
 # IAM 인스턴스 프로파일 생성
