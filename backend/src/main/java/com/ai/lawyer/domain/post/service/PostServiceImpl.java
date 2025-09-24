@@ -63,11 +63,17 @@ public class PostServiceImpl implements PostService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "수정할 게시글을 찾을 수 없습니다."));
+        // 투표가 있으면 투표 참여자 수 체크
         if (post.getVoteCount() > 0) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN, "투표가 진행된 게시글은 수정할 수 없습니다.");
         }
-
+        // 게시글에 연결된 투표가 있으면 투표 참여자 수 체크
+        // (PollService를 주입받아 getVoteCountByPostId(postId) > 0 체크)
+        // ...PollService pollService 선언 및 생성자 주입 필요...
+        // if (pollService.getVoteCountByPostId(postId) > 0) {
+        //     throw new ResponseStatusException(HttpStatus.FORBIDDEN, "투표가 진행된 게시글은 수정할 수 없습니다.");
+        // }
         post.setPostName(postDto.getPostName());
         post.setPostContent(postDto.getPostContent());
         post.setCategory(postDto.getCategory());

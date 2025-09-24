@@ -73,6 +73,44 @@ public class PollServiceImpl implements PollService {
         pollRepository.deleteById(pollId);
     }
 
+    @Override
+    public PollDto getTopPollByStatus(PollDto.PollStatus status) {
+        List<Object[]> result = pollVoteRepository.findTopPollByStatus(Poll.PollStatus.valueOf(status.name()));
+        if (result.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "해당 상태의 투표가 없습니다.");
+        }
+        Long pollId = (Long) result.get(0)[0];
+        return getPoll(pollId);
+    }
+
+    @Override
+    public Long getVoteCountByPollId(Long pollId) {
+        return pollVoteRepository.countByPollId(pollId);
+    }
+
+    @Override
+    public Long getVoteCountByPostId(Long postId) {
+        Poll poll = pollRepository.findAll().stream()
+                .filter(p -> p.getPost() != null && p.getPost().getPostId().equals(postId))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "해당 게시글의 투표가 없습니다."));
+        return getVoteCountByPollId(poll.getPollId());
+    }
+
+
+    public PollDto updatePoll(Long pollId, PollDto pollDto) {
+        Poll poll = pollRepository.findById(pollId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "수정할 투표를 찾을 수 없습니다."));
+        if (getVoteCountByPollId(pollId) > 0) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "투표가 진행된 투표는 수정할 수 없습니다.");
+        }
+        poll.setVoteTitle(pollDto.getVoteTitle());
+        poll.setStatus(Poll.PollStatus.valueOf(pollDto.getStatus().name()));
+        poll.setClosedAt(pollDto.getClosedAt());
+        Poll updated = pollRepository.save(poll);
+        return convertToDto(updated);
+    }
+
     private PollDto convertToDto(Poll poll) {
         return PollDto.builder()
                 .pollId(poll.getPollId())
