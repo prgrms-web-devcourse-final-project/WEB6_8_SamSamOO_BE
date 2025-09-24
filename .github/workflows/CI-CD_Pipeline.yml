@@ -225,7 +225,10 @@ jobs:
             # EC2 내부에서 prod.env 파일 생성
             cat > /home/ec2-user/prod.env << 'EOF'
             SPRING_PROFILES_ACTIVE=prod
-      
+
+            CUSTOM_JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+            CUSTOM_JWT_ACCESS_TOKEN_EXPIRATION_SECONDS=3600
+        
             PROD_DATASOURCE_URL=jdbc:mysql://mysql_1:3306/${{ secrets.DB_NAME }}
             PROD_DATASOURCE_USERNAME=${{ secrets.DB_USER }}
             PROD_DATASOURCE_PASSWORD=${{ secrets.DB_PASSWORD }}
