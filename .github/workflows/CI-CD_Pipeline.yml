@@ -152,10 +152,12 @@ jobs:
     if: github.ref == 'refs/heads/main'   # ✅ main 브랜치일 때만 실행
     env:
       REGISTRY: ghcr.io
-      IMAGE_PREFIX: ${{ github.repository }}
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set lowercase repo name
+        run: echo "IMAGE_PREFIX=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
 
       - name: Download backend jar
         uses: actions/download-artifact@v4
