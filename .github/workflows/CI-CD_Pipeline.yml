@@ -152,7 +152,7 @@ jobs:
     if: github.ref == 'refs/heads/main'   # ✅ main 브랜치일 때만 실행
     env:
       REGISTRY: ghcr.io
-      IMAGE_PREFIX: ${{ github.repository_owner }}
+      IMAGE_PREFIX: ${{ github.repository }}
 
     steps:
       - uses: actions/checkout@v4
@@ -227,14 +227,14 @@ jobs:
             EOF
             
             # EC2에서 GHCR 로그인
-            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u doohyojeong --password-stdin
+            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
   
             # 최신 이미지 pull & 컨테이너 실행
-            docker pull ghcr.io/doohyojeong/${{ env.DOCKER_IMAGE_NAME }}:latest
+            docker pull ghcr.io/prgrms-web-devcourse-final-project/${{ env.DOCKER_IMAGE_NAME }}:latest
             docker stop app1 2>/dev/null
             docker rm app1 2>/dev/null
             docker run --env-file /home/ec2-user/prod.env -d --name app1 -p 8080:8080 \
-            ghcr.io/doohyojeong/${{ env.DOCKER_IMAGE_NAME }}:latest
+            ghcr.io/prgrms-web-devcourse-final-project/${{ env.DOCKER_IMAGE_NAME }}:latest
             
             # dangling image 정리 + .env 삭제
             docker rmi $(docker images -f "dangling=true" -q)
