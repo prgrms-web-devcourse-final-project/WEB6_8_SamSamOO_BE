@@ -86,7 +86,7 @@ jobs:
           SPRING_DATA_REDIS_EMBEDDED=false
 
           # JWT 설정 (application-test.yml에서 참조)
-          CUSTOM_JWT_SECRET_KEY=test-secret-key-for-testing-purposes-only-minimum-256-bits
+          CUSTOM_JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
           CUSTOM_JWT_ACCESS_TOKEN_EXPIRATION_SECONDS=3600
           EOF
 
