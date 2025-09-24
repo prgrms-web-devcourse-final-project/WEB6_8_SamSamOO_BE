@@ -1,28 +1,32 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:latest
-    container_name: postgres
-    restart: always
+  mysql:
+    image: mysql:8.4
+    container_name: mysql
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASS}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASS}
+      # 새 변수: 루트 계정 비번 (필수)
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASS}
+      TZ: Asia/Seoul
     ports:
-      - "${DB_PORT}:${DB_PORT}"
+      # 호스트 포트는 원하는 값으로, 컨테이너는 3306 고정
+      - "${DB_PORT:-3306}:3306"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
-  # Redis 서비스
-  redis:
-    image: redis:latest
-    container_name: redis
-    restart: always
-    ports:
-      - "${REDIS_PORT}:${REDIS_PORT}"
-    volumes:
-      - redis-data:/data
+      - mysql-data:/var/lib/mysql
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_0900_ai_ci
+      --default-time-zone=Asia/Seoul
+      --skip-log-bin
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${DB_ROOT_PASS}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
 volumes:
-  postgres-data:
-  redis-data:
+  mysql-data:

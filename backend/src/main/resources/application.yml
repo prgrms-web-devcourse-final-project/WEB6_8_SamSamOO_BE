@@ -4,27 +4,15 @@ spring:
   application:
     name: back
   profiles:
-    active: dev
+    active: ${SPRING_PROFILES_ACTIVE}  # 기본 dev 환경
   output:
     ansi:
       enabled: always
-  datasource:
-    url: jdbc:h2:./db_dev;MODE=PostgreSQL
-    username: sa
-    password:
-    driver-class-name: org.h2.Driver
-    hikari:
-      auto-commit: false
-
-  data:
-    redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT}
 
   jpa:
     show-sql: true
     hibernate:
-      ddl-auto: update
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO}
     properties:
       hibernate:
         use_sql_comments: true
@@ -36,13 +24,13 @@ spring:
       client:
         registration:
           kakao:
-            client-id: ${SPRING__SECURITY__OAUTH2__CLIENT__REGISTRATION__KAKAO__CLIENT_ID}
-            client-secret: ${SPRING__SECURITY__OAUTH2__CLIENT__REGISTRATION__KAKAO__CLIENT_SECRET}
+            client-id: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KAKAO_CLIENT_ID}
+            client-secret: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KAKAO_CLIENT_SECRET}
             client-name: Kakao
             scope: profile_nickname, account_email
-          naver :
-            client-id: ${SPRING__SECURITY__OAUTH2__CLIENT__REGISTRATION__NAVER__CLIENT_ID}
-            client-secret: ${SPRING__SECURITY__OAUTH2__CLIENT__REGISTRATION__NAVER__CLIENT_SECRET}
+          naver:
+            client-id: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_NAVER_CLIENT_ID}
+            client-secret: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_NAVER_CLIENT_SECRET}
             client-name: Naver
             scope: profile, email
       provider:
@@ -62,12 +50,12 @@ springdoc:
 
 logging:
   level:
-    org.hibernate.orm.jdbc.bind: TRACE
-    org.hibernate.orm.jdbc.extract: TRACE
-    org.springframework.transaction.interceptor: TRACE
-
+    root: INFO
+    org.springframework: INFO
+    org.hibernate: INFO
+    com.ai.lawyer: DEBUG
 custom:
   jwt:
-    secretKey: ${CUSTOM__JWT__SECRET_KEY}
+    secretKey: ${CUSTOM_JWT_SECRET_KEY}
     accessToken:
-      expirationSeconds: 3600
+      expirationSeconds: ${CUSTOM_JWT_ACCESS_TOKEN_EXPIRATION_SECONDS}
