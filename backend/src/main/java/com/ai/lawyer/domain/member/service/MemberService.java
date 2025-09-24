@@ -24,12 +24,10 @@ public class MemberService {
     @Transactional
     public MemberResponse signup(MemberSignupRequest request) {
         validateDuplicateLoginId(request.getLoginId());
-        validateDuplicateNickname(request.getNickname());
 
         Member member = Member.builder()
                 .loginId(request.getLoginId())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .nickname(request.getNickname())
                 .age(request.getAge())
                 .gender(request.getGender())
                 .name(request.getName())
@@ -58,24 +56,32 @@ public class MemberService {
         return MemberResponse.from(member);
     }
 
-    public void logout(HttpServletResponse response) {
+    public void logout(String loginId, HttpServletResponse response) {
+        // Redis에서 리프레시 토큰 삭제
+        tokenProvider.deleteRefreshToken(loginId);
+
         // 쿠키 삭제
         cookieUtil.clearTokenCookies(response);
-
-        // TODO: 추후 레디스에서 토큰 무효화
     }
 
     public MemberResponse refreshToken(String refreshToken, HttpServletResponse response) {
-        // 리프레시 토큰 유효성 검증
-        if (!tokenProvider.validateToken(refreshToken)) {
+        // Redis에서 리프레시 토큰으로 사용자를 찾기 (Redis 키 패턴: refresh_token:loginId)
+        String username = tokenProvider.findUsernameByRefreshToken(refreshToken);
+        if (username == null) {
             throw new IllegalArgumentException("유효하지 않은 리프레시 토큰입니다.");
         }
 
-        // TODO: 추후 레디스에서 리프레시 토큰과 매핑된 회원 정보 조회
-        // 현재는 임시로 토큰에서 사용자명 추출 후 DB 조회
-        String username = tokenProvider.getUsernameFromToken(refreshToken);
+        // Redis에서 리프레시 토큰 유효성 검증
+        if (!tokenProvider.validateRefreshToken(username, refreshToken)) {
+            throw new IllegalArgumentException("유효하지 않은 리프레시 토큰입니다.");
+        }
+
+        // 회원 정보 조회
         Member member = memberRepository.findByLoginId(username)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+
+        // 기존 리프레시 토큰 Redis에서 삭제 (RTR 패턴)
+        tokenProvider.deleteRefreshToken(username);
 
         // 새로운 액세스 토큰과 리프레시 토큰 생성
         String newAccessToken = tokenProvider.generateAccessToken(member);
@@ -83,8 +89,6 @@ public class MemberService {
 
         // 새로운 토큰들을 쿠키로 설정
         cookieUtil.setTokenCookies(response, newAccessToken, newRefreshToken);
-
-        // TODO: 추후 레디스에서 기존 토큰 무효화 및 새 토큰 저장
 
         return MemberResponse.from(member);
     }
@@ -112,12 +116,6 @@ public class MemberService {
     private void validateDuplicateLoginId(String loginId) {
         if (memberRepository.existsByLoginId(loginId)) {
             throw new IllegalArgumentException("이미 존재하는 이메일입니다.");
-        }
-    }
-
-    private void validateDuplicateNickname(String nickname) {
-        if (memberRepository.existsByNickname(nickname)) {
-            throw new IllegalArgumentException("이미 존재하는 닉네임입니다.");
         }
     }
 }

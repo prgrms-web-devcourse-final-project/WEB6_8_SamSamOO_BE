@@ -14,7 +14,6 @@ public class MemberResponse {
 
     private Long memberId;
     private String loginId;
-    private String nickname;
     private Integer age;
     private Member.Gender gender;
     private Member.Role role;
@@ -26,7 +25,6 @@ public class MemberResponse {
         return MemberResponse.builder()
                 .memberId(member.getMemberId())
                 .loginId(member.getLoginId())
-                .nickname(member.getNickname())
                 .age(member.getAge())
                 .gender(member.getGender())
                 .role(member.getRole())

@@ -35,7 +35,7 @@ public class MemberController {
             @ApiResponse(responseCode = "400", description = "잘못된 요청 (중복 이메일/닉네임, 유효성 검증 실패)")
     })
     public ResponseEntity<MemberResponse> signup(@Valid @RequestBody MemberSignupRequest request) {
-        log.info("회원가입 요청: email={}, nickname={}", request.getLoginId(), request.getNickname());
+        log.info("회원가입 요청: email={}, name={}", request.getLoginId(), request.getName());
 
         try {
             MemberResponse response = memberService.signup(request);
@@ -72,11 +72,19 @@ public class MemberController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "로그아웃 성공")
     })
-    public ResponseEntity<Void> logout(HttpServletResponse response) {
+    public ResponseEntity<Void> logout(Authentication authentication, HttpServletResponse response) {
         log.info("로그아웃 요청");
 
-        memberService.logout(response);
-        log.info("로그아웃 완료");
+        if (authentication != null && authentication.getName() != null) {
+            String loginId = authentication.getName();
+            memberService.logout(loginId, response);
+            log.info("로그아웃 완료: email={}", loginId);
+        } else {
+            // 인증 정보가 없어도 쿠키는 클리어
+            memberService.logout("", response);
+            log.info("인증 정보 없이 로그아웃 완료");
+        }
+
         return ResponseEntity.ok().build();
     }
 
@@ -128,7 +136,7 @@ public class MemberController {
             // loginId로 Member를 조회하여 실제 memberId 사용
             Member member = memberService.findByLoginId(loginId);
             memberService.withdraw(member.getMemberId());
-            memberService.logout(response); // 탈퇴 후 로그아웃 처리
+            memberService.logout(loginId, response); // 탈퇴 후 로그아웃 처리
             log.info("회원탈퇴 성공: email={}, memberId={}", loginId, member.getMemberId());
             return ResponseEntity.ok().build();
         } catch (IllegalArgumentException e) {
