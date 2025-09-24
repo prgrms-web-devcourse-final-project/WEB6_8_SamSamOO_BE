@@ -227,7 +227,7 @@ jobs:
             EOF
             
             # EC2에서 GHCR 로그인
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u doohyojeong --password-stdin
+            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u doohyojeong --password-stdin
   
             # 최신 이미지 pull & 컨테이너 실행
             docker pull ghcr.io/doohyojeong/${{ env.DOCKER_IMAGE_NAME }}:latest
