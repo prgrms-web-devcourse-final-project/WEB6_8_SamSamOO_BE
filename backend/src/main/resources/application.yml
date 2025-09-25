@@ -96,6 +96,3 @@ custom:
     secretKey: ${CUSTOM_JWT_SECRET_KEY}
     accessToken:
       expirationSeconds: ${CUSTOM_JWT_ACCESS_TOKEN_EXPIRATION_SECONDS}
-
-
-

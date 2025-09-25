@@ -1,15 +1,14 @@
 spring:
   application:
-    name: test-ci
+    name: test
   output:
     ansi:
       enabled: always
 
-  # CI 환경에서는 H2 메모리 DB 하드코딩 (환경변수 불필요)
   datasource:
     url: jdbc:h2:mem:db_test;MODE=MySQL
     username: sa
-    password: ""
+    password:
     driver-class-name: org.h2.Driver
 
   jpa:
@@ -22,14 +21,29 @@ spring:
         format_sql: true
         highlight_sql: true
 
-  # Redis는 GitHub Actions 서비스 컨테이너 사용 (하드코딩)
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${email_address}
+    password: ${send_email_password}
+    from: ${send_email_address}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+      auth-code-expiration-millis: 1800000
+
+  # 로컬 환경: Embedded Redis 사용
   data:
     redis:
-      host: localhost
-      port: 6379
-      password: ""
+      port: 6370  # 기본 포트와 충돌 방지
 
-  # 테스트용 OAuth 설정 (하드코딩)
   security:
     oauth2:
       client:
@@ -66,9 +80,8 @@ logging:
     org.hibernate: INFO
     com.ai.lawyer: DEBUG
 
-# JWT만 환경변수로 처리 (보안상 중요)
 custom:
   jwt:
-    secretKey: ${CUSTOM_JWT_SECRET_KEY}
+    secretKey: test-secret-key-for-local-testing-only
     accessToken:
-      expirationSeconds: ${CUSTOM_JWT_ACCESS_TOKEN_EXPIRATION_SECONDS:3600}
+      expirationSeconds: 3600
