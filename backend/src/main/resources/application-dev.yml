@@ -7,12 +7,9 @@ spring:
   jpa:
     hibernate:
       ddl-auto: ${DEV_JPA_HIBERNATE_DDL_AUTO}
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.MySQLDialect
   data:
     redis:
       host: ${DEV_REDIS_HOST}
       port: ${DEV_REDIS_PORT}
       password: ${DEV_REDIS_PASSWORD}
-      embedded: false
+      embedded: true
