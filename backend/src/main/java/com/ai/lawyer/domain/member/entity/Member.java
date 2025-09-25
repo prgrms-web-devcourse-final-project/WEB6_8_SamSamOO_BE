@@ -77,4 +77,8 @@ public class Member {
         private final String description;
         Role(String description) { this.description = description; }
     }
+
+    public void updatePassword(String newPassword) {
+        this.password = newPassword;
+    }
 }

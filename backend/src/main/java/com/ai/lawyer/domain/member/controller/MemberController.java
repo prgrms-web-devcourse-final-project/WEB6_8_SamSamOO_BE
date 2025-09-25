@@ -1,8 +1,6 @@
 package com.ai.lawyer.domain.member.controller;
 
-import com.ai.lawyer.domain.member.dto.MemberLoginRequest;
-import com.ai.lawyer.domain.member.dto.MemberResponse;
-import com.ai.lawyer.domain.member.dto.MemberSignupRequest;
+import com.ai.lawyer.domain.member.dto.*;
 import com.ai.lawyer.domain.member.service.MemberService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -140,6 +138,147 @@ public class MemberController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/sendEmail")
+    @Operation(summary = "이메일 인증번호 전송", description = "로그인된 사용자는 자동으로 인증번호를 받고, 비로그인 사용자는 요청 바디의 loginId(이메일)로 인증번호를 받습니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "이메일 전송 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 (loginId 없음)")
+    })
+    public ResponseEntity<EmailResponse> sendEmail(
+            @RequestBody(required = false) MemberEmailRequestDto requestDto,
+            Authentication authentication,
+            HttpServletRequest request) {
+
+        String loginId = null;
+
+        // 1. 로그인된 사용자인 경우 JWT 토큰에서 loginId 추출 (우선순위 1)
+        if (authentication != null && authentication.isAuthenticated() &&
+            !"anonymousUser".equals(authentication.getPrincipal())) {
+
+            // JWT 토큰에서 직접 loginid claim 추출
+            try {
+                String token = extractAccessTokenFromRequest(request);
+                if (token != null) {
+                    loginId = memberService.extractLoginIdFromToken(token);
+                    if (loginId != null) {
+                        log.info("JWT 토큰에서 loginId 추출 성공: {}", loginId);
+                    } else {
+                        log.warn("JWT 토큰에서 loginId 추출 실패");
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("JWT 토큰에서 loginId 추출 중 오류: {}", e.getMessage());
+            }
+        }
+
+        // 2. 비로그인 사용자인 경우 요청 바디에서 loginId 추출 (우선순위 2)
+        if (loginId == null) {
+            if (requestDto != null && requestDto.getLoginId() != null && !requestDto.getLoginId().isBlank()) {
+                loginId = requestDto.getLoginId();
+                log.info("요청 바디에서 loginId 추출 성공: {}", loginId);
+            } else {
+                log.error("로그인하지 않은 상태에서 요청 바디에 loginId가 없음");
+                throw new IllegalArgumentException("인증번호를 전송할 이메일 주소가 필요합니다. 로그인하거나 요청 바디에 loginId를 포함해주세요.");
+            }
+        }
+
+        try {
+            // 서비스 호출
+            memberService.sendCodeToEmailByLoginId(loginId);
+            log.info("이메일 인증번호 전송 성공: {}", loginId);
+            return ResponseEntity.ok(EmailResponse.success("이메일 전송 성공", loginId));
+
+        } catch (IllegalArgumentException e) {
+            log.error("이메일 전송 실패 - 존재하지 않는 회원: {}", loginId);
+            throw e;
+        } catch (Exception e) {
+            log.error("이메일 전송 실패: loginId={}, error={}", loginId, e.getMessage());
+            throw new RuntimeException("이메일 전송 중 오류가 발생했습니다.");
+        }
+    }
+
+    @PostMapping("/verifyEmail")
+    @Operation(summary = "이메일 인증번호 검증", description = "로그인된 사용자는 자동으로 인증번호를 검증하고, 비로그인 사용자는 요청 바디의 loginId(이메일)와 함께 인증번호를 검증합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "인증번호 검증 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 (인증번호 불일치, loginId 없음)")
+    })
+    public ResponseEntity<EmailResponse> verifyEmail(
+            @RequestBody @Valid EmailVerifyCodeRequestDto requestDto,
+            Authentication authentication,
+            HttpServletRequest request) {
+
+        String loginId = null;
+
+        // 1. 로그인된 사용자인 경우 JWT 토큰에서 loginId 추출 (우선순위 1)
+        if (authentication != null && authentication.isAuthenticated() &&
+            !"anonymousUser".equals(authentication.getPrincipal())) {
+
+            // JWT 토큰에서 직접 loginid claim 추출
+            try {
+                String token = extractAccessTokenFromRequest(request);
+                if (token != null) {
+                    loginId = memberService.extractLoginIdFromToken(token);
+                    if (loginId != null) {
+                        log.info("JWT 토큰에서 loginId 추출 성공: {}", loginId);
+                    } else {
+                        log.warn("JWT 토큰에서 loginId 추출 실패");
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("JWT 토큰에서 loginId 추출 중 오류: {}", e.getMessage());
+            }
+        }
+
+        // 2. 비로그인 사용자인 경우 요청 바디에서 loginId 추출 (우선순위 2)
+        if (loginId == null) {
+            if (requestDto.getLoginId() != null && !requestDto.getLoginId().isBlank()) {
+                loginId = requestDto.getLoginId();
+                log.info("요청 바디에서 loginId 추출 성공: {}", loginId);
+            } else {
+                log.error("로그인하지 않은 상태에서 요청 바디에 loginId가 없음");
+                throw new IllegalArgumentException("인증번호를 검증할 이메일 주소가 필요합니다. 로그인하거나 요청 바디에 loginId를 포함해주세요.");
+            }
+        }
+
+        try {
+            // 서비스 호출 - 인증번호 검증
+            boolean isValid = memberService.verifyAuthCode(loginId, requestDto.getVerificationCode());
+
+            if (isValid) {
+                log.info("이메일 인증번호 검증 성공: {}", loginId);
+                return ResponseEntity.ok(EmailResponse.success("인증번호 검증 성공", loginId));
+            } else {
+                log.error("이메일 인증번호 검증 실패 - 잘못된 인증번호: {}", loginId);
+                throw new IllegalArgumentException("잘못된 인증번호이거나 만료된 인증번호입니다.");
+            }
+
+        } catch (IllegalArgumentException e) {
+            log.error("이메일 인증번호 검증 실패: loginId={}, error={}", loginId, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("이메일 인증번호 검증 중 오류 발생: loginId={}, error={}", loginId, e.getMessage());
+            throw new RuntimeException("인증번호 검증 중 오류가 발생했습니다.");
+        }
+    }
+
+    // ===== 비밀번호 재설정 엔드포인트 =====
+
+    @PostMapping("/password-reset/reset")
+    @Operation(summary = "비밀번호 재설정", description = "인증 토큰과 함께 새 비밀번호로 재설정합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "비밀번호 재설정 성공"),
+            @ApiResponse(responseCode = "400", description = "인증되지 않았거나 잘못된 요청")
+    })
+    public ResponseEntity<PasswordResetResponse> resetPassword(@Valid @RequestBody ResetPasswordRequestDto request) {
+        log.info("비밀번호 재설정 요청: email={}", request.getLoginId());
+
+        memberService.resetPassword(request.getLoginId(), request.getNewPassword(), request.getSuccess());
+
+        log.info("비밀번호 재설정 성공: email={}", request.getLoginId());
+        return ResponseEntity.ok(PasswordResetResponse.success("비밀번호가 성공적으로 재설정되었습니다.", request.getLoginId()));
+    }
+
     /**
      * HTTP 쿠키에서 리프레시 토큰을 추출합니다.
      * @param request HTTP 요청 객체
@@ -149,6 +288,29 @@ public class MemberController {
         if (request.getCookies() != null) {
             for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
                 if ("refreshToken".equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * HTTP 쿠키에서 액세스 토큰을 추출합니다.
+     * @param request HTTP 요청 객체
+     * @return 액세스 토큰 값 또는 null
+     */
+    private String extractAccessTokenFromRequest(HttpServletRequest request) {
+        // 1. Authorization 헤더에서 추출 시도
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+
+        // 2. 쿠키에서 추출 시도
+        if (request.getCookies() != null) {
+            for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
+                if ("accessToken".equals(cookie.getName())) {
                     return cookie.getValue();
                 }
             }
