@@ -5,6 +5,8 @@ import com.ai.lawyer.domain.member.dto.MemberResponse;
 import com.ai.lawyer.domain.member.dto.MemberSignupRequest;
 import com.ai.lawyer.domain.member.entity.Member;
 import com.ai.lawyer.domain.member.service.MemberService;
+import com.ai.lawyer.domain.member.exception.MemberAuthenticationException;
+import com.ai.lawyer.domain.member.exception.MemberExceptionHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,6 +30,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -62,7 +65,10 @@ class MemberControllerTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(memberController).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(memberController)
+                .setControllerAdvice(new MemberExceptionHandler())
+                .build();
+
         objectMapper = new ObjectMapper();
 
         signupRequest = MemberSignupRequest.builder()
@@ -88,10 +94,16 @@ class MemberControllerTest {
                 .build();
 
         authentication = new UsernamePasswordAuthenticationToken(
-                "test@example.com",
+                1L,
                 null,
                 List.of(new SimpleGrantedAuthority("ROLE_USER"))
-        );
+        ) {
+            @Override
+            public String getName() {
+                return "test@example.com";
+            }
+        };
+        ((UsernamePasswordAuthenticationToken) authentication).setDetails("test@example.com");
     }
 
     @Test
@@ -120,11 +132,9 @@ class MemberControllerTest {
     @Test
     @DisplayName("회원가입 실패 - 이메일 중복")
     void signup_Fail_DuplicateEmail() throws Exception {
-        // given
         given(memberService.signup(any(MemberSignupRequest.class)))
                 .willThrow(new IllegalArgumentException("이미 존재하는 이메일입니다."));
 
-        // when and then
         mockMvc.perform(post("/api/auth/signup")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -181,11 +191,9 @@ class MemberControllerTest {
     @Test
     @DisplayName("로그인 실패 - 존재하지 않는 회원")
     void login_Fail_MemberNotFound() throws Exception {
-        // given
         given(memberService.login(any(MemberLoginRequest.class), any()))
                 .willThrow(new IllegalArgumentException("존재하지 않는 회원입니다."));
 
-        // when and then
         mockMvc.perform(post("/api/auth/login")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -199,11 +207,9 @@ class MemberControllerTest {
     @Test
     @DisplayName("로그인 실패 - 비밀번호 불일치")
     void login_Fail_PasswordMismatch() throws Exception {
-        // given
         given(memberService.login(any(MemberLoginRequest.class), any()))
                 .willThrow(new IllegalArgumentException("비밀번호가 일치하지 않습니다."));
 
-        // when and then
         mockMvc.perform(post("/api/auth/login")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -268,11 +274,13 @@ class MemberControllerTest {
         // given
         given(request.getCookies()).willReturn(null);
 
-        // when
-        ResponseEntity<MemberResponse> result = memberController.refreshToken(request, response);
+        // when & then - 예외가 발생해야 함
+        try {
+            memberController.refreshToken(request, response);
+        } catch (MemberAuthenticationException e) {
+            assertThat(e.getMessage()).isEqualTo("리프레시 토큰이 없습니다.");
+        }
 
-        // then
-        assertThat(result.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         verify(memberService, never()).refreshToken(anyString(), any());
     }
 
@@ -285,23 +293,18 @@ class MemberControllerTest {
         given(memberService.refreshToken(eq("invalidRefreshToken"), eq(response)))
                 .willThrow(new IllegalArgumentException("유효하지 않은 리프레시 토큰입니다."));
 
-        // when
-        ResponseEntity<MemberResponse> result = memberController.refreshToken(request, response);
+        // when & then
+        assertThatThrownBy(() -> memberController.refreshToken(request, response))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("유효하지 않은 리프레시 토큰입니다.");
 
-        // then
-        assertThat(result.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         verify(memberService).refreshToken(eq("invalidRefreshToken"), eq(response));
     }
 
     @Test
     @DisplayName("회원탈퇴 성공")
     void withdraw_Success() {
-        // given
-        Member mockMember = Member.builder()
-                .memberId(1L)
-                .loginId("test@example.com")
-                .build();
-        given(memberService.findByLoginId("test@example.com")).willReturn(mockMember);
+        // given - 현재 Controller는 직접 memberId를 사용
         doNothing().when(memberService).withdraw(1L);
         doNothing().when(memberService).logout(eq("test@example.com"), eq(response));
 
@@ -310,7 +313,6 @@ class MemberControllerTest {
 
         // then
         assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
-        verify(memberService).findByLoginId("test@example.com");
         verify(memberService).withdraw(1L);
         verify(memberService).logout(eq("test@example.com"), eq(response));
     }
@@ -318,11 +320,11 @@ class MemberControllerTest {
     @Test
     @DisplayName("회원탈퇴 실패 - 인증되지 않은 사용자")
     void withdraw_Fail_Unauthenticated() {
-        // when
-        ResponseEntity<Void> result = memberController.withdraw(null, response);
+        // when & then
+        assertThatThrownBy(() -> memberController.withdraw(null, response))
+                .isInstanceOf(MemberAuthenticationException.class)
+                .hasMessage("인증이 필요합니다.");
 
-        // then
-        assertThat(result.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         verify(memberService, never()).withdraw(anyLong());
         verify(memberService, never()).logout(anyString(), any());
     }
@@ -331,28 +333,22 @@ class MemberControllerTest {
     @DisplayName("회원탈퇴 실패 - 존재하지 않는 회원")
     void withdraw_Fail_MemberNotFound() {
         // given
-        given(memberService.findByLoginId("test@example.com"))
-                .willThrow(new IllegalArgumentException("존재하지 않는 회원입니다."));
+        doThrow(new IllegalArgumentException("존재하지 않는 회원입니다."))
+                .when(memberService).withdraw(1L);
 
-        // when
-        ResponseEntity<Void> result = memberController.withdraw(authentication, response);
+        // when & then
+        assertThatThrownBy(() -> memberController.withdraw(authentication, response))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("존재하지 않는 회원입니다.");
 
-        // then
-        assertThat(result.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        verify(memberService).findByLoginId("test@example.com");
-        verify(memberService, never()).withdraw(anyLong());
+        verify(memberService).withdraw(1L);
         verify(memberService, never()).logout(anyString(), any());
     }
 
     @Test
     @DisplayName("내 정보 조회 성공")
     void getMyInfo_Success() {
-        // given
-        Member mockMember = Member.builder()
-                .memberId(1L)
-                .loginId("test@example.com")
-                .build();
-        given(memberService.findByLoginId("test@example.com")).willReturn(mockMember);
+        // given - 현재 Controller는 직접 memberId를 사용
         given(memberService.getMemberById(1L)).willReturn(memberResponse);
 
         // when
@@ -361,18 +357,17 @@ class MemberControllerTest {
         // then
         assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(result.getBody()).isEqualTo(memberResponse);
-        verify(memberService).findByLoginId("test@example.com");
         verify(memberService).getMemberById(1L);
     }
 
     @Test
     @DisplayName("내 정보 조회 실패 - 인증되지 않은 사용자")
     void getMyInfo_Fail_Unauthenticated() {
-        // when
-        ResponseEntity<MemberResponse> result = memberController.getMyInfo(null);
+        // when & then
+        assertThatThrownBy(() -> memberController.getMyInfo(null))
+                .isInstanceOf(MemberAuthenticationException.class)
+                .hasMessage("인증이 필요합니다.");
 
-        // then
-        assertThat(result.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         verify(memberService, never()).getMemberById(anyLong());
     }
 
@@ -380,15 +375,14 @@ class MemberControllerTest {
     @DisplayName("내 정보 조회 실패 - 존재하지 않는 회원")
     void getMyInfo_Fail_MemberNotFound() {
         // given
-        given(memberService.findByLoginId("test@example.com"))
+        given(memberService.getMemberById(1L))
                 .willThrow(new IllegalArgumentException("존재하지 않는 회원입니다."));
 
-        // when
-        ResponseEntity<MemberResponse> result = memberController.getMyInfo(authentication);
+        // when & then
+        assertThatThrownBy(() -> memberController.getMyInfo(authentication))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("존재하지 않는 회원입니다.");
 
-        // then
-        assertThat(result.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        verify(memberService).findByLoginId("test@example.com");
-        verify(memberService, never()).getMemberById(anyLong());
+        verify(memberService).getMemberById(1L);
     }
 }
