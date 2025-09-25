@@ -3,6 +3,7 @@ package com.ai.lawyer.domain.post.service;
 import com.ai.lawyer.domain.member.entity.Member;
 import com.ai.lawyer.domain.member.repositories.MemberRepository;
 import com.ai.lawyer.domain.post.dto.PostDto;
+import com.ai.lawyer.domain.post.dto.PostRequestDto;
 import com.ai.lawyer.domain.post.entity.Post;
 import com.ai.lawyer.domain.post.repository.PostRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,6 +38,7 @@ class PostServiceImplTest {
     private Member member;
     private Post post;
     private PostDto postDto;
+    private PostRequestDto postRequestDto;
 
     @BeforeEach
     void setUp() {
@@ -60,15 +62,19 @@ class PostServiceImplTest {
                 .category("일반")
                 .createdAt(post.getCreatedAt())
                 .build();
+        postRequestDto = PostRequestDto.builder()
+                .postName("테스트 제목")
+                .postContent("테스트 내용")
+                .category("일반")
+                .build();
     }
 
     @Test
     @DisplayName("게시글 생성 성공")
     void t1() {
-        when(memberRepository.findById(2L)).thenReturn(Optional.of(member));
         when(postRepository.save(any(Post.class))).thenReturn(post);
-        PostDto result = postService.createPost(postDto);
-        assertThat(result.getPostName()).isEqualTo(postDto.getPostName());
+        PostDto result = postService.createPost(postRequestDto, member);
+        assertThat(result.getPostName()).isEqualTo(postRequestDto.getPostName());
         verify(postRepository, times(1)).save(any(Post.class));
     }
 
