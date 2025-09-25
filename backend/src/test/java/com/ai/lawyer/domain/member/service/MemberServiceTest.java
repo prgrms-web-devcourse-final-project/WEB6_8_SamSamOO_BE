@@ -1,12 +1,12 @@
 package com.ai.lawyer.domain.member.service;
 
-import com.ai.lawyer.domain.member.dto.MemberLoginRequest;
-import com.ai.lawyer.domain.member.dto.MemberResponse;
-import com.ai.lawyer.domain.member.dto.MemberSignupRequest;
+import com.ai.lawyer.domain.member.dto.*;
 import com.ai.lawyer.domain.member.entity.Member;
 import com.ai.lawyer.domain.member.repositories.MemberRepository;
 import com.ai.lawyer.global.jwt.CookieUtil;
 import com.ai.lawyer.global.jwt.TokenProvider;
+import com.ai.lawyer.global.email.service.EmailService;
+import com.ai.lawyer.global.email.service.EmailAuthService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -42,6 +42,12 @@ class MemberServiceTest {
 
     @Mock
     private CookieUtil cookieUtil;
+
+    @Mock
+    private EmailService emailService;
+
+    @Mock
+    private EmailAuthService emailAuthService;
 
     @Mock
     private HttpServletResponse response;
@@ -369,5 +375,238 @@ class MemberServiceTest {
         verify(cookieUtil).clearTokenCookies(response);
         log.info("쿠키에서 토큰 클리어 호출 확인");
         log.info("=== 로그아웃 성공 테스트 완료 ===");
+    }
+
+    // ===== 이메일 인증 관련 테스트 =====
+
+    @Test
+    @DisplayName("이메일 인증번호 전송 성공")
+    void sendCodeToEmailByLoginId_Success() {
+        // given
+        log.info("=== 이메일 인증번호 전송 성공 테스트 시작 ===");
+        String loginId = "test@example.com";
+        log.info("인증번호 전송 대상: {}", loginId);
+
+        given(memberRepository.findByLoginId(loginId)).willReturn(Optional.of(member));
+        doNothing().when(emailService).sendVerificationCode(loginId, loginId);
+        log.info("Mock 설정 완료: 회원 존재, 이메일 서비스 준비");
+
+        // when
+        log.info("이메일 인증번호 전송 서비스 호출 중...");
+        memberService.sendCodeToEmailByLoginId(loginId);
+        log.info("이메일 인증번호 전송 완료");
+
+        // then
+        log.info("검증 시작: 회원 조회 및 이메일 전송 확인");
+        verify(memberRepository).findByLoginId(loginId);
+        log.info("회원 존재 여부 조회 호출 확인");
+        verify(emailService).sendVerificationCode(loginId, loginId);
+        log.info("이메일 인증번호 전송 서비스 호출 확인");
+        log.info("=== 이메일 인증번호 전송 성공 테스트 완료 ===");
+    }
+
+    @Test
+    @DisplayName("이메일 인증번호 전송 실패 - 존재하지 않는 회원")
+    void sendCodeToEmailByLoginId_Fail_MemberNotFound() {
+        // given
+        String loginId = "nonexistent@example.com";
+        given(memberRepository.findByLoginId(loginId)).willReturn(Optional.empty());
+
+        // when and then
+        assertThatThrownBy(() -> memberService.sendCodeToEmailByLoginId(loginId))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("해당 로그인 ID의 회원이 없습니다.");
+
+        verify(memberRepository).findByLoginId(loginId);
+        verify(emailService, never()).sendVerificationCode(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("이메일 인증번호 검증 성공")
+    void verifyAuthCode_Success() {
+        // given
+        log.info("=== 이메일 인증번호 검증 성공 테스트 시작 ===");
+        String loginId = "test@example.com";
+        String verificationCode = "123456";
+        log.info("인증번호 검증: 이메일={}, 코드={}", loginId, verificationCode);
+
+        given(memberRepository.findByLoginId(loginId)).willReturn(Optional.of(member));
+        given(emailAuthService.verifyAuthCode(loginId, verificationCode)).willReturn(true);
+        log.info("Mock 설정 완료: 회원 존재, 인증번호 일치");
+
+        // when
+        log.info("이메일 인증번호 검증 서비스 호출 중...");
+        boolean result = memberService.verifyAuthCode(loginId, verificationCode);
+        log.info("이메일 인증번호 검증 완료: 결과={}", result);
+
+        // then
+        log.info("검증 시작: 인증번호 검증 결과 확인");
+        assertThat(result).as("인증번호 검증 성공").isTrue();
+        verify(memberRepository).findByLoginId(loginId);
+        log.info("회원 존재 여부 조회 호출 확인");
+        verify(emailAuthService).verifyAuthCode(loginId, verificationCode);
+        log.info("이메일 인증번호 검증 서비스 호출 확인");
+        log.info("=== 이메일 인증번호 검증 성공 테스트 완료 ===");
+    }
+
+    @Test
+    @DisplayName("이메일 인증번호 검증 실패 - 잘못된 인증번호")
+    void verifyAuthCode_Fail_InvalidCode() {
+        // given
+        String loginId = "test@example.com";
+        String verificationCode = "999999";
+        given(memberRepository.findByLoginId(loginId)).willReturn(Optional.of(member));
+        given(emailAuthService.verifyAuthCode(loginId, verificationCode)).willReturn(false);
+
+        // when
+        boolean result = memberService.verifyAuthCode(loginId, verificationCode);
+
+        // then
+        assertThat(result).as("잘못된 인증번호로 검증 실패").isFalse();
+        verify(memberRepository).findByLoginId(loginId);
+        verify(emailAuthService).verifyAuthCode(loginId, verificationCode);
+    }
+
+    @Test
+    @DisplayName("이메일 인증번호 검증 실패 - 존재하지 않는 회원")
+    void verifyAuthCode_Fail_MemberNotFound() {
+        // given
+        String loginId = "nonexistent@example.com";
+        String verificationCode = "123456";
+        given(memberRepository.findByLoginId(loginId)).willReturn(Optional.empty());
+
+        // when and then
+        assertThatThrownBy(() -> memberService.verifyAuthCode(loginId, verificationCode))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("존재하지 않는 회원입니다.");
+
+        verify(memberRepository).findByLoginId(loginId);
+        verify(emailAuthService, never()).verifyAuthCode(anyString(), anyString());
+    }
+
+    // ===== 비밀번호 재설정 관련 테스트 =====
+
+    @Test
+    @DisplayName("비밀번호 재설정 성공")
+    void resetPassword_Success() {
+        // given
+        log.info("=== 비밀번호 재설정 성공 테스트 시작 ===");
+        String loginId = "test@example.com";
+        String newPassword = "newPassword123";
+        Boolean success = true;
+        log.info("비밀번호 재설정: 이메일={}, 인증성공={}", loginId, success);
+
+        given(memberRepository.findByLoginId(loginId)).willReturn(Optional.of(member));
+        given(passwordEncoder.encode(newPassword)).willReturn("encodedNewPassword");
+        doNothing().when(tokenProvider).deleteRefreshToken(loginId);
+        log.info("Mock 설정 완료: 회원 존재, 인증 성공, 비밀번호 인코딩 준비");
+
+        // when
+        log.info("비밀번호 재설정 서비스 호출 중...");
+        memberService.resetPassword(loginId, newPassword, success);
+        log.info("비밀번호 재설정 완료");
+
+        // then
+        log.info("검증 시작: 비밀번호 재설정 프로세스 확인");
+        verify(memberRepository).findByLoginId(loginId);
+        log.info("회원 존재 여부 조회 호출 확인");
+        verify(passwordEncoder).encode(newPassword);
+        log.info("새 비밀번호 인코딩 호출 확인");
+        verify(memberRepository).save(member);
+        log.info("회원 정보 저장 호출 확인");
+        verify(tokenProvider).deleteRefreshToken(loginId);
+        log.info("기존 리프레시 토큰 삭제 호출 확인 (보안상 로그아웃 처리)");
+        log.info("=== 비밀번호 재설정 성공 테스트 완료 ===");
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 실패 - 인증되지 않음 (success = false)")
+    void resetPassword_Fail_NotAuthenticated() {
+        // given
+        String loginId = "test@example.com";
+        String newPassword = "newPassword123";
+        Boolean success = false;
+        given(memberRepository.findByLoginId(loginId)).willReturn(Optional.of(member));
+
+        // when and then
+        assertThatThrownBy(() -> memberService.resetPassword(loginId, newPassword, success))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("이메일 인증을 완료해야 비밀번호를 재설정할 수 있습니다.");
+
+        verify(memberRepository).findByLoginId(loginId);
+        verify(passwordEncoder, never()).encode(anyString());
+        verify(memberRepository, never()).save(any(Member.class));
+        verify(tokenProvider, never()).deleteRefreshToken(anyString());
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 실패 - success = null")
+    void resetPassword_Fail_NullSuccess() {
+        // given
+        String loginId = "test@example.com";
+        String newPassword = "newPassword123";
+        Boolean success = null;
+        given(memberRepository.findByLoginId(loginId)).willReturn(Optional.of(member));
+
+        // when and then
+        assertThatThrownBy(() -> memberService.resetPassword(loginId, newPassword, success))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("이메일 인증을 완료해야 비밀번호를 재설정할 수 있습니다.");
+
+        verify(memberRepository).findByLoginId(loginId);
+        verify(passwordEncoder, never()).encode(anyString());
+        verify(memberRepository, never()).save(any(Member.class));
+        verify(tokenProvider, never()).deleteRefreshToken(anyString());
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 실패 - 존재하지 않는 회원")
+    void resetPassword_Fail_MemberNotFound() {
+        // given
+        String loginId = "nonexistent@example.com";
+        String newPassword = "newPassword123";
+        Boolean success = true;
+        given(memberRepository.findByLoginId(loginId)).willReturn(Optional.empty());
+
+        // when and then
+        assertThatThrownBy(() -> memberService.resetPassword(loginId, newPassword, success))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("존재하지 않는 회원입니다.");
+
+        verify(memberRepository).findByLoginId(loginId);
+        verify(passwordEncoder, never()).encode(anyString());
+        verify(memberRepository, never()).save(any(Member.class));
+        verify(tokenProvider, never()).deleteRefreshToken(anyString());
+    }
+
+    @Test
+    @DisplayName("JWT 토큰에서 loginId 추출 성공")
+    void extractLoginIdFromToken_Success() {
+        // given
+        String token = "valid.jwt.token";
+        String expectedLoginId = "test@example.com";
+        given(tokenProvider.getLoginIdFromToken(token)).willReturn(expectedLoginId);
+
+        // when
+        String result = memberService.extractLoginIdFromToken(token);
+
+        // then
+        assertThat(result).isEqualTo(expectedLoginId);
+        verify(tokenProvider).getLoginIdFromToken(token);
+    }
+
+    @Test
+    @DisplayName("JWT 토큰에서 loginId 추출 실패 - 유효하지 않은 토큰")
+    void extractLoginIdFromToken_Fail_InvalidToken() {
+        // given
+        String token = "invalid.jwt.token";
+        given(tokenProvider.getLoginIdFromToken(token)).willReturn(null);
+
+        // when
+        String result = memberService.extractLoginIdFromToken(token);
+
+        // then
+        assertThat(result).isNull();
+        verify(tokenProvider).getLoginIdFromToken(token);
     }
 }
