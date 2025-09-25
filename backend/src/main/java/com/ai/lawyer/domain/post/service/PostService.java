@@ -1,15 +1,17 @@
 package com.ai.lawyer.domain.post.service;
 
-import com.ai.lawyer.domain.post.dto.PostDto;
+import com.ai.lawyer.domain.member.entity.Member;
 import com.ai.lawyer.domain.post.dto.PostDetailDto;
+import com.ai.lawyer.domain.post.dto.PostDto;
+import com.ai.lawyer.domain.post.dto.PostRequestDto;
 
 import java.util.List;
 
 public interface PostService {
 
-    PostDto createPost(PostDto postDto);
+    PostDto createPost(PostRequestDto postRequestDto, Member member);
 
-    PostDto getPostById(Long postId);
+    PostDetailDto getPostById(Long postId);
 
     PostDetailDto getPostDetailById(Long postId);
 
@@ -19,5 +21,5 @@ public interface PostService {
 
     void deletePost(Long postId);
 
-    List<PostDto> getAllPosts();
+    List<PostDetailDto> getAllPosts();
 }

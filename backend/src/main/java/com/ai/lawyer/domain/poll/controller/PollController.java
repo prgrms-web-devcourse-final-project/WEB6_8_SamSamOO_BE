@@ -1,6 +1,7 @@
 package com.ai.lawyer.domain.poll.controller;
 
 import com.ai.lawyer.domain.poll.dto.PollDto;
+import com.ai.lawyer.domain.poll.dto.PollWithPostDto;
 import com.ai.lawyer.domain.poll.entity.PollVote;
 import com.ai.lawyer.domain.poll.entity.PollOptions;
 import com.ai.lawyer.domain.poll.entity.PollStatics;

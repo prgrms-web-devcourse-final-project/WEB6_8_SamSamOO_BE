@@ -43,9 +43,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**", "/api/public/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/api/posts/**").permitAll()
-                        .requestMatchers("/api/precedent/**").permitAll()
-                        .requestMatchers("/api/law/**").permitAll()
-                        .requestMatchers("/api/law-word/**").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers("/api/chat/**").authenticated()
                         .anyRequest().authenticated()
@@ -64,7 +61,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:3000, https://www.trybalaw.com"));
+        configuration.setAllowedOrigins(List.of("http://localhost:3000"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);

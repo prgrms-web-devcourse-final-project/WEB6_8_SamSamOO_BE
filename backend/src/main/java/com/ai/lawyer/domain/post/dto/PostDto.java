@@ -1,5 +1,6 @@
 package com.ai.lawyer.domain.post.dto;
 
+import com.ai.lawyer.domain.poll.dto.PollDto;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -16,4 +17,5 @@ public class PostDto {
     private String postContent;
     private String category;
     private LocalDateTime createdAt;
+    private PollDto poll;
 }

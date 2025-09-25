@@ -1,6 +1,7 @@
 package com.ai.lawyer.domain.post.controller;
 
 import com.ai.lawyer.domain.post.dto.PostDto;
+import com.ai.lawyer.domain.post.dto.PostRequestDto;
 import com.ai.lawyer.domain.post.entity.Post;
 import com.ai.lawyer.domain.post.service.PostService;
 import com.ai.lawyer.domain.member.entity.Member;
@@ -41,11 +42,12 @@ public class PostControllerTest {
 
     private Long postId;
     private Long memberId;
+    private Member member;
 
     @BeforeEach
     void setUp() {
         // 테스트용 회원 저장
-        Member member = Member.builder()
+        member = Member.builder()
             .loginId("test1@email.com")
             .password("pw")
             .age(20)
@@ -56,32 +58,30 @@ public class PostControllerTest {
         member = memberRepository.save(member); // 실제 PK 할당
         this.memberId = member.getMemberId();
 
-        PostDto postDto = PostDto.builder()
-                .memberId(member.getMemberId())
+        PostRequestDto postRequestDto = PostRequestDto.builder()
                 .postName("테스트 제목")
                 .postContent("테스트 내용")
                 .category("일반")
-                .createdAt(LocalDateTime.now())
                 .build();
-        PostDto saved = postService.createPost(postDto);
+        PostDto saved = postService.createPost(postRequestDto, member);
         postId = saved.getPostId();
     }
 
     @Test
     @DisplayName("게시글 등록")
     void t1() throws Exception {
-        String body = String.format("""
+        String body = """
             {
-                \"memberId\": %d,
                 \"postName\": \"이혼하고 싶어요\",
                 \"postContent\": \"이혼하고 싶은데 어떻게 해야 하나요?\",
                 \"category\": \"이혼\"
             }
-        """, memberId);
+        """;
 
         ResultActions resultActions = mvc.perform(post("/api/posts")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(body))
+                .content(body)
+                .param("memberId", String.valueOf(memberId)))
                 .andDo(print());
 
         resultActions
