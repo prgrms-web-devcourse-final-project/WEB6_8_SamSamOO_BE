@@ -1,20 +1,20 @@
 spring:
   application:
-    name: test
+    name: test-ci
   output:
     ansi:
       enabled: always
 
   datasource:
-    url: jdbc:h2:mem:db_test;MODE=MySQL
-    username: sa
-    password:
-    driver-class-name: org.h2.Driver
+    url: ${TEST_DATASOURCE_URL}
+    username: ${TEST_DATASOURCE_USERNAME}
+    password: ${TEST_DATASOURCE_PASSWORD}
+    driver-class-name: ${TEST_DATASOURCE_DRIVER}
 
   jpa:
     show-sql: true
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: ${TEST_JPA_HIBERNATE_DDL_AUTO}
     properties:
       hibernate:
         use_sql_comments: true
@@ -39,10 +39,13 @@ spring:
           writetimeout: 5000
       auth-code-expiration-millis: 1800000
 
-  # 로컬 환경: Embedded Redis 사용
+  # CI/CD 환경: 실제 Redis 서비스 사용, Embedded Redis 비활성화
   data:
     redis:
-      port: 6370  # 기본 포트와 충돌 방지
+      host: ${TEST_REDIS_HOST:localhost}
+      port: ${TEST_REDIS_PORT:6379}
+      password: ${TEST_REDIS_PASSWORD:}
+      embedded: false
 
   security:
     oauth2:
@@ -82,6 +85,6 @@ logging:
 
 custom:
   jwt:
-    secretKey: test-secret-key-for-local-testing-only
+    secretKey: ${CUSTOM_JWT_SECRET_KEY}
     accessToken:
-      expirationSeconds: 3600
+      expirationSeconds: ${CUSTOM_JWT_ACCESS_TOKEN_EXPIRATION_SECONDS}

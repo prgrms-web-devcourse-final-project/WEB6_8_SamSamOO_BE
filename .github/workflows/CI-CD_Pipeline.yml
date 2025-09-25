@@ -75,6 +75,10 @@ jobs:
 
           # JPA 설정 (application-test.yml에서 참조)
           TEST_JPA_HIBERNATE_DDL_AUTO=create-drop
+          
+          email_address=${{ secrets.EMAIL_ADDRESS }}
+          send_email_password=${{ secrets.EMAIL_PASSWORD }}
+          send_email_address=${{ secrets.SEND_EMAIL_ADDRESS }}
 
           # Redis 설정 (application-test.yml에서 참조, GitHub Actions 서비스 사용)
           TEST_REDIS_HOST=localhost
