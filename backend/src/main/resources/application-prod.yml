@@ -1,4 +1,6 @@
 spring:
+  autoconfigure:
+    exclude:
   datasource:
     url: ${PROD_DATASOURCE_URL}
     driver-class-name: ${PROD_DATASOURCE_DRIVER}

@@ -1,4 +1,8 @@
 spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.session.SessionAutoConfiguration
   config:
     import: optional:file:.env[.properties]
   application:
@@ -8,7 +12,6 @@ spring:
   output:
     ansi:
       enabled: always
-
   jpa:
     show-sql: true
     hibernate:
@@ -54,6 +57,17 @@ logging:
     org.springframework: INFO
     org.hibernate: INFO
     com.ai.lawyer: DEBUG
+management:
+  endpoints:
+    web:
+      base-path: /actuator            # 기본값이지만 명시
+      exposure:
+        include: health,info          # 필요시 metrics 등 추가
+  endpoint:
+    health:
+      probes:
+        enabled: true                 # /actuator/health/{liveness,readiness} 활성화
+      show-details: never             # 프로브 용도면 never 권장(민감정보 차단)
 custom:
   jwt:
     secretKey: ${CUSTOM_JWT_SECRET_KEY}
