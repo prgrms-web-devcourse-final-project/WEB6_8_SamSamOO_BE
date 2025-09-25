@@ -10,6 +10,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Date;
 import java.util.UUID;
@@ -26,7 +27,7 @@ public class TokenProvider {
     private static final long REFRESH_TOKEN_EXPIRE_TIME = 7 * 24 * 60 * 60; // 7일
 
     private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(jwtProperties.getSecretKey().getBytes());
+        return Keys.hmacShaKeyFor(jwtProperties.getSecretKey().getBytes(StandardCharsets.UTF_8));
     }
 
     public String generateAccessToken(Member member) {
@@ -38,6 +39,7 @@ public class TokenProvider {
                 .setIssuedAt(now)
                 .setExpiration(expiry)
                 .claim("memberId", member.getMemberId())
+                .claim("role", member.getRole().name())
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
@@ -45,7 +47,7 @@ public class TokenProvider {
     public String generateRefreshToken(Member member) {
         String refreshToken = UUID.randomUUID().toString();
 
-        // Redis에 리프레시 토큰 저장
+        // Redis에 리프레시 토큰 저장 (만료시간: 7일)
         String redisKey = REFRESH_TOKEN_PREFIX + member.getLoginId();
         redisTemplate.opsForValue().set(redisKey, refreshToken, Duration.ofSeconds(REFRESH_TOKEN_EXPIRE_TIME));
 
@@ -73,16 +75,30 @@ public class TokenProvider {
         return false;
     }
 
-    public String getUsernameFromToken(String token) {
+    public Long getMemberIdFromToken(String token) {
         try {
             Claims claims = Jwts.parserBuilder()
                     .setSigningKey(getSigningKey())
                     .build()
                     .parseClaimsJws(token)
                     .getBody();
-            return claims.getSubject();
+            return claims.get("memberId", Long.class);
         } catch (Exception e) {
-            log.warn("토큰에서 사용자 정보 추출 실패: {}", e.getMessage());
+            log.warn("토큰에서 회원 ID 추출 실패: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    public String getRoleFromToken(String token) {
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            return claims.get("role", String.class);
+        } catch (Exception e) {
+            log.warn("토큰에서 역할 정보 추출 실패: {}", e.getMessage());
             return null;
         }
     }
@@ -98,6 +114,12 @@ public class TokenProvider {
         redisTemplate.delete(redisKey);
     }
 
+    /**
+     * 리프레시 토큰으로 사용자명을 찾습니다.
+     * Redis에서 모든 리프레시 토큰 키를 순회하며 일치하는 토큰을 찾습니다.
+     * @param refreshToken 찾을 리프레시 토큰
+     * @return 사용자명 또는 null
+     */
     public String findUsernameByRefreshToken(String refreshToken) {
         String pattern = REFRESH_TOKEN_PREFIX + "*";
         var keys = redisTemplate.keys(pattern);
