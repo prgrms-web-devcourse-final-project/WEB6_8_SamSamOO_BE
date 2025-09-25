@@ -47,7 +47,7 @@ public class TokenProvider {
     public String generateRefreshToken(Member member) {
         String refreshToken = UUID.randomUUID().toString();
 
-        // Redis에 리프레시 토큰 저장
+        // Redis에 리프레시 토큰 저장 (만료시간: 7일)
         String redisKey = REFRESH_TOKEN_PREFIX + member.getLoginId();
         redisTemplate.opsForValue().set(redisKey, refreshToken, Duration.ofSeconds(REFRESH_TOKEN_EXPIRE_TIME));
 
@@ -114,6 +114,12 @@ public class TokenProvider {
         redisTemplate.delete(redisKey);
     }
 
+    /**
+     * 리프레시 토큰으로 사용자명을 찾습니다.
+     * Redis에서 모든 리프레시 토큰 키를 순회하며 일치하는 토큰을 찾습니다.
+     * @param refreshToken 찾을 리프레시 토큰
+     * @return 사용자명 또는 null
+     */
     public String findUsernameByRefreshToken(String refreshToken) {
         String pattern = REFRESH_TOKEN_PREFIX + "*";
         var keys = redisTemplate.keys(pattern);

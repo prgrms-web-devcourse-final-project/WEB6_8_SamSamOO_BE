@@ -67,9 +67,9 @@ public class MemberController {
         if (authentication != null && authentication.getName() != null) {
             String loginId = authentication.getName();
             memberService.logout(loginId, response);
-            log.info("로그아웃 완료: email={}", loginId);
+            log.info("로그아웃 완료: memberId={}", loginId);
         } else {
-            // 인증 정보가 없어도 쿠키는 클리어
+            // 인증되지 않은 상태에서도 클라이언트 쿠키 클리어 처리
             memberService.logout("", response);
             log.info("인증 정보 없이 로그아웃 완료");
         }
@@ -87,7 +87,7 @@ public class MemberController {
                                                      HttpServletResponse response) {
         log.info("토큰 재발급 요청");
 
-        // 쿠키에서 리프레시 토큰 추출 (간단한 방법)
+        // HTTP 쿠키에서 리프레시 토큰 추출
         String refreshToken = extractRefreshTokenFromCookies(request);
 
         if (refreshToken == null) {
@@ -116,7 +116,7 @@ public class MemberController {
         log.info("회원탈퇴 요청: memberId={}, email={}", memberId, loginId);
 
         memberService.withdraw(memberId);
-        memberService.logout(loginId, response); // 탈퇴 후 로그아웃 처리
+        memberService.logout(loginId, response); // 회원 탈퇴 후 세션 및 토큰 정리
         log.info("회원탈퇴 성공: memberId={}, email={}", memberId, loginId);
         return ResponseEntity.ok().build();
     }
@@ -140,6 +140,11 @@ public class MemberController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * HTTP 쿠키에서 리프레시 토큰을 추출합니다.
+     * @param request HTTP 요청 객체
+     * @return 리프레시 토큰 값 또는 null
+     */
     private String extractRefreshTokenFromCookies(HttpServletRequest request) {
         if (request.getCookies() != null) {
             for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
