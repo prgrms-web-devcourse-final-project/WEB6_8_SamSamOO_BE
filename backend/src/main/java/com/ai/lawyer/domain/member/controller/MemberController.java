@@ -3,7 +3,6 @@ package com.ai.lawyer.domain.member.controller;
 import com.ai.lawyer.domain.member.dto.MemberLoginRequest;
 import com.ai.lawyer.domain.member.dto.MemberResponse;
 import com.ai.lawyer.domain.member.dto.MemberSignupRequest;
-import com.ai.lawyer.domain.member.entity.Member;
 import com.ai.lawyer.domain.member.service.MemberService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -37,14 +36,9 @@ public class MemberController {
     public ResponseEntity<MemberResponse> signup(@Valid @RequestBody MemberSignupRequest request) {
         log.info("회원가입 요청: email={}, name={}", request.getLoginId(), request.getName());
 
-        try {
-            MemberResponse response = memberService.signup(request);
-            log.info("회원가입 성공: memberId={}", response.getMemberId());
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (IllegalArgumentException e) {
-            log.warn("회원가입 실패: {}", e.getMessage());
-            return ResponseEntity.badRequest().build();
-        }
+        MemberResponse response = memberService.signup(request);
+        log.info("회원가입 성공: memberId={}", response.getMemberId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PostMapping("/login")
@@ -57,14 +51,9 @@ public class MemberController {
                                               HttpServletResponse response) {
         log.info("로그인 요청: email={}", request.getLoginId());
 
-        try {
-            MemberResponse memberResponse = memberService.login(request, response);
-            log.info("로그인 성공: memberId={}", memberResponse.getMemberId());
-            return ResponseEntity.ok(memberResponse);
-        } catch (IllegalArgumentException e) {
-            log.warn("로그인 실패: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
+        MemberResponse memberResponse = memberService.login(request, response);
+        log.info("로그인 성공: memberId={}", memberResponse.getMemberId());
+        return ResponseEntity.ok(memberResponse);
     }
 
     @PostMapping("/logout")
@@ -102,18 +91,12 @@ public class MemberController {
         String refreshToken = extractRefreshTokenFromCookies(request);
 
         if (refreshToken == null) {
-            log.warn("리프레시 토큰이 없음");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            throw new com.ai.lawyer.domain.member.exception.MemberAuthenticationException("리프레시 토큰이 없습니다.");
         }
 
-        try {
-            MemberResponse memberResponse = memberService.refreshToken(refreshToken, response);
-            log.info("토큰 재발급 성공: memberId={}", memberResponse.getMemberId());
-            return ResponseEntity.ok(memberResponse);
-        } catch (IllegalArgumentException e) {
-            log.warn("토큰 재발급 실패: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
+        MemberResponse memberResponse = memberService.refreshToken(refreshToken, response);
+        log.info("토큰 재발급 성공: memberId={}", memberResponse.getMemberId());
+        return ResponseEntity.ok(memberResponse);
     }
 
     @DeleteMapping("/withdraw")
@@ -124,25 +107,18 @@ public class MemberController {
             @ApiResponse(responseCode = "404", description = "존재하지 않는 회원")
     })
     public ResponseEntity<Void> withdraw(Authentication authentication, HttpServletResponse response) {
-        if (authentication == null || authentication.getName() == null) {
-            log.warn("인증되지 않은 회원탈퇴 요청");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        if (authentication == null || authentication.getPrincipal() == null) {
+            throw new com.ai.lawyer.domain.member.exception.MemberAuthenticationException("인증이 필요합니다.");
         }
 
-        String loginId = authentication.getName();
-        log.info("회원탈퇴 요청: email={}", loginId);
+        Long memberId = (Long) authentication.getPrincipal();
+        String loginId = (String) authentication.getDetails();
+        log.info("회원탈퇴 요청: memberId={}, email={}", memberId, loginId);
 
-        try {
-            // loginId로 Member를 조회하여 실제 memberId 사용
-            Member member = memberService.findByLoginId(loginId);
-            memberService.withdraw(member.getMemberId());
-            memberService.logout(loginId, response); // 탈퇴 후 로그아웃 처리
-            log.info("회원탈퇴 성공: email={}, memberId={}", loginId, member.getMemberId());
-            return ResponseEntity.ok().build();
-        } catch (IllegalArgumentException e) {
-            log.warn("회원탈퇴 실패: {}", e.getMessage());
-            return ResponseEntity.notFound().build();
-        }
+        memberService.withdraw(memberId);
+        memberService.logout(loginId, response); // 탈퇴 후 로그아웃 처리
+        log.info("회원탈퇴 성공: memberId={}, email={}", memberId, loginId);
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/me")
@@ -152,24 +128,16 @@ public class MemberController {
             @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자")
     })
     public ResponseEntity<MemberResponse> getMyInfo(Authentication authentication) {
-        if (authentication == null || authentication.getName() == null) {
-            log.warn("인증되지 않은 정보 조회 요청");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        if (authentication == null || authentication.getPrincipal() == null) {
+            throw new com.ai.lawyer.domain.member.exception.MemberAuthenticationException("인증이 필요합니다.");
         }
 
-        String loginId = authentication.getName();
-        log.info("내 정보 조회 요청: email={}", loginId);
+        Long memberId = (Long) authentication.getPrincipal();
+        log.info("내 정보 조회 요청: memberId={}", memberId);
 
-        try {
-            // loginId로 Member를 조회하여 실제 memberId 사용
-            Member member = memberService.findByLoginId(loginId);
-            MemberResponse response = memberService.getMemberById(member.getMemberId());
-            log.info("내 정보 조회 성공: memberId={}", response.getMemberId());
-            return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
-            log.warn("내 정보 조회 실패: {}", e.getMessage());
-            return ResponseEntity.notFound().build();
-        }
+        MemberResponse response = memberService.getMemberById(memberId);
+        log.info("내 정보 조회 성공: memberId={}", response.getMemberId());
+        return ResponseEntity.ok(response);
     }
 
     private String extractRefreshTokenFromCookies(HttpServletRequest request) {

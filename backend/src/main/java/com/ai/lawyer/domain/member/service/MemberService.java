@@ -57,10 +57,12 @@ public class MemberService {
     }
 
     public void logout(String loginId, HttpServletResponse response) {
-        // Redis에서 리프레시 토큰 삭제
-        tokenProvider.deleteRefreshToken(loginId);
+        // loginId가 있는 경우에만 Redis에서 리프레시 토큰 삭제
+        if (loginId != null && !loginId.trim().isEmpty()) {
+            tokenProvider.deleteRefreshToken(loginId);
+        }
 
-        // 쿠키 삭제
+        // 쿠키는 항상 클리어 (인증 정보가 없어도 클라이언트의 쿠키는 삭제해야 함)
         cookieUtil.clearTokenCookies(response);
     }
 

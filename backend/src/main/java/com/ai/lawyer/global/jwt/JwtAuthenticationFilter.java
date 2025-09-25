@@ -45,15 +45,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private void setAuthentication(String token) {
         try {
-            // TODO: 실제 JWT 구현 시 토큰에서 사용자 정보 추출
-            // 현재는 임시로 토큰에서 사용자명 추출
-            String username = tokenProvider.getUsernameFromToken(token);
+            // 토큰에서 사용자 정보 추출
+            Long memberId = tokenProvider.getMemberIdFromToken(token);
+            String role = tokenProvider.getRoleFromToken(token);
 
-            // 간단한 권한 설정 (실제로는 토큰에서 권한 정보도 추출)
-            List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
+            if (memberId == null) {
+                log.warn("토큰에서 memberId를 추출할 수 없습니다.");
+                return;
+            }
 
+            // 권한 설정 (토큰에서 추출한 role 사용)
+            String authority = "ROLE_" + (role != null ? role : "USER");
+            List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(authority));
+
+            // memberId를 principal로 사용하는 인증 객체 생성
             UsernamePasswordAuthenticationToken authentication =
-                new UsernamePasswordAuthenticationToken(username, null, authorities);
+                new UsernamePasswordAuthenticationToken(memberId, null, authorities);
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
         } catch (Exception e) {
@@ -64,8 +71,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        // 인증이 필요없는 경로들
-        return path.startsWith("/api/auth/") ||
+        // 인증이 필요없는 경로들 (구체적으로 명시)
+        return path.equals("/api/auth/signup") ||
+               path.equals("/api/auth/login") ||
+               path.equals("/api/auth/refresh") ||
                path.startsWith("/api/public/") ||
                path.startsWith("/swagger-") ||
                path.startsWith("/v3/api-docs");

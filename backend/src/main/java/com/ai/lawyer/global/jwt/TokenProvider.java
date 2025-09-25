@@ -10,6 +10,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Date;
 import java.util.UUID;
@@ -26,7 +27,7 @@ public class TokenProvider {
     private static final long REFRESH_TOKEN_EXPIRE_TIME = 7 * 24 * 60 * 60; // 7일
 
     private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(jwtProperties.getSecretKey().getBytes());
+        return Keys.hmacShaKeyFor(jwtProperties.getSecretKey().getBytes(StandardCharsets.UTF_8));
     }
 
     public String generateAccessToken(Member member) {
@@ -38,6 +39,7 @@ public class TokenProvider {
                 .setIssuedAt(now)
                 .setExpiration(expiry)
                 .claim("memberId", member.getMemberId())
+                .claim("role", member.getRole().name())
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
@@ -73,16 +75,30 @@ public class TokenProvider {
         return false;
     }
 
-    public String getUsernameFromToken(String token) {
+    public Long getMemberIdFromToken(String token) {
         try {
             Claims claims = Jwts.parserBuilder()
                     .setSigningKey(getSigningKey())
                     .build()
                     .parseClaimsJws(token)
                     .getBody();
-            return claims.getSubject();
+            return claims.get("memberId", Long.class);
         } catch (Exception e) {
-            log.warn("토큰에서 사용자 정보 추출 실패: {}", e.getMessage());
+            log.warn("토큰에서 회원 ID 추출 실패: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    public String getRoleFromToken(String token) {
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            return claims.get("role", String.class);
+        } catch (Exception e) {
+            log.warn("토큰에서 역할 정보 추출 실패: {}", e.getMessage());
             return null;
         }
     }
