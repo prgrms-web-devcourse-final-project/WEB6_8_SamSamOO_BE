@@ -30,14 +30,39 @@ public class EmailAuthService {
         String key = buildKey(loginId);
         String savedCode = (String) redisTemplate.opsForValue().get(key);
         if (savedCode != null && savedCode.equals(inputCode)) {
-            redisTemplate.delete(key); // 성공 시 삭제
+            // 성공 시 삭제하지 않고 인증 성공 표시로 업데이트
+            String successKey = buildSuccessKey(loginId);
+            redisTemplate.opsForValue().set(successKey, "true", EXPIRATION_MINUTES, TimeUnit.MINUTES);
             return true;
         }
         return false;
     }
 
+    /**
+     * 이메일 인증 성공 여부 확인
+     */
+    public boolean isEmailVerified(String loginId) {
+        String successKey = buildSuccessKey(loginId);
+        String isVerified = (String) redisTemplate.opsForValue().get(successKey);
+        return "true".equals(isVerified);
+    }
+
+    /**
+     * 비밀번호 재설정 완료 후 인증 데이터 삭제
+     */
+    public void clearAuthData(String loginId) {
+        String key = buildKey(loginId);
+        String successKey = buildSuccessKey(loginId);
+        redisTemplate.delete(key);
+        redisTemplate.delete(successKey);
+    }
+
     private String buildKey(String loginId) {
         return "email:auth:" + loginId;
+    }
+
+    private String buildSuccessKey(String loginId) {
+        return "email:auth:success:" + loginId;
     }
 
 }
