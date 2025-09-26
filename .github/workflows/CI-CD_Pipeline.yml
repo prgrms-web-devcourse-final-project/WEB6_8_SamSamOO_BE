@@ -247,6 +247,10 @@ jobs:
             PROD_REDIS_HOST=redis_1
             PROD_REDIS_PORT=6379
             PROD_REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+            
+            send_email_address=${{ secrets.SEND_EMAIL_ADDRESS }}
+            email_address=${{ secrets.EMAIL_ADDRESS }}
+            send_email_password=${{ secrets.EMAIL_PASSWORD }}
             EOF
             
             # EC2에서 GHCR 로그인
