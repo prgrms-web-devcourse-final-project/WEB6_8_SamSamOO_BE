@@ -70,22 +70,22 @@ public class MemberService {
 
     public MemberResponse refreshToken(String refreshToken, HttpServletResponse response) {
         // Redis에서 리프레시 토큰으로 사용자 찾기
-        String username = tokenProvider.findUsernameByRefreshToken(refreshToken);
-        if (username == null) {
+        String loginId = tokenProvider.findUsernameByRefreshToken(refreshToken);
+        if (loginId == null) {
             throw new IllegalArgumentException("유효하지 않은 리프레시 토큰입니다.");
         }
 
         // 리프레시 토큰 유효성 검증
-        if (!tokenProvider.validateRefreshToken(username, refreshToken)) {
+        if (!tokenProvider.validateRefreshToken(loginId, refreshToken)) {
             throw new IllegalArgumentException("유효하지 않은 리프레시 토큰입니다.");
         }
 
         // 회원 정보 조회
-        Member member = memberRepository.findByLoginId(username)
+        Member member = memberRepository.findByLoginId(loginId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
 
         // RTR(Refresh Token Rotation) 패턴: 기존 리프레시 토큰 삭제
-        tokenProvider.deleteRefreshToken(username);
+        tokenProvider.deleteRefreshToken(loginId);
 
         // 새로운 액세스 토큰과 리프레시 토큰 생성
         String newAccessToken = tokenProvider.generateAccessToken(member);
