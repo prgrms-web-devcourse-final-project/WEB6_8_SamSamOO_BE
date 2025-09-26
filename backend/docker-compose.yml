@@ -6,15 +6,15 @@ services:
     container_name: mysql
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASS}
+      MYSQL_DATABASE: balaw
+      MYSQL_USER: ${DEV_DATASOURCE_USERNAME}
+      MYSQL_PASSWORD: ${DEV_DATASOURCE_PASSWORD}
       # 새 변수: 루트 계정 비번 (필수)
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASS}
+      MYSQL_ROOT_PASSWORD: ${DEV_DB_ROOT_PASSWORD}
       TZ: Asia/Seoul
     ports:
       # 호스트 포트는 원하는 값으로, 컨테이너는 3306 고정
-      - "${DB_PORT:-3306}:3306"
+      - "${DEV_DATASOURCE_PORT:-3306}:3306"
     volumes:
       - mysql-data:/var/lib/mysql
     command: >
@@ -23,10 +23,27 @@ services:
       --default-time-zone=Asia/Seoul
       --skip-log-bin
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${DB_ROOT_PASS}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${DEV_DATASOURCE_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.4
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "${DEV_REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    command: >
+      redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 10
 
 volumes:
   mysql-data:
+  redis-data:
