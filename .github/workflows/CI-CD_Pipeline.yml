@@ -41,13 +41,14 @@ jobs:
           --health-retries 5
         env:
           REDIS_PASSWORD: ""
-          # Qdrant 서비스
+
+      # ✅ Qdrant 서비스 추가
       qdrant:
         image: qdrant/qdrant:v1.3.1
         ports:
           - 6333:6333
         options: >-
-          --health-cmd "wget --spider --quiet http://localhost:6333/collections || exit 1"
+          --health-cmd "curl -f http://localhost:6333/health || exit 1"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
