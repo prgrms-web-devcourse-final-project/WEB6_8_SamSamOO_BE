@@ -35,9 +35,9 @@ public class TokenProvider {
         Date expiry = new Date(now.getTime() + jwtProperties.getAccessToken().getExpirationSeconds() * 1000);
 
         return Jwts.builder()
-                .setSubject(member.getLoginId())
                 .setIssuedAt(now)
                 .setExpiration(expiry)
+                .claim("loginid", member.getLoginId())
                 .claim("memberId", member.getMemberId())
                 .claim("role", member.getRole().name())
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
@@ -99,6 +99,20 @@ public class TokenProvider {
             return claims.get("role", String.class);
         } catch (Exception e) {
             log.warn("토큰에서 역할 정보 추출 실패: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    public String getLoginIdFromToken(String token) {
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            return claims.get("loginid", String.class); // loginid claim에서 추출
+        } catch (Exception e) {
+            log.warn("토큰에서 로그인 ID 추출 실패: {}", e.getMessage());
             return null;
         }
     }

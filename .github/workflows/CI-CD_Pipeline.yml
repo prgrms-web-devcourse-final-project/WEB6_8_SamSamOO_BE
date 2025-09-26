@@ -75,6 +75,10 @@ jobs:
 
           # JPA 설정 (application-test.yml에서 참조)
           TEST_JPA_HIBERNATE_DDL_AUTO=create-drop
+          
+          email_address=${{ secrets.EMAIL_ADDRESS }}
+          send_email_password=${{ secrets.EMAIL_PASSWORD }}
+          send_email_address=${{ secrets.SEND_EMAIL_ADDRESS }}
 
           # Redis 설정 (application-test.yml에서 참조, GitHub Actions 서비스 사용)
           TEST_REDIS_HOST=localhost
@@ -204,7 +208,7 @@ jobs:
           PROD_DATASOURCE_URL=jdbc:mysql://mysql_1:3306/${{ secrets.DB_NAME }}
           PROD_DATASOURCE_USERNAME=${{ secrets.DB_USER }}
           PROD_DATASOURCE_PASSWORD=${{ secrets.DB_PASSWORD }}
-      
+          
           PROD_REDIS_HOST=redis_1
           PROD_REDIS_PORT=6379
           PROD_REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
@@ -232,7 +236,7 @@ jobs:
             PROD_DATASOURCE_DRIVER=com.mysql.cj.jdbc.Driver
             PROD_DATASOURCE_USERNAME=root
             PROD_DATASOURCE_PASSWORD=${{ secrets.DB_PASSWORD }}
-      
+            
             PROD_REDIS_HOST=redis_1
             PROD_REDIS_PORT=6379
             PROD_REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
@@ -240,7 +244,7 @@ jobs:
             
             # EC2에서 GHCR 로그인
             echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-  
+            
             # 최신 이미지 pull & 컨테이너 실행
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ env.DOCKER_IMAGE_NAME }}:latest
             docker stop app1 2>/dev/null || true

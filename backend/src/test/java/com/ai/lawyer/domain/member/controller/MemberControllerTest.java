@@ -1,8 +1,6 @@
 package com.ai.lawyer.domain.member.controller;
 
-import com.ai.lawyer.domain.member.dto.MemberLoginRequest;
-import com.ai.lawyer.domain.member.dto.MemberResponse;
-import com.ai.lawyer.domain.member.dto.MemberSignupRequest;
+import com.ai.lawyer.domain.member.dto.*;
 import com.ai.lawyer.domain.member.entity.Member;
 import com.ai.lawyer.domain.member.service.MemberService;
 import com.ai.lawyer.domain.member.exception.MemberAuthenticationException;
@@ -384,5 +382,206 @@ class MemberControllerTest {
                 .hasMessage("존재하지 않는 회원입니다.");
 
         verify(memberService).getMemberById(1L);
+    }
+
+    // ===== 이메일 인증 관련 테스트 =====
+
+    @Test
+    @DisplayName("이메일 전송 성공 - 비로그인 사용자 (요청 바디에서 loginId 추출)")
+    void sendEmail_Success_NonLoggedInUser() throws Exception {
+        // given
+        MemberEmailRequestDto requestDto = new MemberEmailRequestDto();
+        requestDto.setLoginId("test@example.com");
+        doNothing().when(memberService).sendCodeToEmailByLoginId("test@example.com");
+
+        // when and then
+        mockMvc.perform(post("/api/auth/sendEmail")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("이메일 전송 성공"))
+                .andExpect(jsonPath("$.email").value("test@example.com"))
+                .andExpect(jsonPath("$.success").value(true));
+
+        verify(memberService).sendCodeToEmailByLoginId("test@example.com");
+    }
+
+    @Test
+    @DisplayName("이메일 전송 실패 - 존재하지 않는 회원")
+    void sendEmail_Fail_MemberNotFound() throws Exception {
+        // given
+        MemberEmailRequestDto requestDto = new MemberEmailRequestDto();
+        requestDto.setLoginId("nonexistent@example.com");
+        doThrow(new IllegalArgumentException("해당 로그인 ID의 회원이 없습니다."))
+                .when(memberService).sendCodeToEmailByLoginId("nonexistent@example.com");
+
+        // when and then
+        mockMvc.perform(post("/api/auth/sendEmail")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+
+        verify(memberService).sendCodeToEmailByLoginId("nonexistent@example.com");
+    }
+
+    @Test
+    @DisplayName("이메일 인증번호 검증 성공 - 비로그인 사용자")
+    void verifyEmail_Success_NonLoggedInUser() throws Exception {
+        // given
+        given(memberService.verifyAuthCode("test@example.com", "123456")).willReturn(true);
+
+        EmailVerifyCodeRequestDto requestDto = new EmailVerifyCodeRequestDto();
+        requestDto.setLoginId("test@example.com");
+        requestDto.setVerificationCode("123456");
+
+        // when and then
+        mockMvc.perform(post("/api/auth/verifyEmail")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("인증번호 검증 성공"))
+                .andExpect(jsonPath("$.email").value("test@example.com"))
+                .andExpect(jsonPath("$.success").value(true));
+
+        verify(memberService).verifyAuthCode("test@example.com", "123456");
+    }
+
+    @Test
+    @DisplayName("이메일 인증번호 검증 실패 - 잘못된 인증번호")
+    void verifyEmail_Fail_InvalidCode() throws Exception {
+        // given
+        given(memberService.verifyAuthCode("test@example.com", "999999")).willReturn(false);
+
+        EmailVerifyCodeRequestDto requestDto = new EmailVerifyCodeRequestDto();
+        requestDto.setLoginId("test@example.com");
+        requestDto.setVerificationCode("999999");
+
+        // when and then
+        mockMvc.perform(post("/api/auth/verifyEmail")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+
+        verify(memberService).verifyAuthCode("test@example.com", "999999");
+    }
+
+    @Test
+    @DisplayName("이메일 인증번호 검증 실패 - 유효성 검증 실패")
+    void verifyEmail_Fail_ValidationError() throws Exception {
+        // given
+        EmailVerifyCodeRequestDto invalidRequest = new EmailVerifyCodeRequestDto();
+        invalidRequest.setLoginId("test@example.com");
+        invalidRequest.setVerificationCode("12345"); // 6자리가 아님
+
+        // when and then
+        mockMvc.perform(post("/api/auth/verifyEmail")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+
+        verify(memberService, never()).verifyAuthCode(anyString(), anyString());
+    }
+
+    // ===== 비밀번호 재설정 관련 테스트 =====
+
+    @Test
+    @DisplayName("비밀번호 재설정 성공")
+    void resetPassword_Success() throws Exception {
+        // given
+        ResetPasswordRequestDto requestDto = new ResetPasswordRequestDto();
+        requestDto.setLoginId("test@example.com");
+        requestDto.setNewPassword("newPassword123");
+        requestDto.setSuccess(true);
+
+        doNothing().when(memberService).resetPassword("test@example.com", "newPassword123", true);
+
+        // when and then
+        mockMvc.perform(post("/api/auth/password-reset/reset")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("비밀번호가 성공적으로 재설정되었습니다."))
+                .andExpect(jsonPath("$.email").value("test@example.com"))
+                .andExpect(jsonPath("$.success").value(true));
+
+        verify(memberService).resetPassword("test@example.com", "newPassword123", true);
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 실패 - 인증되지 않음 (success = false)")
+    void resetPassword_Fail_NotAuthenticated() throws Exception {
+        // given
+        ResetPasswordRequestDto requestDto = new ResetPasswordRequestDto();
+        requestDto.setLoginId("test@example.com");
+        requestDto.setNewPassword("newPassword123");
+        requestDto.setSuccess(false);
+
+        doThrow(new IllegalArgumentException("이메일 인증을 완료해야 비밀번호를 재설정할 수 있습니다."))
+                .when(memberService).resetPassword("test@example.com", "newPassword123", false);
+
+        // when and then
+        mockMvc.perform(post("/api/auth/password-reset/reset")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+
+        verify(memberService).resetPassword("test@example.com", "newPassword123", false);
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 실패 - 존재하지 않는 회원")
+    void resetPassword_Fail_MemberNotFound() throws Exception {
+        // given
+        ResetPasswordRequestDto requestDto = new ResetPasswordRequestDto();
+        requestDto.setLoginId("nonexistent@example.com");
+        requestDto.setNewPassword("newPassword123");
+        requestDto.setSuccess(true);
+
+        doThrow(new IllegalArgumentException("존재하지 않는 회원입니다."))
+                .when(memberService).resetPassword("nonexistent@example.com", "newPassword123", true);
+
+        // when and then
+        mockMvc.perform(post("/api/auth/password-reset/reset")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
+                .andDo(print())
+                .andExpect(status().isUnauthorized());
+
+        verify(memberService).resetPassword("nonexistent@example.com", "newPassword123", true);
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 실패 - 유효성 검증 실패")
+    void resetPassword_Fail_ValidationError() throws Exception {
+        // given
+        ResetPasswordRequestDto invalidRequest = new ResetPasswordRequestDto();
+        invalidRequest.setLoginId(""); // 빈 이메일
+        invalidRequest.setNewPassword(""); // 빈 비밀번호
+        invalidRequest.setSuccess(null); // null success
+
+        // when and then
+        mockMvc.perform(post("/api/auth/password-reset/reset")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+
+        verify(memberService, never()).resetPassword(anyString(), anyString(), any());
     }
 }
