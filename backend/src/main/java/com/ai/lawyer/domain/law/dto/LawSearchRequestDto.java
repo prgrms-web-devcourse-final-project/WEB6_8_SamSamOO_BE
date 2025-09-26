@@ -10,13 +10,13 @@ import java.time.LocalDate;
 @Builder
 public class LawSearchRequestDto {
 
-    @Schema(description = "법령명", example = "노동")
+    @Schema(description = "법령명", example = "형사")
     private String lawName;        // 법령명
 
     @Schema(description = "법령분야", example = "법률")
     private String lawField;       // 법령분야
 
-    @Schema(description = "소관부처", example = "고용노동부")
+    @Schema(description = "소관부처", example = "법무부")
     private String ministry;       // 소관부처
 
     @Schema(description = "공포일자 시작", example =  "2000-03-25")
