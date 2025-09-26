@@ -36,6 +36,9 @@ public class Poll {
     @Column(name = "closed_at")
     private LocalDateTime closedAt;
 
+    @Column(name = "reserved_close_at")
+    private LocalDateTime reservedCloseAt;
+
     @OneToMany(mappedBy = "poll", cascade = CascadeType.REMOVE, orphanRemoval = true)
     private java.util.List<PollOptions> pollOptions;
 

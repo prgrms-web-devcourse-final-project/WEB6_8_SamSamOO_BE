@@ -44,10 +44,10 @@ public class PollController {
 
     @Operation(summary = "투표하기")
     @PostMapping("/{pollId}/vote")
-    public PollVoteDto vote(@PathVariable Long pollId, @RequestParam Long pollItemsId) {
+    public ResponseEntity<?> vote(@PathVariable Long pollId, @RequestParam Long pollItemsId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Long memberId = (Long) authentication.getPrincipal();
-        return pollService.vote(pollId, pollItemsId, memberId);
+        Long memberId = Long.parseLong(authentication.getName());
+        return ResponseEntity.ok(pollService.vote(pollId, pollItemsId, memberId));
     }
 
     @Operation(summary = "투표 통계 조회")
@@ -80,26 +80,26 @@ public class PollController {
         return pollService.getTopPollByStatus(PollDto.PollStatus.CLOSED);
     }
 
-    @Operation(summary = "진행중인 투표 상세 조회")
-    @GetMapping("/top/ongoing-detail")
-    public PostDetailDto getTopOngoingPollDetail() {
-        PollDto pollDto = pollService.getTopPollByStatus(PollDto.PollStatus.ONGOING);
-        return postService.getPostDetailById(pollDto.getPostId());
-    }
-
-    @Operation(summary = "종료된 투표 상세 조회")
-    @GetMapping("/top/closed-detail")
-    public PostDetailDto getTopClosedPollDetail() {
-        PollDto pollDto = pollService.getTopPollByStatus(PollDto.PollStatus.CLOSED);
-        return postService.getPostDetailById(pollDto.getPostId());
-    }
+//    @Operation(summary = "진행중인 투표 상세 조회")
+//    @GetMapping("/top/ongoing-detail")
+//    public PostDetailDto getTopOngoingPollDetail() {
+//        PollDto pollDto = pollService.getTopPollByStatus(PollDto.PollStatus.ONGOING);
+//        return postService.getPostDetailById(pollDto.getPostId());
+//    }
+//
+//    @Operation(summary = "종료된 투표 상세 조회")
+//    @GetMapping("/top/closed-detail")
+//    public PostDetailDto getTopClosedPollDetail() {
+//        PollDto pollDto = pollService.getTopPollByStatus(PollDto.PollStatus.CLOSED);
+//        return postService.getPostDetailById(pollDto.getPostId());
+//    }
 
     @Operation(summary = "투표 생성")
     @PostMapping("")
-    public PollDto createPoll(@RequestBody PollCreateDto request) {
+    public ResponseEntity<?> createPoll(@RequestBody PollCreateDto pollCreateDto) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Long memberId = (Long) authentication.getPrincipal();
-        return pollService.createPoll(request, memberId);
+        Long memberId = Long.parseLong(authentication.getName());
+        return ResponseEntity.ok(pollService.createPoll(pollCreateDto, memberId));
     }
 
     @Operation(summary = "투표 수정")
@@ -121,13 +121,13 @@ public class PollController {
     }
 
     @Operation(summary = "종료된 투표 Top N 조회")
-    @GetMapping("/top/closed-list") ///api/polls/top/closed-list?size=3
+    @GetMapping("/top/closed-list") //검색조건 : pi/polls/top/closed-list?size=3
     public List<PollDto> getTopClosedPolls(@RequestParam(defaultValue = "3") int size) {
         return pollService.getTopNPollsByStatus(PollDto.PollStatus.CLOSED, size);
     }
 
     @Operation(summary = "진행중인 투표 Top N 조회")
-    @GetMapping("/top/ongoing-list") ///api/polls/top/ongoing-list?size=3
+    @GetMapping("/top/ongoing-list") //검색조건 : api/polls/top/ongoing-list?size=3
     public List<PollDto> getTopOngoingPolls(@RequestParam(defaultValue = "3") int size) {
         return pollService.getTopNPollsByStatus(PollDto.PollStatus.ONGOING, size);
     }

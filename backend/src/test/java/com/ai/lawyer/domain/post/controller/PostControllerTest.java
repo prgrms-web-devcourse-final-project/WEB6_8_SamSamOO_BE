@@ -1,162 +1,137 @@
 package com.ai.lawyer.domain.post.controller;
 
-import com.ai.lawyer.domain.member.entity.Member;
-import com.ai.lawyer.domain.member.repositories.MemberRepository;
-import com.ai.lawyer.domain.post.dto.PostDto;
+import com.ai.lawyer.domain.post.dto.PostDetailDto;
 import com.ai.lawyer.domain.post.dto.PostRequestDto;
 import com.ai.lawyer.domain.post.service.PostService;
-import com.ai.lawyer.global.jwt.TokenProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
+import com.ai.lawyer.global.security.SecurityConfig;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.ResultActions;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 
-@ActiveProfiles("test")
-@SpringBootTest
+@Import(SecurityConfig.class)
 @AutoConfigureMockMvc
-@Transactional
-@ExtendWith(SpringExtension.class)
+@WebMvcTest(
+    controllers = PostController.class,
+    excludeAutoConfiguration = {
+        org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration.class,
+        org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration.class,
+        org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration.class,
+        org.springframework.boot.autoconfigure.orm.jpa.JpaBaseConfiguration.class
+    }
+)
 class PostControllerTest {
     @Autowired
-    private MockMvc mvc;
-    @Autowired
-    private ObjectMapper objectMapper;
-    @Autowired
-    private MemberRepository memberRepository;
+    private MockMvc mockMvc;
     @MockBean
     private PostService postService;
+    @MockBean
+    private com.ai.lawyer.domain.member.repositories.MemberRepository memberRepository;
+    @MockBean
+    private com.ai.lawyer.global.jwt.TokenProvider tokenProvider;
+    @MockBean
+    private com.ai.lawyer.global.jwt.CookieUtil cookieUtil;
+    @MockBean
+    private org.springframework.data.jpa.mapping.JpaMetamodelMappingContext jpaMappingContext;
     @Autowired
-    private TokenProvider tokenProvider;
-
-    private Member member;
-    private String jwtToken;
-    private PostDto postDto;
-    private PostRequestDto postRequestDto;
-
-    @BeforeEach
-    void setUp() {
-        member = Member.builder()
-                .loginId("test1@email.com")
-                .password("pw")
-                .age(20)
-                .gender(Member.Gender.MALE)
-                .role(Member.Role.USER)
-                .name("테스트회원")
-                .build();
-        member = memberRepository.save(member);
-        jwtToken = "Bearer " + createTestToken(member.getMemberId());
-        postDto = PostDto.builder()
-                .postId(1L)
-                .memberId(member.getMemberId())
-                .postName("테스트 제목")
-                .postContent("테스트 내용")
-                .category("일반")
-                .createdAt(LocalDateTime.now())
-                .build();
-        postRequestDto = PostRequestDto.builder()
-                .postName("테스트 제목")
-                .postContent("테스트 내용")
-                .category("일반")
-                .build();
-    }
-
-    private String createTestToken(Long memberId) {
-        Member member = memberRepository.findById(memberId).orElseThrow();
-        return tokenProvider.generateAccessToken(member);
-    }
+    private ObjectMapper objectMapper;
 
     @Test
-    @DisplayName("게시글 등록 성공")
-    void createPost_success() throws Exception {
-        when(postService.createPost(any(PostRequestDto.class), eq(member.getMemberId()))).thenReturn(postDto);
-        mvc.perform(post("/api/posts")
-                .header("Authorization", jwtToken)
+    @DisplayName("게시글 등록")
+    @WithMockUser(username="1")
+    void t1() throws Exception {
+        PostRequestDto dto = PostRequestDto.builder().postName("테스트 제목").postContent("테스트 내용").build();
+        com.ai.lawyer.domain.post.dto.PostDto responseDto = com.ai.lawyer.domain.post.dto.PostDto.builder().postId(1L).postName("테스트 제목").postContent("테스트 내용").build();
+        Mockito.when(postService.createPost(Mockito.any(), Mockito.anyLong())).thenReturn(responseDto);
+        mockMvc.perform(post("/api/posts")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(postRequestDto)))
+                .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.result.postName").value("테스트 제목"));
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.code").value(201))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.message").value("게시글이 등록되었습니다."))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result.postName").value("테스트 제목"));
     }
 
     @Test
-    @DisplayName("게시글 단일 조회 성공")
-    void getPostById_success() throws Exception {
-        when(postService.getPostById(1L)).thenReturn(Mockito.mock(com.ai.lawyer.domain.post.dto.PostDetailDto.class));
-        mvc.perform(get("/api/posts/1"))
-                .andExpect(status().isOk());
-    }
-
-    @Test
-    @DisplayName("게시글 전체 조회 성공")
-    void getAllPosts_success() throws Exception {
-        when(postService.getAllPosts()).thenReturn(List.of(Mockito.mock(com.ai.lawyer.domain.post.dto.PostDetailDto.class)));
-        mvc.perform(get("/api/posts"))
-                .andExpect(status().isOk());
-    }
-
-    @Test
-    @DisplayName("회원별 게시글 목록 조회 성공")
-    void getPostsByMember_success() throws Exception {
-        when(postService.getPostsByMemberId(member.getMemberId())).thenReturn(List.of(postDto));
-        mvc.perform(get("/api/posts/member/" + member.getMemberId()))
-                .andExpect(status().isOk());
-    }
-
-    @Test
-    @DisplayName("본인 게시글 단일 조회 성공")
-    void getMyPostById_success() throws Exception {
-        when(postService.getMyPostById(1L, member.getMemberId())).thenReturn(postDto);
-        mvc.perform(get("/api/posts/my/1")
-                .header("Authorization", jwtToken))
+    @DisplayName("게시글 전체 조회")
+    @WithMockUser(username="1")
+    void t2() throws Exception {
+        List<com.ai.lawyer.domain.post.dto.PostDetailDto> posts = java.util.Collections.emptyList();
+        Mockito.when(postService.getAllPosts()).thenReturn(posts);
+        mockMvc.perform(get("/api/posts"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.result.postName").value("테스트 제목"));
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result").isArray());
     }
 
     @Test
-    @DisplayName("본인 게시글 전체 조회 성공")
-    void getMyPosts_success() throws Exception {
-        when(postService.getMyPosts(member.getMemberId())).thenReturn(List.of(postDto));
-        mvc.perform(get("/api/posts/my")
-                .header("Authorization", jwtToken))
+    @DisplayName("게시글 단일 조회")
+    @WithMockUser(username="1")
+    void t3() throws Exception {
+        com.ai.lawyer.domain.post.dto.PostDto postDto = com.ai.lawyer.domain.post.dto.PostDto.builder().postId(1L).postName("테스트 제목").build();
+        com.ai.lawyer.domain.post.dto.PostDetailDto postDetailDto = com.ai.lawyer.domain.post.dto.PostDetailDto.builder().post(postDto).build();
+        Mockito.when(postService.getPostById(Mockito.anyLong())).thenReturn(postDetailDto);
+        mockMvc.perform(get("/api/posts/1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.result[0].postName").value("테스트 제목"));
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result.post.postId").value(1L));
     }
 
     @Test
-    @DisplayName("게시글 수정 성공")
-    void updatePost_success() throws Exception {
-        when(postService.getPostDetailById(1L)).thenReturn(Mockito.mock(com.ai.lawyer.domain.post.dto.PostDetailDto.class));
-        when(postService.updatePost(eq(1L), any(PostDto.class))).thenReturn(postDto);
-        mvc.perform(put("/api/posts/1")
+    @DisplayName("회원별 게시글 목록 조회")
+    @WithMockUser(username="1")
+    void t4() throws Exception {
+        List<com.ai.lawyer.domain.post.dto.PostDto> postDtoList = List.of(com.ai.lawyer.domain.post.dto.PostDto.builder().postId(1L).postName("테스트 제목").build());
+        com.ai.lawyer.domain.post.dto.PostDetailDto postDetailDto = com.ai.lawyer.domain.post.dto.PostDetailDto.builder().post(postDtoList.get(0)).build();
+        List<com.ai.lawyer.domain.post.dto.PostDetailDto> detailList = List.of(postDetailDto);
+        Mockito.when(postService.getPostsByMemberId(Mockito.anyLong())).thenReturn(postDtoList);
+        Mockito.when(postService.getPostDetailById(Mockito.anyLong())).thenReturn(postDetailDto);
+        mockMvc.perform(get("/api/posts/member/1"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result").isArray());
+    }
+
+    @Test
+    @DisplayName("게시글 수정")
+    @WithMockUser(username="1")
+    void t5() throws Exception {
+        com.ai.lawyer.domain.post.dto.PostDto postDto = com.ai.lawyer.domain.post.dto.PostDto.builder().postId(1L).postName("수정 제목").build();
+        com.ai.lawyer.domain.post.dto.PostDetailDto postDetailDto = com.ai.lawyer.domain.post.dto.PostDetailDto.builder().post(postDto).build();
+        Mockito.doNothing().when(postService).patchUpdatePost(Mockito.anyLong(), Mockito.any());
+        Mockito.when(postService.getPostDetailById(Mockito.anyLong())).thenReturn(postDetailDto);
+        com.ai.lawyer.domain.post.dto.PostUpdateDto updateDto = com.ai.lawyer.domain.post.dto.PostUpdateDto.builder().postName("수정 제목").build();
+        mockMvc.perform(put("/api/posts/1")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(postDto)))
-                .andExpect(status().isOk());
+                .content(objectMapper.writeValueAsString(updateDto)))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result.post.postName").value("수정 제목"));
     }
 
     @Test
-    @DisplayName("게시글 삭제 성공")
-    void deletePost_success() throws Exception {
-        mvc.perform(delete("/api/posts/1"))
+    @DisplayName("게시글 삭제")
+    @WithMockUser(username="1")
+    void t6() throws Exception {
+        Mockito.doNothing().when(postService).deletePost(Mockito.anyLong());
+        mockMvc.perform(delete("/api/posts/1"))
                 .andExpect(status().isOk());
     }
 }

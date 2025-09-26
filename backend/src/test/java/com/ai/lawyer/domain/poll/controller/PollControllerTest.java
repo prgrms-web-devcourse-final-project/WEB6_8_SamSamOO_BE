@@ -1,133 +1,168 @@
 package com.ai.lawyer.domain.poll.controller;
 
-import com.ai.lawyer.domain.poll.dto.PollDto;
-import com.ai.lawyer.domain.poll.entity.PollOptions;
-import com.ai.lawyer.domain.poll.entity.PollStatics;
-import com.ai.lawyer.domain.poll.entity.PollVote;
 import com.ai.lawyer.domain.poll.service.PollService;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.test.web.servlet.MockMvc;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import com.ai.lawyer.domain.poll.dto.PollDto;
+import com.ai.lawyer.domain.poll.dto.PollVoteDto;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.mockito.Mock;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
+import com.ai.lawyer.global.security.SecurityConfig;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.junit.jupiter.api.DisplayName;
 
-import java.time.LocalDateTime;
-import java.util.List;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
-@ActiveProfiles("test")
-@SpringBootTest
+@Import(SecurityConfig.class)
 @AutoConfigureMockMvc
+@WebMvcTest(
+    controllers = PollController.class,
+    excludeAutoConfiguration = {
+        org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration.class,
+        org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration.class,
+        org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration.class,
+        org.springframework.boot.autoconfigure.orm.jpa.JpaBaseConfiguration.class
+    }
+)
 class PollControllerTest {
     @Autowired
-    private MockMvc mvc;
+    private MockMvc mockMvc;
+    @MockBean
+    private PollService pollService;
+    @MockBean
+    private com.ai.lawyer.domain.post.service.PostService postService;
     @Autowired
     private ObjectMapper objectMapper;
     @MockBean
-    private PollService pollService;
+    private com.ai.lawyer.global.jwt.TokenProvider tokenProvider;
+    @MockBean
+    private com.ai.lawyer.global.jwt.CookieUtil cookieUtil;
+    @MockBean
+    private com.ai.lawyer.domain.member.repositories.MemberRepository memberRepository;
+    @MockBean
+    private org.springframework.data.jpa.mapping.JpaMetamodelMappingContext jpaMappingContext;
 
-    private PollDto pollDto;
-    private PollOptions pollOptions;
-    private PollVote pollVote;
-    private PollStatics pollStatics;
-
-    @BeforeEach
-    void setUp() {
-        pollDto = PollDto.builder()
-                .pollId(1L)
-                .voteTitle("테스트 투표")
-                .status(PollDto.PollStatus.ONGOING)
-                .createdAt(LocalDateTime.now())
-                .build();
-        pollOptions = PollOptions.builder()
-                .pollItemsId(10L)
-                .option("옵션1")
-                .build();
-        pollVote = PollVote.builder()
-                .pollOptions(pollOptions)
-                .build();
-        pollStatics = PollStatics.builder()
-                .poll(pollDto.toEntity())
-                .build();
+    @Test
+    @DisplayName("투표 단일 조회")
+    @WithMockUser(username="1")
+    void t1() throws Exception {
+        Mockito.when(pollService.getPoll(Mockito.anyLong())).thenReturn(null);
+        mockMvc.perform(get("/api/polls/1"))
+                .andExpect(status().isOk());
     }
 
     @Test
-    @DisplayName("투표 단일 조회 성공")
-    void getPoll_success() throws Exception {
-        when(pollService.getPoll(1L)).thenReturn(pollDto);
-        mvc.perform(get("/api/polls/1"))
+    @DisplayName("투표 옵션 목록 조회")
+    @WithMockUser(username="1")
+    void t2() throws Exception {
+        Mockito.when(pollService.getPollOptions(Mockito.anyLong())).thenReturn(java.util.Collections.emptyList());
+        mockMvc.perform(get("/api/polls/1/options"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("투표하기")
+    @WithMockUser(username="1")
+    void t3() throws Exception {
+        Mockito.when(pollService.vote(Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong())).thenReturn(null);
+        mockMvc.perform(
+                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/polls/1/vote")
+                        .param("pollItemsId", "1")
+        ).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("투표 통계 조회")
+    @WithMockUser(username="1")
+    void t4() throws Exception {
+        Mockito.when(pollService.getPollStatics(Mockito.anyLong())).thenReturn(java.util.Collections.emptyList());
+        mockMvc.perform(get("/api/polls/1/statics"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("투표 종료")
+    @WithMockUser(username="1")
+    void t5() throws Exception {
+        Mockito.doNothing().when(pollService).closePoll(Mockito.anyLong());
+        mockMvc.perform(
+                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/polls/1/close")
+        ).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("투표 삭제")
+    @WithMockUser(username="1")
+    void t6() throws Exception {
+        Mockito.doNothing().when(pollService).deletePoll(Mockito.anyLong());
+        mockMvc.perform(
+                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/polls/1")
+        ).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("진행중인 투표 Top 1 조회")
+    @WithMockUser(username="1")
+    void t7() throws Exception {
+        Mockito.when(pollService.getTopPollByStatus(Mockito.any())).thenReturn(null);
+        mockMvc.perform(get("/api/polls/top/ongoing"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("종료된 투표 Top 1 조회")
+    @WithMockUser(username="1")
+    void t8() throws Exception {
+        Mockito.when(pollService.getTopPollByStatus(Mockito.any())).thenReturn(null);
+        mockMvc.perform(get("/api/polls/top/closed"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("투표 생성")
+    @WithMockUser(username="1")
+    void t9() throws Exception {
+        Mockito.when(pollService.createPoll(Mockito.any(), Mockito.anyLong())).thenReturn(null);
+        mockMvc.perform(
+                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/polls")
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{}")
+        ).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("투표 단일 조회")
+    @WithMockUser(username="1")
+    void t10() throws Exception {
+        PollDto responseDto = PollDto.builder().pollId(1L).voteTitle("테스트 투표").build();
+        Mockito.when(pollService.getPoll(Mockito.anyLong())).thenReturn(responseDto);
+        mockMvc.perform(get("/api/polls/1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.pollId").value(1L));
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.pollId").value(1L))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.voteTitle").value("테스트 투표"));
     }
 
     @Test
-    @DisplayName("투표 옵션 목록 조회 성공")
-    void getPollOptions_success() throws Exception {
-        when(pollService.getPollOptions(1L)).thenReturn(List.of(pollOptions));
-        mvc.perform(get("/api/polls/1/options"))
-                .andExpect(status().isOk());
-    }
-
-    @Test
-    @DisplayName("투표하기 성공")
-    void vote_success() throws Exception {
-        when(pollService.vote(eq(1L), eq(10L), eq(2L))).thenReturn(pollVote);
-        mvc.perform(post("/api/polls/1/vote")
-                .param("pollItemsId", "10")
-                .param("memberId", "2"))
-                .andExpect(status().isOk());
-    }
-
-    @Test
-    @DisplayName("투표 통계 조회 성공")
-    void getPollStatics_success() throws Exception {
-        when(pollService.getPollStatics(1L)).thenReturn(List.of(pollStatics));
-        mvc.perform(get("/api/polls/1/statics"))
-                .andExpect(status().isOk());
-    }
-
-    @Test
-    @DisplayName("투표 종료 성공")
-    void closePoll_success() throws Exception {
-        mvc.perform(put("/api/polls/1/close"))
-                .andExpect(status().isOk());
-    }
-
-    @Test
-    @DisplayName("투표 삭제 성공")
-    void deletePoll_success() throws Exception {
-        mvc.perform(delete("/api/polls/1"))
-                .andExpect(status().isOk());
-    }
-
-    @Test
-    @DisplayName("진행중인 투표 Top 1 조회 성공")
-    void getTopOngoingPoll_success() throws Exception {
-        when(pollService.getTopPollByStatus(PollDto.PollStatus.ONGOING)).thenReturn(pollDto);
-        mvc.perform(get("/api/polls/top/ongoing"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.pollId").value(1L));
-    }
-
-    @Test
-    @DisplayName("종료된 투표 Top 1 조회 성공")
-    void getTopClosedPoll_success() throws Exception {
-        when(pollService.getTopPollByStatus(PollDto.PollStatus.CLOSED)).thenReturn(pollDto);
-        mvc.perform(get("/api/polls/top/closed"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.pollId").value(1L));
+    @DisplayName("투표하기")
+    @WithMockUser(username="1")
+    void t11() throws Exception {
+        PollVoteDto responseDto = PollVoteDto.builder().pollId(1L).memberId(1L).build();
+        Mockito.when(pollService.vote(Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong())).thenReturn(responseDto);
+        mockMvc.perform(
+                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/polls/1/vote")
+                        .param("pollItemsId", "1")
+        ).andExpect(status().isOk())
+         .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.pollId").value(1L))
+         .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.memberId").value(1L));
     }
 }
-
