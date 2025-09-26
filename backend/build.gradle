@@ -6,6 +6,9 @@ plugins {
     id("org.jetbrains.kotlin.jvm") version "1.9.25"
     id("com.google.devtools.ksp") version "1.9.25-1.0.20"
 }
+ext {
+    springAiVersion = "1.0.2"
+}
 
 group = 'com.ai.lawyer'
 version = '0.0.1-SNAPSHOT'
@@ -65,6 +68,12 @@ dependencies {
     implementation("io.github.openfeign.querydsl:querydsl-jpa:7.0")
     ksp("io.github.openfeign.querydsl:querydsl-ksp-codegen:7.0")
 
+    // AI
+    implementation 'org.springframework.ai:spring-ai-starter-vector-store-qdrant'
+    implementation 'org.springframework.ai:spring-ai-starter-model-openai'
+    implementation 'org.springframework.ai:spring-ai-advisors-vector-store'
+    implementation 'org.springframework.ai:spring-ai-starter-model-chat-memory-repository-jdbc'
+
     // Testing (테스트)
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
@@ -74,6 +83,11 @@ dependencies {
         exclude group: "com.google.guava", module: "guava"
         exclude group: "commons-io", module: "commons-io"
         exclude group: "commons-logging", module: "commons-logging"
+    }
+}
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.ai:spring-ai-bom:$springAiVersion"
     }
 }
 
