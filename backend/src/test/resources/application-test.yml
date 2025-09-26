@@ -21,6 +21,24 @@ spring:
         format_sql: true
         highlight_sql: true
 
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${email_address}
+    password: ${send_email_password}
+    from: ${send_email_address}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+      auth-code-expiration-millis: 1800000
+
   # 로컬 환경: Embedded Redis 사용
   data:
     redis:

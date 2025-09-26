@@ -5,6 +5,8 @@ import com.ai.lawyer.domain.member.entity.Member;
 import com.ai.lawyer.domain.member.repositories.MemberRepository;
 import com.ai.lawyer.global.jwt.TokenProvider;
 import com.ai.lawyer.global.jwt.CookieUtil;
+import com.ai.lawyer.global.email.service.EmailService;
+import com.ai.lawyer.global.email.service.EmailAuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -20,6 +22,8 @@ public class MemberService {
     private final PasswordEncoder passwordEncoder;
     private final TokenProvider tokenProvider;
     private final CookieUtil cookieUtil;
+    private final EmailService emailService;
+    private final EmailAuthService emailAuthService;
 
     @Transactional
     public MemberResponse signup(MemberSignupRequest request) {
@@ -106,6 +110,68 @@ public class MemberService {
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
 
         return MemberResponse.from(member);
+    }
+
+    public void sendCodeToEmailByLoginId(String loginId) {
+        Member member = memberRepository.findByLoginId(loginId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 로그인 ID의 회원이 없습니다."));
+        String email = member.getLoginId(); // loginId가 이메일이므로 바로 사용
+        emailService.sendVerificationCode(email, loginId); // Redis에 저장 + 메일 전송
+    }
+
+    /**
+     * 이메일 인증번호 검증 (일반 용도)
+     */
+    public boolean verifyAuthCode(String loginId, String verificationCode) {
+        // 회원 존재 여부 확인
+        memberRepository.findByLoginId(loginId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+
+        // 인증번호 검증
+        return emailAuthService.verifyAuthCode(loginId, verificationCode);
+    }
+
+
+    /**
+     * 비밀번호 재설정 실행
+     */
+    @Transactional
+    public void resetPassword(String loginId, String newPassword, Boolean success) {
+        // 회원 존재 여부 확인
+        Member member = memberRepository.findByLoginId(loginId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+
+        // 클라이언트에서 전달한 success 값과 Redis의 인증 성공 여부를 모두 확인
+        boolean clientSuccess = Boolean.TRUE.equals(success);
+
+        // 클라이언트 success가 false면 바로 실패
+        if (!clientSuccess) {
+            throw new IllegalArgumentException("이메일 인증을 완료해야 비밀번호를 재설정할 수 있습니다.");
+        }
+
+        // 클라이언트 success가 true면 Redis 인증 상태도 확인
+        boolean redisVerified = emailAuthService.isEmailVerified(loginId);
+        if (!redisVerified) {
+            throw new IllegalArgumentException("이메일 인증을 완료해야 비밀번호를 재설정할 수 있습니다.");
+        }
+
+        // 비밀번호 변경
+        String encodedPassword = passwordEncoder.encode(newPassword);
+        member.updatePassword(encodedPassword);
+        memberRepository.save(member);
+
+        // 인증 데이터 삭제 (비밀번호 재설정 완료 후)
+        emailAuthService.clearAuthData(loginId);
+
+        // 기존 리프레시 토큰 삭제 (보안상 로그아웃 처리)
+        tokenProvider.deleteRefreshToken(loginId);
+    }
+
+    /**
+     * JWT 토큰에서 loginId 추출
+     */
+    public String extractLoginIdFromToken(String token) {
+        return tokenProvider.getLoginIdFromToken(token);
     }
 
     /**

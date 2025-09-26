@@ -6,9 +6,11 @@ import com.ai.lawyer.domain.precedent.entity.Precedent;
 import com.ai.lawyer.domain.precedent.repository.PrecedentRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -29,6 +31,8 @@ public class PrecedentService {
     private final String BASE_URL = "http://www.law.go.kr/DRF";
     private final String OC = "noheechul"; // 실제 OC로 변경 필요
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final EntityManager entityManager;
+
 
 
     /**
@@ -159,25 +163,30 @@ public class PrecedentService {
      * @param precedents 저장할 Precedent 객체 리스트
      * @return 저장된 Precedent 객체 리스트
      */
+    @Transactional
     public List<Precedent> savePrecedents(List<Precedent> precedents) {
-        List<Precedent> savedPrecedents = new ArrayList<>();
+//        List<Precedent> savedPrecedents = new ArrayList<>();
+//
+//        for (Precedent precedent : precedents) {
+//            try {
+//                // 중복 확인 (판례일련번호 기준)
+//                if (!precedentRepository.existsByPrecedentNumber(precedent.getPrecedentNumber())) {
+//                    Precedent saved = precedentRepository.save(precedent);
+//                    savedPrecedents.add(saved);
+//                    System.out.println("Saved precedent: " + precedent.getPrecedentNumber());
+//                } else {
+//                    System.out.println("Already exists: " + precedent.getPrecedentNumber());
+//                }
+//            } catch (Exception e) {
+//                System.err.println("Error saving precedent " + precedent.getPrecedentNumber() + ": " + e.getMessage());
+//            }
+//        }
 
-        for (Precedent precedent : precedents) {
-            try {
-                // 중복 확인 (판례일련번호 기준)
-                if (!precedentRepository.existsByPrecedentNumber(precedent.getPrecedentNumber())) {
-                    Precedent saved = precedentRepository.save(precedent);
-                    savedPrecedents.add(saved);
-                    System.out.println("Saved precedent: " + precedent.getPrecedentNumber());
-                } else {
-                    System.out.println("Already exists: " + precedent.getPrecedentNumber());
-                }
-            } catch (Exception e) {
-                System.err.println("Error saving precedent " + precedent.getPrecedentNumber() + ": " + e.getMessage());
-            }
-        }
+        precedentRepository.saveAll(precedents);
+        precedentRepository.flush();   // 즉시 DB 반영
+        entityManager.clear();         // 영속성 컨텍스트 정리
 
-        return savedPrecedents;
+        return precedents;
     }
 
     /**
