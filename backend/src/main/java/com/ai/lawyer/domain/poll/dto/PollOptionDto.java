@@ -7,7 +7,9 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class PollOptionDto {
-    private Long pollOptionId;
+    private Long pollItemsId; // PK
     private String content;
+    private Long voteCount;
+    private java.util.List<PollStaticsDto> statics;
+    private int pollOptionIndex;
 }
-

@@ -25,4 +25,7 @@ public class PollOptions {
 
     @Column(name = "count")
     private Long count;
+
+    @OneToMany(mappedBy = "pollOptions", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    private java.util.List<PollVote> pollVotes;
 }

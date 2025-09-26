@@ -19,7 +19,7 @@ public class Poll {
     @Column(name = "poll_id")
     private Long pollId;
 
-    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "post_id", nullable = true)
     private Post post;
 
@@ -35,6 +35,9 @@ public class Poll {
 
     @Column(name = "closed_at")
     private LocalDateTime closedAt;
+
+    @OneToMany(mappedBy = "poll", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    private java.util.List<PollOptions> pollOptions;
 
     // 투표 상태 Enum 타입
     public enum PollStatus {
