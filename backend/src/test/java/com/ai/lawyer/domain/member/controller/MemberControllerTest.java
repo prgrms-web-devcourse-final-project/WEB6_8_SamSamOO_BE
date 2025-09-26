@@ -495,8 +495,8 @@ class MemberControllerTest {
     // ===== 비밀번호 재설정 관련 테스트 =====
 
     @Test
-    @DisplayName("비밀번호 재설정 성공")
-    void resetPassword_Success() throws Exception {
+    @DisplayName("비밀번호 재설정 성공 - 요청 바디에서 loginId 추출")
+    void resetPassword_Success_WithLoginIdInBody() throws Exception {
         // given
         ResetPasswordRequestDto requestDto = new ResetPasswordRequestDto();
         requestDto.setLoginId("test@example.com");
@@ -566,11 +566,31 @@ class MemberControllerTest {
     }
 
     @Test
+    @DisplayName("비밀번호 재설정 성공 - 토큰 없이 loginId만으로")
+    void resetPassword_Success_WithoutToken() throws Exception {
+        // given - loginId 없이 요청
+        ResetPasswordRequestDto requestDto = new ResetPasswordRequestDto();
+        requestDto.setNewPassword("newPassword123");
+        requestDto.setSuccess(true);
+        // loginId는 설정하지 않음
+
+        // when and then - loginId가 없으면 예외가 발생해야 함
+        mockMvc.perform(post("/api/auth/password-reset/reset")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+
+        verify(memberService, never()).resetPassword(anyString(), anyString(), any());
+    }
+
+    @Test
     @DisplayName("비밀번호 재설정 실패 - 유효성 검증 실패")
     void resetPassword_Fail_ValidationError() throws Exception {
         // given
         ResetPasswordRequestDto invalidRequest = new ResetPasswordRequestDto();
-        invalidRequest.setLoginId(""); // 빈 이메일
+        // loginId는 이제 optional이므로 빈 문자열 사용 (null은 허용)
         invalidRequest.setNewPassword(""); // 빈 비밀번호
         invalidRequest.setSuccess(null); // null success
 

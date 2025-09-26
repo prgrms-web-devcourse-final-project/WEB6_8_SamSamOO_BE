@@ -141,8 +141,17 @@ public class MemberService {
         Member member = memberRepository.findByLoginId(loginId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
 
-        // 인증 성공 여부 확인
-        if (!Boolean.TRUE.equals(success)) {
+        // 클라이언트에서 전달한 success 값과 Redis의 인증 성공 여부를 모두 확인
+        boolean clientSuccess = Boolean.TRUE.equals(success);
+
+        // 클라이언트 success가 false면 바로 실패
+        if (!clientSuccess) {
+            throw new IllegalArgumentException("이메일 인증을 완료해야 비밀번호를 재설정할 수 있습니다.");
+        }
+
+        // 클라이언트 success가 true면 Redis 인증 상태도 확인
+        boolean redisVerified = emailAuthService.isEmailVerified(loginId);
+        if (!redisVerified) {
             throw new IllegalArgumentException("이메일 인증을 완료해야 비밀번호를 재설정할 수 있습니다.");
         }
 
@@ -150,6 +159,9 @@ public class MemberService {
         String encodedPassword = passwordEncoder.encode(newPassword);
         member.updatePassword(encodedPassword);
         memberRepository.save(member);
+
+        // 인증 데이터 삭제 (비밀번호 재설정 완료 후)
+        emailAuthService.clearAuthData(loginId);
 
         // 기존 리프레시 토큰 삭제 (보안상 로그아웃 처리)
         tokenProvider.deleteRefreshToken(loginId);
