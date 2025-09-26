@@ -243,6 +243,7 @@ jobs:
             PROD_DATASOURCE_DRIVER=com.mysql.cj.jdbc.Driver
             PROD_DATASOURCE_USERNAME=root
             PROD_DATASOURCE_PASSWORD=${{ secrets.DB_PASSWORD }}
+            PROD_JPA_HIBERNATE_DDL_AUTO=update
             
             PROD_REDIS_HOST=redis_1
             PROD_REDIS_PORT=6379
