@@ -7,7 +7,6 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_DATABASE: balaw
-      MYSQL_USER: ${DEV_DATASOURCE_USERNAME}
       MYSQL_PASSWORD: ${DEV_DATASOURCE_PASSWORD}
       # 새 변수: 루트 계정 비번 (필수)
       MYSQL_ROOT_PASSWORD: ${DEV_DB_ROOT_PASSWORD}
