@@ -42,7 +42,15 @@ public class PostController {
     @PostMapping
     public ResponseEntity<ApiResponse<PostDto>> createPost(@RequestBody PostRequestDto postRequestDto) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Long memberId = (Long) authentication.getPrincipal();
+        Object principal = authentication.getPrincipal();
+        Long memberId;
+        if (principal instanceof org.springframework.security.core.userdetails.User user) {
+            memberId = Long.valueOf(user.getUsername());
+        } else if (principal instanceof Long) {
+            memberId = (Long) principal;
+        } else {
+            throw new IllegalArgumentException("올바른 회원 ID가 아닙니다");
+        }
         PostDto created = postService.createPost(postRequestDto, memberId);
         return ResponseEntity.ok(new ApiResponse<>(201, "게시글이 등록되었습니다.", created));
     }
@@ -110,7 +118,15 @@ public class PostController {
      @GetMapping("/my/{postId}")
      public ResponseEntity<ApiResponse<PostDto>> getMyPostById(@PathVariable Long postId) {
          Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-         Long memberId = (Long) authentication.getPrincipal();
+         Object principal = authentication.getPrincipal();
+         Long memberId;
+         if (principal instanceof org.springframework.security.core.userdetails.User user) {
+             memberId = Long.valueOf(user.getUsername());
+         } else if (principal instanceof Long) {
+             memberId = (Long) principal;
+         } else {
+             throw new IllegalArgumentException("principal이 올바른 회원 ID가 아닙니다");
+         }
          PostDto postDto = postService.getMyPostById(postId, memberId);
          return ResponseEntity.ok(new ApiResponse<>(200, "본인 게시글 단일 조회 성공", postDto));
      }
@@ -119,7 +135,15 @@ public class PostController {
      @GetMapping("/my")
      public ResponseEntity<ApiResponse<List<PostDto>>> getMyPosts() {
          Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-         Long memberId = (Long) authentication.getPrincipal();
+         Object principal = authentication.getPrincipal();
+         Long memberId;
+         if (principal instanceof org.springframework.security.core.userdetails.User user) {
+             memberId = Long.valueOf(user.getUsername());
+         } else if (principal instanceof Long) {
+             memberId = (Long) principal;
+         } else {
+             throw new IllegalArgumentException("principal이 올바른 회원 ID가 아닙니다");
+         }
          List<PostDto> posts = postService.getMyPosts(memberId);
          return ResponseEntity.ok(new ApiResponse<>(200, "본인 게시글 전체 조회 성공", posts));
      }

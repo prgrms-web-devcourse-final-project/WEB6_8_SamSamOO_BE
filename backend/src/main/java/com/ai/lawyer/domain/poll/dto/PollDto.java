@@ -15,6 +15,7 @@ public class PollDto {
     private PollStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime closedAt;
+    private LocalDateTime expectedCloseAt;
     private List<PollOptionDto> pollOptions;
     private Long totalVoteCount;
 

@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.util.List;
+import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
@@ -18,4 +19,5 @@ public class PollCreateDto {
     private String voteTitle;
     @Schema(description = "투표 항목(2개 필수)", example = "[{\"content\": \"항목1 내용\"}, {\"content\": \"항목2 내용\"}]")
     private List<PollOptionCreateDto> pollOptions;
+    private LocalDateTime reservedCloseAt;
 }
