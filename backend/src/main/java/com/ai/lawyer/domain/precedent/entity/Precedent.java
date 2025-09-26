@@ -21,6 +21,8 @@ public class Precedent {
     @Column(columnDefinition = "TEXT")
     private String caseName; // 사건명
 
+    @Lob
+    @Column(columnDefinition = "TEXT")
     private String caseNumber; // 사건번호
 
     private LocalDate sentencingDate; // 선고일자
