@@ -54,25 +54,31 @@ public class TokenProvider {
         return refreshToken;
     }
 
-    public boolean validateToken(String token) {
+    /**
+     * 토큰의 상태를 확인합니다.
+     * @param token JWT 토큰
+     * @return TokenValidationResult (유효, 만료, 오류)
+     */
+    public TokenValidationResult validateTokenWithResult(String token) {
         try {
             Jwts.parserBuilder()
                     .setSigningKey(getSigningKey())
                     .build()
                     .parseClaimsJws(token);
-            return true;
-        } catch (MalformedJwtException e) {
-            log.warn("잘못된 JWT 토큰: {}", e.getMessage());
+            return TokenValidationResult.VALID;
         } catch (ExpiredJwtException e) {
             log.warn("만료된 JWT 토큰: {}", e.getMessage());
-        } catch (UnsupportedJwtException e) {
-            log.warn("지원되지 않는 JWT 토큰: {}", e.getMessage());
-        } catch (IllegalArgumentException e) {
-            log.warn("JWT 토큰이 잘못되었습니다: {}", e.getMessage());
-        } catch (SecurityException e) {
-            log.warn("JWT 서명이 잘못되었습니다: {}", e.getMessage());
+            return TokenValidationResult.EXPIRED;
+        } catch (MalformedJwtException | UnsupportedJwtException | IllegalArgumentException | SecurityException e) {
+            log.warn("유효하지 않은 JWT 토큰: {}", e.getMessage());
+            return TokenValidationResult.INVALID;
         }
-        return false;
+    }
+
+    public enum TokenValidationResult {
+        VALID,      // 유효한 토큰
+        EXPIRED,    // 만료된 토큰
+        INVALID     // 잘못된 토큰
     }
 
     public Long getMemberIdFromToken(String token) {
@@ -113,6 +119,28 @@ public class TokenProvider {
             return claims.get("loginid", String.class); // loginid claim에서 추출
         } catch (Exception e) {
             log.warn("토큰에서 로그인 ID 추출 실패: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 만료된 토큰에서도 loginId를 추출합니다.
+     * @param token JWT 토큰 (만료되어도 괜찮음)
+     * @return loginId 또는 null
+     */
+    public String getLoginIdFromExpiredToken(String token) {
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            return claims.get("loginid", String.class);
+        } catch (ExpiredJwtException e) {
+            // 만료된 토큰이지만 claim은 추출 가능
+            return e.getClaims().get("loginid", String.class);
+        } catch (Exception e) {
+            log.warn("만료된 토큰에서 로그인 ID 추출 실패: {}", e.getMessage());
             return null;
         }
     }
