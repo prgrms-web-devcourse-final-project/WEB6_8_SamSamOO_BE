@@ -1,11 +1,6 @@
 package com.ai.lawyer.domain.chatbot.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Embeddable;
-
-import java.io.Serializable;
-import java.time.LocalDateTime;
-
+/*
 @Embeddable
 public class ChatMemoryId implements Serializable {
 
@@ -15,4 +10,4 @@ public class ChatMemoryId implements Serializable {
     @Column(name = "timestamp", nullable = false)
     private LocalDateTime timestamp;
 
-}
+}*/

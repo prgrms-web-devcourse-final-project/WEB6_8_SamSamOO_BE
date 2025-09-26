@@ -1,11 +1,6 @@
 package com.ai.lawyer.domain.chatbot.entity;
 
-import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.springframework.ai.chat.messages.MessageType;
-
+/*
 @Entity
 @Data
 @NoArgsConstructor
@@ -24,4 +19,4 @@ public class ChatMemory {
     @Column(name = "type", nullable = false)
     private MessageType type;
 
-}
+}*/
