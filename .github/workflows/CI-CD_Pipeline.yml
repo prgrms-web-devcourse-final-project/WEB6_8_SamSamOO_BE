@@ -41,6 +41,16 @@ jobs:
           --health-retries 5
         env:
           REDIS_PASSWORD: ""
+          # Qdrant 서비스
+      qdrant:
+        image: qdrant/qdrant:v1.3.1
+        ports:
+          - 6333:6333
+        options: >-
+          --health-cmd "curl -f http://localhost:6333/collections || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - uses: actions/checkout@v4
@@ -84,6 +94,10 @@ jobs:
           TEST_REDIS_HOST=localhost
           TEST_REDIS_PORT=6379
           TEST_REDIS_PASSWORD=
+          
+          # Qdrant
+          TEST_QDRANT_HOST=localhost
+          TEST_QDRANT_PORT=6333
           
           # CI/CD 환경에서는 Embedded Redis 끄기
           SPRING_DATA_REDIS_EMBEDDED=false
@@ -228,7 +242,7 @@ jobs:
             set -xe
             echo "===== 현재 실행 중인 컨테이너 ====="
             docker ps -a || true
-  
+            
             echo "===== 기존 컨테이너 종료 & 제거 ====="
             docker stop app1 2>/dev/null || true
             docker rm app1 2>/dev/null || true
