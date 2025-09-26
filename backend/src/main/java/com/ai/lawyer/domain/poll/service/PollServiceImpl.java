@@ -21,6 +21,7 @@ import com.ai.lawyer.domain.poll.dto.PollStaticsDto;
 import com.ai.lawyer.domain.poll.dto.PollOptionDto;
 import com.ai.lawyer.domain.poll.dto.PollVoteDto;
 import com.ai.lawyer.domain.poll.dto.PollUpdateDto;
+import org.springframework.data.domain.Pageable;
 
 @Service
 @Transactional
@@ -46,9 +47,7 @@ public class PollServiceImpl implements PollService {
 
     @Override
     public List<PollOptions> getPollOptions(Long pollId) {
-        return pollOptionsRepository.findAll().stream()
-                .filter(opt -> opt.getPoll().getPollId().equals(pollId))
-                .toList();
+        return pollOptionsRepository.findByPoll_PollId(pollId);
     }
 
     @Override
@@ -91,9 +90,7 @@ public class PollServiceImpl implements PollService {
         if (!pollRepository.existsById(pollId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "해당 투표가 존재하지 않습니다.");
         }
-        return pollStaticsRepository.findAll().stream()
-                .filter(stat -> stat.getPoll().getPollId().equals(pollId))
-                .toList();
+        return pollStaticsRepository.findByPoll_PollId(pollId);
     }
 
     @Override
@@ -128,7 +125,17 @@ public class PollServiceImpl implements PollService {
     public PollDto getTopPollByStatus(PollDto.PollStatus status) {
         List<Object[]> result = pollVoteRepository.findTopPollByStatus(Poll.PollStatus.valueOf(status.name()));
         if (result.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "해당 상태의 투표가 없습니다.");
+            // 종료된 투표가 없으면 빈 PollDto 반환
+            return PollDto.builder()
+                .pollId(null)
+                .postId(null)
+                .voteTitle(null)
+                .status(status)
+                .createdAt(null)
+                .closedAt(null)
+                .pollOptions(java.util.Collections.emptyList())
+                .totalVoteCount(0L)
+                .build();
         }
         Long pollId = (Long) result.get(0)[0];
         return getPoll(pollId);
@@ -157,16 +164,39 @@ public class PollServiceImpl implements PollService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "투표가 진행된 투표는 수정할 수 없습니다.");
         }
         if (pollUpdateDto.getVoteTitle() != null) poll.setVoteTitle(pollUpdateDto.getVoteTitle());
-        // 투표 항목 수정: 기존 항목 삭제 후 새로 저장
-        if (pollUpdateDto.getPollOptions() != null && pollUpdateDto.getPollOptions().size() == 2) {
-            pollOptionsRepository.deleteAll(pollOptionsRepository.findByPoll_PollId(pollId));
-            pollUpdateDto.getPollOptions().forEach(optionDto -> {
-                PollOptions option = PollOptions.builder()
+        // 투표 항목 수정
+        if (pollUpdateDto.getPollOptions() != null) {
+            List<PollOptions> existingOptions = pollOptionsRepository.findByPoll_PollId(pollId);
+            // 전달받은 id 목록
+            List<Long> incomingIds = pollUpdateDto.getPollOptions().stream()
+                    .map(opt -> opt.getPollItemsId())
+                    .filter(id -> id != null)
+                    .toList();
+            // 기존 옵션 중 전달받지 않은 id 삭제
+            for (PollOptions option : existingOptions) {
+                if (!incomingIds.contains(option.getPollItemsId())) {
+                    pollOptionsRepository.deleteById(option.getPollItemsId());
+                }
+            }
+            //추가/수정
+            for (var optionDto : pollUpdateDto.getPollOptions()) {
+                if (optionDto.getPollItemsId() != null) {
+                    // update
+                    PollOptions option = existingOptions.stream()
+                        .filter(o -> o.getPollItemsId().equals(optionDto.getPollItemsId()))
+                        .findFirst().orElse(null);
+                    if (option != null) {
+                        option.setOption(optionDto.getContent());
+                        pollOptionsRepository.save(option);
+                    }
+                } else {
+                    PollOptions newOption = PollOptions.builder()
                         .poll(poll)
                         .option(optionDto.getContent())
                         .build();
-                pollOptionsRepository.save(option);
-            });
+                    pollOptionsRepository.save(newOption);
+                }
+            }
         }
         Poll updated = pollRepository.save(poll);
         return convertToDto(updated);
@@ -180,7 +210,7 @@ public class PollServiceImpl implements PollService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "투표가 이미 진행된 투표는 수정할 수 없습니다.");
         }
         if (pollUpdateDto.getVoteTitle() != null) poll.setVoteTitle(pollUpdateDto.getVoteTitle());
-        // 투표 항목 수정: 기존 항목 삭제 후 새로 저장
+        // 투표 항목 수정
         if (pollUpdateDto.getPollOptions() != null && pollUpdateDto.getPollOptions().size() == 2) {
             pollOptionsRepository.deleteAll(pollOptionsRepository.findByPoll_PollId(pollId));
             pollUpdateDto.getPollOptions().forEach(optionDto -> {
@@ -299,6 +329,31 @@ public class PollServiceImpl implements PollService {
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "투표 생성 중 오류가 발생했습니다.");
         }
+    }
+
+    @Override
+    public List<PollDto> getPollsByStatus(PollDto.PollStatus status) {
+        List<Poll> polls = pollRepository.findAll().stream()
+            .filter(p -> p.getStatus().name().equals(status.name()))
+            .toList();
+        List<PollDto> pollDtos = new java.util.ArrayList<>();
+        for (Poll poll : polls) {
+            pollDtos.add(convertToDto(poll));
+        }
+        return pollDtos;
+    }
+
+    @Override
+    public List<PollDto> getTopNPollsByStatus(PollDto.PollStatus status, int n) {
+        Pageable pageable = org.springframework.data.domain.PageRequest.of(0, n);
+        List<Object[]> result = pollVoteRepository.findTopNPollByStatus(
+            com.ai.lawyer.domain.poll.entity.Poll.PollStatus.valueOf(status.name()), pageable);
+        List<PollDto> pollDtos = new java.util.ArrayList<>();
+        for (Object[] row : result) {
+            Long pollId = (Long) row[0];
+            pollDtos.add(getPoll(pollId));
+        }
+        return pollDtos;
     }
 
     private PollDto convertToDto(Poll poll) {

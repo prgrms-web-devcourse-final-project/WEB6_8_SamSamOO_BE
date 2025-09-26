@@ -11,6 +11,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class PollOptionUpdateDto {
+    @Schema(description = "투표 항목 id", example = "1")
+    private Long pollItemsId;
+
     @Schema(description = "투표 항목 내용", example = "항목1 내용")
     private String content;
 }

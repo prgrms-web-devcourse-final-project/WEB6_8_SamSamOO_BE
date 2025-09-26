@@ -24,4 +24,6 @@ public interface PollService {
     PollDto getPollWithStatistics(Long pollId);
     PollDto createPoll(PollCreateDto request, Long memberId);
     void patchUpdatePoll(Long pollId, PollUpdateDto pollUpdateDto);
+    List<PollDto> getPollsByStatus(PollDto.PollStatus status);
+    List<PollDto> getTopNPollsByStatus(PollDto.PollStatus status, int n);
 }
