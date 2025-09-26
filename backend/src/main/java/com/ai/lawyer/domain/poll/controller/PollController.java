@@ -12,9 +12,12 @@ import com.ai.lawyer.domain.post.service.PostService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -103,5 +106,39 @@ public class PollController {
     @PutMapping("/{pollId}")
     public PollDto updatePoll(@PathVariable Long pollId, @RequestBody com.ai.lawyer.domain.poll.dto.PollUpdateDto pollUpdateDto) {
         return pollService.updatePoll(pollId, pollUpdateDto);
+    }
+
+    @Operation(summary = "진행중인 투표 전체 목록 조회")
+    @GetMapping("/ongoing")
+    public List<PollDto> getOngoingPolls() {
+        return pollService.getPollsByStatus(PollDto.PollStatus.ONGOING);
+    }
+
+    @Operation(summary = "종료된 투표 전체 목록 조회")
+    @GetMapping("/closed")
+    public List<PollDto> getClosedPolls() {
+        return pollService.getPollsByStatus(PollDto.PollStatus.CLOSED);
+    }
+
+    @Operation(summary = "종료된 투표 Top N 조회")
+    @GetMapping("/top/closed-list") ///api/polls/top/closed-list?size=3
+    public List<PollDto> getTopClosedPolls(@RequestParam(defaultValue = "3") int size) {
+        return pollService.getTopNPollsByStatus(PollDto.PollStatus.CLOSED, size);
+    }
+
+    @Operation(summary = "진행중인 투표 Top N 조회")
+    @GetMapping("/top/ongoing-list") ///api/polls/top/ongoing-list?size=3
+    public List<PollDto> getTopOngoingPolls(@RequestParam(defaultValue = "3") int size) {
+        return pollService.getTopNPollsByStatus(PollDto.PollStatus.ONGOING, size);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Object> handleResponseStatusException(ResponseStatusException ex) {
+        int code = ex.getStatusCode().value();
+        String message = ex.getReason();
+        return ResponseEntity.status(code).body(new java.util.HashMap<String, Object>() {{
+            put("code", code);
+            put("message", message);
+        }});
     }
 }
