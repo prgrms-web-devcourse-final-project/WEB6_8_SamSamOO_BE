@@ -225,6 +225,13 @@ jobs:
           working-directory: /
           comment: Deploy
           command: |
+            set -xe
+            echo "===== 현재 실행 중인 컨테이너 ====="
+            docker ps -a || true
+  
+            echo "===== 기존 컨테이너 종료 & 제거 ====="
+            docker stop app1 2>/dev/null || true
+            docker rm app1 2>/dev/null || true
             # EC2 내부에서 prod.env 파일 생성
             cat > /home/ec2-user/prod.env << 'EOF'
             SPRING_PROFILES_ACTIVE=prod
@@ -254,7 +261,11 @@ jobs:
               --network common \
               -p 8080:8080 \
               ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ env.DOCKER_IMAGE_NAME }}:latest
-            
+            echo "===== 새 컨테이너 로그 출력 ====="
+            sleep 5
+            docker logs --tail=100 app1 || true
+
+            echo "===== 배포 완료 ====="
             # dangling image 정리 + .env 삭제
             docker rmi $(docker images -f "dangling=true" -q) || true
             rm -f /home/ec2-user/prod.env
