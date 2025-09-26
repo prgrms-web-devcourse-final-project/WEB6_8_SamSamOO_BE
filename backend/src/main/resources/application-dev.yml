@@ -7,6 +7,9 @@ spring:
   jpa:
     hibernate:
       ddl-auto: ${DEV_JPA_HIBERNATE_DDL_AUTO}
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
   data:
     redis:
       host: ${DEV_REDIS_HOST}
