@@ -487,7 +487,7 @@ class MemberServiceTest {
     // ===== 비밀번호 재설정 관련 테스트 =====
 
     @Test
-    @DisplayName("비밀번호 재설정 성공")
+    @DisplayName("비밀번호 재설정 성공 - 클라이언트 success와 Redis 인증 모두 확인")
     void resetPassword_Success() {
         // given
         log.info("=== 비밀번호 재설정 성공 테스트 시작 ===");
@@ -497,9 +497,11 @@ class MemberServiceTest {
         log.info("비밀번호 재설정: 이메일={}, 인증성공={}", loginId, success);
 
         given(memberRepository.findByLoginId(loginId)).willReturn(Optional.of(member));
+        given(emailAuthService.isEmailVerified(loginId)).willReturn(true); // Redis 인증 성공
         given(passwordEncoder.encode(newPassword)).willReturn("encodedNewPassword");
         doNothing().when(tokenProvider).deleteRefreshToken(loginId);
-        log.info("Mock 설정 완료: 회원 존재, 인증 성공, 비밀번호 인코딩 준비");
+        doNothing().when(emailAuthService).clearAuthData(loginId);
+        log.info("Mock 설정 완료: 회원 존재, 클라이언트 인증 성공, Redis 인증 성공, 비밀번호 인코딩 준비");
 
         // when
         log.info("비밀번호 재설정 서비스 호출 중...");
@@ -510,23 +512,28 @@ class MemberServiceTest {
         log.info("검증 시작: 비밀번호 재설정 프로세스 확인");
         verify(memberRepository).findByLoginId(loginId);
         log.info("회원 존재 여부 조회 호출 확인");
+        verify(emailAuthService).isEmailVerified(loginId);
+        log.info("Redis 이메일 인증 성공 여부 확인 호출 확인");
         verify(passwordEncoder).encode(newPassword);
         log.info("새 비밀번호 인코딩 호출 확인");
         verify(memberRepository).save(member);
         log.info("회원 정보 저장 호출 확인");
+        verify(emailAuthService).clearAuthData(loginId);
+        log.info("인증 데이터 삭제 호출 확인");
         verify(tokenProvider).deleteRefreshToken(loginId);
         log.info("기존 리프레시 토큰 삭제 호출 확인 (보안상 로그아웃 처리)");
         log.info("=== 비밀번호 재설정 성공 테스트 완료 ===");
     }
 
     @Test
-    @DisplayName("비밀번호 재설정 실패 - 인증되지 않음 (success = false)")
-    void resetPassword_Fail_NotAuthenticated() {
+    @DisplayName("비밀번호 재설정 실패 - 클라이언트 success = false")
+    void resetPassword_Fail_ClientSuccessFalse() {
         // given
         String loginId = "test@example.com";
         String newPassword = "newPassword123";
         Boolean success = false;
         given(memberRepository.findByLoginId(loginId)).willReturn(Optional.of(member));
+        // Redis Mock 설정 제거 - 클라이언트 success가 false면 Redis 확인 안함
 
         // when and then
         assertThatThrownBy(() -> memberService.resetPassword(loginId, newPassword, success))
@@ -534,6 +541,30 @@ class MemberServiceTest {
                 .hasMessage("이메일 인증을 완료해야 비밀번호를 재설정할 수 있습니다.");
 
         verify(memberRepository).findByLoginId(loginId);
+        // 클라이언트 success가 false이면 Redis 확인 전에 실패
+        verify(emailAuthService, never()).isEmailVerified(anyString());
+        verify(passwordEncoder, never()).encode(anyString());
+        verify(memberRepository, never()).save(any(Member.class));
+        verify(tokenProvider, never()).deleteRefreshToken(anyString());
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 실패 - Redis 인증되지 않음")
+    void resetPassword_Fail_RedisNotVerified() {
+        // given
+        String loginId = "test@example.com";
+        String newPassword = "newPassword123";
+        Boolean success = true;
+        given(memberRepository.findByLoginId(loginId)).willReturn(Optional.of(member));
+        given(emailAuthService.isEmailVerified(loginId)).willReturn(false); // Redis 인증 실패
+
+        // when and then
+        assertThatThrownBy(() -> memberService.resetPassword(loginId, newPassword, success))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("이메일 인증을 완료해야 비밀번호를 재설정할 수 있습니다.");
+
+        verify(memberRepository).findByLoginId(loginId);
+        verify(emailAuthService).isEmailVerified(loginId);
         verify(passwordEncoder, never()).encode(anyString());
         verify(memberRepository, never()).save(any(Member.class));
         verify(tokenProvider, never()).deleteRefreshToken(anyString());

@@ -143,9 +143,15 @@ public class MemberService {
 
         // 클라이언트에서 전달한 success 값과 Redis의 인증 성공 여부를 모두 확인
         boolean clientSuccess = Boolean.TRUE.equals(success);
-        boolean redisVerified = emailAuthService.isEmailVerified(loginId);
 
-        if (!clientSuccess || !redisVerified) {
+        // 클라이언트 success가 false면 바로 실패
+        if (!clientSuccess) {
+            throw new IllegalArgumentException("이메일 인증을 완료해야 비밀번호를 재설정할 수 있습니다.");
+        }
+
+        // 클라이언트 success가 true면 Redis 인증 상태도 확인
+        boolean redisVerified = emailAuthService.isEmailVerified(loginId);
+        if (!redisVerified) {
             throw new IllegalArgumentException("이메일 인증을 완료해야 비밀번호를 재설정할 수 있습니다.");
         }
 
