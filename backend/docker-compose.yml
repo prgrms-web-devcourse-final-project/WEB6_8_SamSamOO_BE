@@ -16,7 +16,8 @@ services:
       - "${DEV_DATASOURCE_PORT:-3306}:3306"
     volumes:
       - mysql-data:/var/lib/mysql
-    command: >
+      - ./sql:/sql      # 호스트 ./sql 폴더를 컨테이너 /sql에 마운트
+    command: > 
       --character-set-server=utf8mb4
       --collation-server=utf8mb4_0900_ai_ci
       --default-time-zone=Asia/Seoul
