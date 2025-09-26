@@ -13,4 +13,12 @@ public interface PollVoteRepository extends JpaRepository<PollVote, Long> {
 
     @Query("SELECT COUNT(v.pollVoteId) FROM PollVote v WHERE v.poll.pollId = :pollId")
     Long countByPollId(@Param("pollId") Long pollId);
+
+    @Query("SELECT COUNT(v.pollVoteId) FROM PollVote v WHERE v.pollOptions.pollItemsId = :pollOptionId")
+    Long countByPollOptionId(@Param("pollOptionId") Long pollOptionId);
+
+    @Query("SELECT v.pollOptions.pollItemsId, v.member.gender, v.member.age, COUNT(v.pollVoteId) FROM PollVote v WHERE v.pollOptions.pollItemsId IN :pollOptionIds GROUP BY v.pollOptions.pollItemsId, v.member.gender, v.member.age")
+    java.util.List<Object[]> countStaticsByPollOptionIds(@Param("pollOptionIds") java.util.List<Long> pollOptionIds);
+
+    boolean existsByPoll_PollIdAndMember_MemberId(Long pollId, Long memberId);
 }

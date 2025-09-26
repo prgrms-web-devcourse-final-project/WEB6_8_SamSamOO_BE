@@ -3,17 +3,22 @@ package com.ai.lawyer.domain.post.controller;
 import com.ai.lawyer.domain.post.dto.PostDto;
 import com.ai.lawyer.domain.post.dto.PostDetailDto;
 import com.ai.lawyer.domain.post.dto.PostRequestDto;
+import com.ai.lawyer.domain.post.dto.PostUpdateDto;
 import com.ai.lawyer.domain.post.service.PostService;
 import com.ai.lawyer.domain.member.entity.Member;
 import com.ai.lawyer.domain.member.repositories.MemberRepository;
+import com.ai.lawyer.global.jwt.TokenProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
 
@@ -24,28 +29,28 @@ public class PostController {
 
     private final PostService postService;
     private final MemberRepository memberRepository;
+    private final TokenProvider tokenProvider;
 
     @Autowired
-    public PostController(PostService postService, MemberRepository memberRepository) {
+    public PostController(PostService postService, MemberRepository memberRepository, TokenProvider tokenProvider) {
         this.postService = postService;
         this.memberRepository = memberRepository;
+        this.tokenProvider = tokenProvider;
     }
 
     @Operation(summary = "게시글 등록")
     @PostMapping
-    public ResponseEntity<ApiResponse<PostDto>> createPost(@RequestBody PostRequestDto postRequestDto, @RequestParam Long memberId) {
-        // public ResponseEntity<ApiResponse<PostDto>> createPost(@RequestBody PostRequestDto postRequestDto, HttpServletRequest request){
-        // Long memberId = tokenProvider.getMemberIdFromToken(accessToken);
-        // Member member = memberRepository.findById(memberId)
-        //         .orElseThrow(() -> new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "회원 정보를 찾을 수 없습니다."));
-        // PostDto created = postService.createPost(postRequestDto, member);
-        // return ResponseEntity.ok(new ApiResponse<>(201, "게시글이 등록되었습니다.", created));
-        //
-        // 현재는 memberId를 직접 입력
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "회원 정보를 찾을 수 없습니다."));
-        PostDto created = postService.createPost(postRequestDto, member);
+    public ResponseEntity<ApiResponse<PostDto>> createPost(@RequestBody PostRequestDto postRequestDto) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Long memberId = (Long) authentication.getPrincipal();
+        PostDto created = postService.createPost(postRequestDto, memberId);
         return ResponseEntity.ok(new ApiResponse<>(201, "게시글이 등록되었습니다.", created));
+    }
+
+    @PostMapping("/postdev")
+    public ResponseEntity<ApiResponse<PostDto>> createPostDev(@RequestBody PostRequestDto postRequestDto, @RequestParam Long memberId) {
+        PostDto created = postService.createPost(postRequestDto, memberId);
+        return ResponseEntity.ok(new ApiResponse<>(201, "[DEV] 게시글이 등록되었습니다.", created));
     }
 
     @Operation(summary = "게시글 전체 조회")
@@ -73,10 +78,17 @@ public class PostController {
 
     @Operation(summary = "게시글 수정")
     @PutMapping("/{postId}")
-    public ResponseEntity<ApiResponse<PostDetailDto>> updatePost(@PathVariable Long postId, @RequestBody PostDto postDto) {
+    public ResponseEntity<ApiResponse<PostDetailDto>> updatePost(@PathVariable Long postId, @RequestBody PostUpdateDto postUpdateDto) {
+        postService.patchUpdatePost(postId, postUpdateDto);
         PostDetailDto updated = postService.getPostDetailById(postId);
-        postService.updatePost(postId, postDto);
-        updated = postService.getPostDetailById(postId);
+        return ResponseEntity.ok(new ApiResponse<>(200, "게시글이 수정되었습니다.", updated));
+    }
+
+    @Operation(summary = "게시글 부분 수정(PATCH)")
+    @PatchMapping("/{postId}")
+    public ResponseEntity<ApiResponse<PostDetailDto>> patchUpdatePost(@PathVariable Long postId, @RequestBody PostUpdateDto postUpdateDto) {
+        postService.patchUpdatePost(postId, postUpdateDto);
+        PostDetailDto updated = postService.getPostDetailById(postId);
         return ResponseEntity.ok(new ApiResponse<>(200, "게시글이 수정되었습니다.", updated));
     }
 
@@ -94,23 +106,23 @@ public class PostController {
         return ResponseEntity.status(code).body(new ApiResponse<>(code, message, null));
     }
 
-    // @Operation(summary = "본인 게시글 단일 조회")
-    // @GetMapping("/my/{postId}")
-    // public ResponseEntity<ApiResponse<PostDto>> getMyPostById(@PathVariable Long postId, HttpServletRequest request) {
-    //     String accessToken = cookieUtil.getAccessTokenFromCookies(request);
-    //     Long memberId = tokenProvider.getMemberIdFromToken(accessToken);
-    //     PostDto postDto = postService.getMyPostById(postId, memberId);
-    //     return ResponseEntity.ok(new ApiResponse<>(200, "본인 게시글 단일 조회 성공", postDto));
-    // }
-    //
-    // @Operation(summary = "본인 게시글 전체 조회")
-    // @GetMapping("/my")
-    // public ResponseEntity<ApiResponse<List<PostDto>>> getMyPosts(HttpServletRequest request) {
-    //     String accessToken = cookieUtil.getAccessTokenFromCookies(request);
-    //     Long memberId = tokenProvider.getMemberIdFromToken(accessToken);
-    //     List<PostDto> posts = postService.getMyPosts(memberId);
-    //     return ResponseEntity.ok(new ApiResponse<>(200, "본인 게시글 전체 조회 성공", posts));
-    // }
+     @Operation(summary = "본인 게시글 단일 조회")
+     @GetMapping("/my/{postId}")
+     public ResponseEntity<ApiResponse<PostDto>> getMyPostById(@PathVariable Long postId) {
+         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+         Long memberId = (Long) authentication.getPrincipal();
+         PostDto postDto = postService.getMyPostById(postId, memberId);
+         return ResponseEntity.ok(new ApiResponse<>(200, "본인 게시글 단일 조회 성공", postDto));
+     }
+
+     @Operation(summary = "본인 게시글 전체 조회")
+     @GetMapping("/my")
+     public ResponseEntity<ApiResponse<List<PostDto>>> getMyPosts() {
+         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+         Long memberId = (Long) authentication.getPrincipal();
+         List<PostDto> posts = postService.getMyPosts(memberId);
+         return ResponseEntity.ok(new ApiResponse<>(200, "본인 게시글 전체 조회 성공", posts));
+     }
 
     @Data
     @AllArgsConstructor

@@ -5,14 +5,17 @@ import com.ai.lawyer.domain.member.repositories.MemberRepository;
 import com.ai.lawyer.domain.post.dto.PostDto;
 import com.ai.lawyer.domain.post.dto.PostDetailDto;
 import com.ai.lawyer.domain.post.dto.PostRequestDto;
+import com.ai.lawyer.domain.post.dto.PostUpdateDto;
 import com.ai.lawyer.domain.post.entity.Post;
 import com.ai.lawyer.domain.post.repository.PostRepository;
 import com.ai.lawyer.domain.poll.repository.PollRepository;
 import com.ai.lawyer.domain.poll.entity.Poll;
 import com.ai.lawyer.domain.poll.dto.PollDto;
+import com.ai.lawyer.domain.poll.dto.PollUpdateDto;
 import com.ai.lawyer.domain.poll.repository.PollOptionsRepository;
 import com.ai.lawyer.domain.poll.entity.PollOptions;
 import com.ai.lawyer.domain.poll.repository.PollVoteRepository;
+import com.ai.lawyer.domain.poll.service.PollService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -29,17 +32,21 @@ public class PostServiceImpl implements PostService {
     private final PollRepository pollRepository;
     private final PollOptionsRepository pollOptionsRepository;
     private final PollVoteRepository pollVoteRepository;
+    private final PollService pollService;
 
-    public PostServiceImpl(PostRepository postRepository, MemberRepository memberRepository, PollRepository pollRepository, PollOptionsRepository pollOptionsRepository, PollVoteRepository pollVoteRepository) {
+    public PostServiceImpl(PostRepository postRepository, MemberRepository memberRepository, PollRepository pollRepository, PollOptionsRepository pollOptionsRepository, PollVoteRepository pollVoteRepository, PollService pollService) {
         this.postRepository = postRepository;
         this.memberRepository = memberRepository;
         this.pollRepository = pollRepository;
         this.pollOptionsRepository = pollOptionsRepository;
         this.pollVoteRepository = pollVoteRepository;
+        this.pollService = pollService;
     }
 
     @Override
-    public PostDto createPost(PostRequestDto postRequestDto, Member member) {
+    public PostDto createPost(PostRequestDto postRequestDto, Long memberId) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 정보를 찾을 수 없습니다."));
         Post post = Post.builder()
             .member(member)
             .postName(postRequestDto.getPostName())
@@ -61,20 +68,8 @@ public class PostServiceImpl implements PostService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "게시글을 찾을 수 없습니다."));
         PostDto postDto = convertToDto(post);
-        PollDto pollDto = null;
-        pollDto = pollRepository.findByPost(post)
-                .map(poll -> PollDto.builder()
-                        .pollId(poll.getPollId())
-                        .postId(post.getPostId())
-                        .voteTitle(poll.getVoteTitle())
-                        .status(PollDto.PollStatus.valueOf(poll.getStatus().name()))
-                        .createdAt(poll.getCreatedAt())
-                        .closedAt(poll.getClosedAt())
-                        .build())
-                .orElse(null);
         return PostDetailDto.builder()
                 .post(postDto)
-                .poll(pollDto)
                 .build();
     }
 
@@ -92,51 +87,31 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public PostDto updatePost(Long postId, PostDto postDto) {
+    public PostDto updatePost(Long postId, PostUpdateDto postUpdateDto) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "수정할 게시글을 찾을 수 없습니다."));
-        post.setPostName(postDto.getPostName());
-        post.setPostContent(postDto.getPostContent());
-        post.setCategory(postDto.getCategory());
-        // === Poll 수정 로직 추가 ===
-        if (postDto.getPoll() != null) {
-            Poll poll = pollRepository.findByPost(post).orElse(null);
-            if (poll != null) {
-                long voteCount = pollVoteRepository.countByPollId(poll.getPollId());
-                if (voteCount > 0) {
-                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "이미 투표가 진행된 투표는 수정할 수 없습니다.");
-                }
-                // 항목 수정/삭제 처리
-                if (postDto.getPoll().getPollOptions() != null) {
-                    // 기존 옵션 불러오기
-                    List<PollOptions> existingOptions = pollOptionsRepository.findAll().stream()
-                        .filter(opt -> opt.getPoll().getPollId().equals(poll.getPollId()))
-                        .toList();
-                    // 전달받은 옵션 ID 목록
-                    List<Long> newOptionIds = postDto.getPoll().getPollOptions().stream()
-                        .map(optDto -> optDto.getPollOptionId())
-                        .filter(id -> id != null)
-                        .toList();
-                    // 삭제: 기존 옵션 중 전달받은 목록에 없는 것 삭제
-                    for (PollOptions option : existingOptions) {
-                        if (!newOptionIds.contains(option.getPollItemsId())) {
-                            pollOptionsRepository.delete(option);
-                        }
-                    }
-                    // 수정: 전달받은 옵션 내용으로 기존 옵션 업데이트
-                    for (var optDto : postDto.getPoll().getPollOptions()) {
-                        if (optDto.getPollOptionId() != null) {
-                            for (PollOptions option : existingOptions) {
-                                if (option.getPollItemsId().equals(optDto.getPollOptionId())) {
-                                    option.setOption(optDto.getContent());
-                                    pollOptionsRepository.save(option);
-                                }
-                            }
-                        }
-                    }
-                }
+
+        // 연관 투표가 있을 경우, 투표수가 0이 아니면 수정 불가
+        if (post.getPoll() != null) {
+            Long pollId = post.getPoll().getPollId();
+            Long voteCount = pollService.getVoteCountByPollId(pollId);
+            if (voteCount > 0) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "투표가 이미 진행된 게시글은 수정할 수 없습니다.");
             }
         }
+
+        if (postUpdateDto.getPoll() != null) {
+            if (post.getPoll() == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이 게시글에는 투표가 없어 투표 수정이 불가능합니다.");
+            }
+            pollService.updatePoll(post.getPoll().getPollId(), postUpdateDto.getPoll());
+        }
+
+        if (postUpdateDto.getPostName() != null) post.setPostName(postUpdateDto.getPostName());
+        if (postUpdateDto.getPostContent() != null) post.setPostContent(postUpdateDto.getPostContent());
+        if (postUpdateDto.getCategory() != null) post.setCategory(postUpdateDto.getCategory());
+        post.setCreatedAt(java.time.LocalDateTime.now()); // 수정 시 생성일 갱신
+
         Post updated = postRepository.save(post);
         return convertToDto(updated);
     }
@@ -146,7 +121,6 @@ public class PostServiceImpl implements PostService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "삭제할 게시글을 찾을 수 없습니다."));
         // Poll도 명시적으로 삭제 (JPA cascade/orphanRemoval이 있으면 생략 가능)
-        pollRepository.findByPost(post).ifPresent(pollRepository::delete);
         postRepository.delete(post);
     }
 
@@ -158,31 +132,64 @@ public class PostServiceImpl implements PostService {
                 .collect(Collectors.toList());
     }
 
-//    @Override
-//    public PostDto getMyPostById(Long postId, Long requesterMemberId) {
-//        Post post = postRepository.findById(postId)
-//                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "게시글을 찾을 수 없습니다."));
-//        if (!post.getMember().getMemberId().equals(requesterMemberId)) {
-//            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "본인 게시글만 조회할 수 있습니다.");
-//        }
-//        return convertToDto(post);
-//    }
-//
-//    @Override
-//    public List<PostDto> getMyPosts(Long requesterMemberId) {
-//        Member member = memberRepository.findById(requesterMemberId)
-//            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 정보를 찾을 수 없습니다."));
-//        List<Post> posts = postRepository.findByMember(member);
-//        // 본인 게시글이 없으면 빈 리스트 반환
-//        return posts.stream()
-//                .map(this::convertToDto)
-//                .collect(Collectors.toList());
-//    }
+    public PostDto getMyPostById(Long postId, Long requesterMemberId) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "게시글을 찾을 수 없습니다."));
+        if (!post.getMember().getMemberId().equals(requesterMemberId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "본인 게시글만 조회할 수 있습니다.");
+        }
+        return convertToDto(post);
+    }
+
+    public List<PostDto> getMyPosts(Long requesterMemberId) {
+        Member member = memberRepository.findById(requesterMemberId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 정보를 찾을 수 없습니다."));
+        List<Post> posts = postRepository.findByMember(member);
+        // 본인 게시글이 없으면 빈 리스트 반환
+        return posts.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public void patchUpdatePost(Long postId, PostUpdateDto postUpdateDto) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "수정할 게시글을 찾을 수 없습니다."));
+
+        // 연관 투표가 있을 경우, 투표수가 0이 아니면 수정 불가
+        if (post.getPoll() != null) {
+            Long pollId = post.getPoll().getPollId();
+            Long voteCount = pollService.getVoteCountByPollId(pollId);
+            if (voteCount > 0) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "투표가 이미 진행된 게시글은 수정할 수 없습니다.");
+            }
+        }
+
+        if (postUpdateDto.getPostName() != null) post.setPostName(postUpdateDto.getPostName());
+        if (postUpdateDto.getPostContent() != null) post.setPostContent(postUpdateDto.getPostContent());
+        if (postUpdateDto.getCategory() != null) post.setCategory(postUpdateDto.getCategory());
+        post.setCreatedAt(java.time.LocalDateTime.now()); // 수정 시 생성일 갱신
+
+        // 투표 수정이 요청된 경우
+        if (postUpdateDto.getPoll() != null && post.getPoll() != null) {
+            PollUpdateDto pollUpdateDto = postUpdateDto.getPoll();
+            pollService.patchUpdatePoll(post.getPoll().getPollId(), pollUpdateDto);
+        }
+        postRepository.save(post);
+    }
 
     private PostDto convertToDto(Post entity) {
         Long memberId = null;
         if (entity.getMember() != null) {
             memberId = entity.getMember().getMemberId();
+        }
+        PollDto pollDto = null;
+        if (entity.getPoll() != null) {
+            if (entity.getPoll().getStatus() == Poll.PollStatus.CLOSED) {
+                pollDto = pollService.getPollWithStatistics(entity.getPoll().getPollId());
+            } else {
+                pollDto = pollService.getPoll(entity.getPoll().getPollId());
+            }
         }
         return PostDto.builder()
                 .postId(entity.getPostId())
@@ -191,6 +198,7 @@ public class PostServiceImpl implements PostService {
                 .postContent(entity.getPostContent())
                 .category(entity.getCategory())
                 .createdAt(entity.getCreatedAt())
+                .poll(pollDto)
                 .build();
     }
 }

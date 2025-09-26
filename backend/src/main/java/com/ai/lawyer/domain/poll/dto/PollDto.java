@@ -16,6 +16,7 @@ public class PollDto {
     private LocalDateTime createdAt;
     private LocalDateTime closedAt;
     private List<PollOptionDto> pollOptions;
+    private Long totalVoteCount;
 
     public enum PollStatus {
         ONGOING, CLOSED
