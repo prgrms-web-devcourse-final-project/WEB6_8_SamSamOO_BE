@@ -132,6 +132,20 @@ public class PollController {
         return pollService.getTopNPollsByStatus(PollDto.PollStatus.ONGOING, size);
     }
 
+    @Operation(summary = "index(순번)로 투표하기 - Swagger 편의용")
+    @PostMapping("/{pollId}/vote-by-index")
+    public ResponseEntity<?> voteByIndex(@PathVariable Long pollId, @RequestParam int index) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Long memberId = Long.parseLong(authentication.getName());
+
+        List<PollOptions> options = pollService.getPollOptions(pollId);
+        if (index < 1 || index > options.size()) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "index가 옵션 범위를 벗어났습니다.");
+        }
+        Long pollItemsId = options.get(index - 1).getPollItemsId();
+        return ResponseEntity.ok(pollService.vote(pollId, pollItemsId, memberId));
+    }
+
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<Object> handleResponseStatusException(ResponseStatusException ex) {
         int code = ex.getStatusCode().value();
