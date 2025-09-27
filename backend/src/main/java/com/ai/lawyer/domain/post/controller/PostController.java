@@ -87,7 +87,7 @@ public class PostController {
     @Operation(summary = "게시글 수정")
     @PutMapping("/{postId}")
     public ResponseEntity<ApiResponse<PostDetailDto>> updatePost(@PathVariable Long postId, @RequestBody PostUpdateDto postUpdateDto) {
-        postService.patchUpdatePost(postId, postUpdateDto);
+        postService.updatePost(postId, postUpdateDto);
         PostDetailDto updated = postService.getPostDetailById(postId);
         return ResponseEntity.ok(new ApiResponse<>(200, "게시글이 수정되었습니다.", updated));
     }

@@ -59,7 +59,10 @@ public class PollServiceImpl implements PollService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 정보를 찾을 수 없습니다."));
         Post post = postRepository.findById(request.getPostId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "게시글을 찾을 수 없습니다."));
-
+        // 이미 해당 게시글에 투표가 존재하는 경우 예외 처리
+        if (post.getPoll() != null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 해당 게시글에 투표가 존재합니다.");
+        }
         try {
             LocalDateTime now = java.time.LocalDateTime.now();
             LocalDateTime reservedCloseAt = request.getReservedCloseAt();
@@ -265,7 +268,7 @@ public class PollServiceImpl implements PollService {
                     pollOptionsRepository.deleteById(option.getPollItemsId());
                 }
             }
-            //추가/수정
+            // 추가/수정
             for (var optionDto : pollUpdateDto.getPollOptions()) {
                 if (optionDto.getPollItemsId() != null) {
                     // update
@@ -288,6 +291,7 @@ public class PollServiceImpl implements PollService {
         // 예약 종료 시간 수정
         LocalDateTime now = java.time.LocalDateTime.now();
         LocalDateTime reservedCloseAt = pollUpdateDto.getReservedCloseAt();
+        System.out.println("DTO에서 받은 reservedCloseAt 값: " + reservedCloseAt);
         if (reservedCloseAt != null) {
             if (reservedCloseAt.isBefore(now.plusHours(1))) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "예약 종료 시간은 현재로부터 최소 1시간 이후여야 합니다.");
@@ -296,6 +300,7 @@ public class PollServiceImpl implements PollService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "예약 종료 시간은 최대 7일 이내여야 합니다.");
             }
             poll.setReservedCloseAt(reservedCloseAt);
+            System.out.println("poll에 저장된 reservedCloseAt 값: " + poll.getReservedCloseAt());
         }
         Poll updated = pollRepository.save(poll);
         return convertToDto(updated);
@@ -311,14 +316,49 @@ public class PollServiceImpl implements PollService {
         if (pollUpdateDto.getVoteTitle() != null) poll.setVoteTitle(pollUpdateDto.getVoteTitle());
         // 투표 항목 수정
         if (pollUpdateDto.getPollOptions() != null && pollUpdateDto.getPollOptions().size() == 2) {
-            pollOptionsRepository.deleteAll(pollOptionsRepository.findByPoll_PollId(pollId));
-            pollUpdateDto.getPollOptions().forEach(optionDto -> {
-                PollOptions option = PollOptions.builder()
+            List<PollOptions> existingOptions = pollOptionsRepository.findByPoll_PollId(pollId);
+            List<Long> incomingIds = pollUpdateDto.getPollOptions().stream()
+                    .map(opt -> opt.getPollItemsId())
+                    .filter(id -> id != null)
+                    .toList();
+            // 기존 옵션 중 전달받지 않은 id 삭제
+            for (PollOptions option : existingOptions) {
+                if (!incomingIds.contains(option.getPollItemsId())) {
+                    pollOptionsRepository.deleteById(option.getPollItemsId());
+                }
+            }
+            // 추가/수정
+            for (var optionDto : pollUpdateDto.getPollOptions()) {
+                if (optionDto.getPollItemsId() != null) {
+                    PollOptions option = existingOptions.stream()
+                        .filter(o -> o.getPollItemsId().equals(optionDto.getPollItemsId()))
+                        .findFirst().orElse(null);
+                    if (option != null) {
+                        option.setOption(optionDto.getContent());
+                        pollOptionsRepository.save(option);
+                    }
+                } else {
+                    PollOptions newOption = PollOptions.builder()
                         .poll(poll)
                         .option(optionDto.getContent())
                         .build();
-                pollOptionsRepository.save(option);
-            });
+                    pollOptionsRepository.save(newOption);
+                }
+            }
+        }
+        // 예약 종료 시간 수정
+        LocalDateTime now = java.time.LocalDateTime.now();
+        LocalDateTime reservedCloseAt = pollUpdateDto.getReservedCloseAt();
+        System.out.println("DTO에서 받은 reservedCloseAt 값: " + reservedCloseAt);
+        if (reservedCloseAt != null) {
+            if (reservedCloseAt.isBefore(now.plusHours(1))) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "예약 종료 시간은 현재로부터 최소 1시간 이후여야 합니다.");
+            }
+            if (reservedCloseAt.isAfter(poll.getCreatedAt().plusDays(7))) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "예약 종료 시간은 최대 7일 이내여야 합니다.");
+            }
+            poll.setReservedCloseAt(reservedCloseAt);
+            System.out.println("poll에 저장된 reservedCloseAt 값: " + poll.getReservedCloseAt());
         }
         pollRepository.save(poll);
     }
