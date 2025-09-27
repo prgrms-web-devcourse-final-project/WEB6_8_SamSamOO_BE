@@ -36,6 +36,12 @@ public class Poll {
     @Column(name = "closed_at")
     private LocalDateTime closedAt;
 
+    @Column(name = "reserved_close_at")
+    private LocalDateTime reservedCloseAt;
+
+    @OneToMany(mappedBy = "poll", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    private java.util.List<PollOptions> pollOptions;
+
     // 투표 상태 Enum 타입
     public enum PollStatus {
         ONGOING, CLOSED
