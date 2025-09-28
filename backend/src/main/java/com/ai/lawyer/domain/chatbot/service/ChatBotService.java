@@ -62,8 +62,8 @@ public class ChatBotService {
         );
 
         // 벡터 검색 (판례, 법령)
-        List<Document> similarCaseDocuments = qdrantService.searchDocument(chatChatRequestDto.getMessage(), "type", "판례");
-        List<Document> similarLawDocuments = qdrantService.searchDocument(chatChatRequestDto.getMessage(), "type", "법령");
+        List<Document> similarCaseDocuments = qdrantService.searchDocument(chatChatRequestDto.getMessage(), "type", "판례", 3);
+        List<Document> similarLawDocuments = qdrantService.searchDocument(chatChatRequestDto.getMessage(), "type", "법령", 2);
 
         // 판례와 법령 정보를 구분 있게 포맷팅
         String caseContext = formatting(similarCaseDocuments);
