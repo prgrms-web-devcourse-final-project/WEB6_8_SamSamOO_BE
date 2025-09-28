@@ -4,12 +4,8 @@ import com.ai.lawyer.domain.chatbot.dto.ChatDto.ChatRequest;
 import com.ai.lawyer.domain.chatbot.dto.ChatDto.ChatResponse;
 import com.ai.lawyer.domain.chatbot.dto.ExtractionDto.KeywordExtractionDto;
 import com.ai.lawyer.domain.chatbot.dto.ExtractionDto.TitleExtractionDto;
-import com.ai.lawyer.domain.chatbot.entity.Chat;
-import com.ai.lawyer.domain.chatbot.entity.History;
-import com.ai.lawyer.domain.chatbot.entity.KeywordRank;
-import com.ai.lawyer.domain.chatbot.repository.ChatRepository;
-import com.ai.lawyer.domain.chatbot.repository.HistoryRepository;
-import com.ai.lawyer.domain.chatbot.repository.KeywordRankRepository;
+import com.ai.lawyer.domain.chatbot.entity.*;
+import com.ai.lawyer.domain.chatbot.repository.*;
 import com.ai.lawyer.domain.member.entity.Member;
 import com.ai.lawyer.domain.member.repositories.MemberRepository;
 import com.ai.lawyer.global.qdrant.service.QdrantService;
@@ -40,14 +36,15 @@ public class ChatBotService {
     private final ChatClient chatClient;
 
     private final QdrantService qdrantService;
+    private final HistoryService historyService;
 
     private final ChatRepository chatRepository;
     private final HistoryRepository historyRepository;
     private final KeywordRankRepository keywordRankRepository;
     private final ChatMemoryRepository chatMemoryRepository;
-    private final HistoryService historyService;
-
     private final MemberRepository memberRepository;
+    private final ChatPrecedentRepository chatPrecedentRepository;
+    private final ChatLawRepository chatLawRepository;
 
     @Value("${custom.ai.system-message}")
     private String systemMessageTemplate;
@@ -64,9 +61,9 @@ public class ChatBotService {
                 () -> new IllegalArgumentException("존재하지 않는 회원입니다.")
         );
 
-        // 벡터 검색 (판례 3개, 법령 2개)
-        List<Document> similarCaseDocuments = qdrantService.searchDocument(chatChatRequestDto.getMessage(), "type", "판례", 3);
-        List<Document> similarLawDocuments = qdrantService.searchDocument(chatChatRequestDto.getMessage(), "type", "법령", 2);
+        // 벡터 검색 (판례, 법령)
+        List<Document> similarCaseDocuments = qdrantService.searchDocument(chatChatRequestDto.getMessage(), "type", "판례");
+        List<Document> similarLawDocuments = qdrantService.searchDocument(chatChatRequestDto.getMessage(), "type", "법령");
 
         // 판례와 법령 정보를 구분 있게 포맷팅
         String caseContext = formatting(similarCaseDocuments);
@@ -88,7 +85,7 @@ public class ChatBotService {
                 .content()
                 .collectList()
                 .map(fullResponseList -> String.join("", fullResponseList))
-                .doOnNext(fullResponse -> handlerTasks(chatChatRequestDto, history, fullResponse, chatMemory)) // 응답이 완성되면 후처리 실행 (대화 저장, 키워드/제목 추출 등)
+                .doOnNext(fullResponse -> handlerTasks(chatChatRequestDto, history, fullResponse, chatMemory, similarCaseDocuments, similarLawDocuments)) // 응답이 완성되면 후처리 실행 (대화 저장, 키워드/제목 추출 등)
                 .map(fullResponse -> ChatResponse(history, fullResponse, similarCaseDocuments, similarLawDocuments)  // 최종적으로 ChatResponse DTO 생성
                 ).flux()
                 .onErrorResume(throwable -> Flux.just(handleError(history)));  // 에러 발생 시 에러 핸들링 -> 재전송 유도
@@ -143,7 +140,7 @@ public class ChatBotService {
                 .build();
     }
 
-    private void handlerTasks(ChatRequest chatDto, History history, String fullResponse, ChatMemory chatMemory) {
+    private void handlerTasks(ChatRequest chatDto, History history, String fullResponse, ChatMemory chatMemory, List<Document> similarCaseDocuments, List<Document> similarLawDocuments) {
 
         // 메시지 기억 저장
         chatMemory.add(String.valueOf(history.getHistoryId()), new AssistantMessage(fullResponse));
@@ -153,8 +150,8 @@ public class ChatBotService {
         setHistoryTitle(chatDto, history, fullResponse);
 
         // 채팅 기록 저장
-        saveChat(history, MessageType.USER, chatDto.getMessage());
-        saveChat(history, MessageType.ASSISTANT, fullResponse);
+        saveChat(history, MessageType.USER, chatDto.getMessage(), similarCaseDocuments, similarLawDocuments);
+        saveChat(history, MessageType.ASSISTANT, fullResponse, similarCaseDocuments, similarLawDocuments);
 
         // 키워드 추출 및 키워드 랭킹 저장 (법과 관련 없는 질문은 제외)
         if (!fullResponse.contains("해당 질문은 법과 관련된")) {
@@ -187,12 +184,35 @@ public class ChatBotService {
         historyRepository.save(history);
     }
 
-    private void saveChat(History history, MessageType type, String message) {
-        chatRepository.save(Chat.builder()
+    private void saveChat(History history, MessageType type, String message, List<Document> similarCaseDocuments, List<Document> similarLawDocuments) {
+        Chat chat = chatRepository.save(Chat.builder()
                 .historyId(history)
                 .type(type)
                 .message(message)
                 .build());
+
+        if (type == MessageType.USER && similarCaseDocuments != null) {
+            List<ChatPrecedent> chatPrecedents = similarCaseDocuments.stream()
+                    .map(doc -> ChatPrecedent.builder()
+                            .chatId(chat)
+                            .precedentContent(doc.getText())
+                            .caseNumber(doc.getMetadata().get("caseNumber").toString())
+                            .caseName(doc.getMetadata().get("caseName").toString())
+                            .build())
+                    .toList();
+            chatPrecedentRepository.saveAll(chatPrecedents);
+
+            List<ChatLaw> chatLaws = similarLawDocuments.stream()
+                    .map(doc -> ChatLaw.builder()
+                            .chatId(chat)
+                            .content(doc.getText())
+                            .lawName(doc.getMetadata().get("lawName").toString())
+                            .build())
+                    .toList();
+
+            chatLawRepository.saveAll(chatLaws);
+        }
+
     }
 
     private History getOrCreateRoom(Member member, Long roomId) {

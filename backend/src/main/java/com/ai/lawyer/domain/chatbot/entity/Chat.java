@@ -9,6 +9,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.springframework.ai.chat.messages.MessageType;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Data
@@ -31,6 +32,12 @@ public class Chat {
 
     @Lob
     private String message;
+
+    @OneToMany(mappedBy = "chatId")
+    private List<ChatPrecedent> chatPrecedents;
+
+    @OneToMany(mappedBy = "chatId")
+    private List<ChatLaw> chatLaws;
 
     @CreationTimestamp
     @Column(updatable = false)
