@@ -7,6 +7,7 @@ import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.filter.Filter;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -22,6 +23,17 @@ public class QdrantService {
                 .topK(topK)
                 .filterExpression(new Filter.Expression(Filter.ExpressionType.EQ, new Filter.Key(key), new Filter.Value(value)))
                 .build();
+
+        if (caseSearchRequest == null) {
+            return Collections.singletonList(
+                    Document.builder()
+                            .text("더미")
+                            .metadata(key, value)
+                            .score(0.0)
+                            .build()
+            );
+        }
+
         List<Document> similarCaseDocuments = vectorStore.similaritySearch(caseSearchRequest);
 
         return similarCaseDocuments;
