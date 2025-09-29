@@ -1,5 +1,5 @@
 server:
-  url: ${prod-url}
+  url: ${PROD_URL}
 
 spring:
   autoconfigure:
