@@ -26,7 +26,7 @@ public class MemberService {
     private final EmailAuthService emailAuthService;
 
     @Transactional
-    public MemberResponse signup(MemberSignupRequest request) {
+    public MemberResponse signup(MemberSignupRequest request, HttpServletResponse response) {
         validateDuplicateLoginId(request.getLoginId());
 
         Member member = Member.builder()
@@ -39,6 +39,12 @@ public class MemberService {
                 .build();
 
         Member savedMember = memberRepository.save(member);
+
+        // 회원가입 후 자동 로그인: JWT 토큰 생성 및 쿠키 설정
+        String accessToken = tokenProvider.generateAccessToken(savedMember);
+        String refreshToken = tokenProvider.generateRefreshToken(savedMember);
+        cookieUtil.setTokenCookies(response, accessToken, refreshToken);
+
         return MemberResponse.from(savedMember);
     }
 
@@ -59,9 +65,9 @@ public class MemberService {
     }
 
     public void logout(String loginId, HttpServletResponse response) {
-        // 로그인 ID가 존재할 경우 Redis에서 리프레시 토큰 삭제
+        // 로그인 ID가 존재할 경우 Redis에서 모든 토큰 삭제
         if (loginId != null && !loginId.trim().isEmpty()) {
-            tokenProvider.deleteRefreshToken(loginId);
+            tokenProvider.deleteAllTokens(loginId);
         }
 
         // 인증 상태와 관계없이 클라이언트 쿠키 클리어
@@ -84,8 +90,8 @@ public class MemberService {
         Member member = memberRepository.findByLoginId(loginId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
 
-        // RTR(Refresh Token Rotation) 패턴: 기존 리프레시 토큰 삭제
-        tokenProvider.deleteRefreshToken(loginId);
+        // RTR(Refresh Token Rotation) 패턴: 기존 모든 토큰 삭제
+        tokenProvider.deleteAllTokens(loginId);
 
         // 새로운 액세스 토큰과 리프레시 토큰 생성
         String newAccessToken = tokenProvider.generateAccessToken(member);
@@ -163,8 +169,8 @@ public class MemberService {
         // 인증 데이터 삭제 (비밀번호 재설정 완료 후)
         emailAuthService.clearAuthData(loginId);
 
-        // 기존 리프레시 토큰 삭제 (보안상 로그아웃 처리)
-        tokenProvider.deleteRefreshToken(loginId);
+        // 기존 모든 토큰 삭제 (보안상 로그아웃 처리)
+        tokenProvider.deleteAllTokens(loginId);
     }
 
     /**
