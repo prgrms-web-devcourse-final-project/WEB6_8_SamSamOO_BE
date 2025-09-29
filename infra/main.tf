@@ -271,6 +271,23 @@ CREATE DATABASE \`${var.app_1_db_name}\`;
 FLUSH PRIVILEGES;
 "
 
+# Qdrant 설치
+docker run -d \
+  --name qdrant_1 \
+  --restart unless-stopped \
+  --network common \
+  -p 6333:6333 \
+  -p 6334:6334 \
+  qdrant/qdrant
+
+# Qdrant healthcheck 대기
+echo "Qdrant가 준비될 때까지 대기 중..."
+until curl -fs http://localhost:6333/healthz > /dev/null; do
+  echo "Qdrant가 아직 준비되지 않음. 5초 후 재시도..."
+  sleep 5
+done
+echo "Qdrant 준비 됨"
+
 echo "${var.github_access_token_1}" | docker login ghcr.io -u ${var.github_access_token_1_owner} --password-stdin
 
 END_OF_FILE
