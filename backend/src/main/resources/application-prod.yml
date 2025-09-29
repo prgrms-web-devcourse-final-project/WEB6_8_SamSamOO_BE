@@ -1,3 +1,6 @@
+server:
+  url: ${prod-url}
+
 spring:
   autoconfigure:
     exclude:

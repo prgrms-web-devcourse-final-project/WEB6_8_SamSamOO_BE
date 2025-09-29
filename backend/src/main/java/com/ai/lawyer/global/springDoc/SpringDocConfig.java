@@ -4,15 +4,19 @@ import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.info.Info;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
+import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
+import io.swagger.v3.oas.models.servers.Server;
 import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springdoc.core.models.GroupedOpenApi;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -26,6 +30,9 @@ import java.util.regex.Pattern;
         scheme = "bearer"
 )
 public class SpringDocConfig {
+
+    @Value("${server.url:http://localhost:8080}")
+    private String serverUrl;
 
     @Bean
     public GroupedOpenApi memberApi() {
@@ -99,5 +106,13 @@ public class SpringDocConfig {
                 .pathsToMatch("/api/chat/**")
                 .packagesToScan("com.ai.lawyer.domain.chatbot.controller")
                 .build();
+    }
+
+    @Bean
+    public OpenAPI customOpenAPI() {
+        return new OpenAPI()
+                .servers(List.of(
+                        new Server().url(serverUrl).description("Current Environment Server")
+                ));
     }
 }
