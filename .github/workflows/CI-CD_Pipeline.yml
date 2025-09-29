@@ -239,7 +239,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          instance-ids: "i-084a4704f4e017cc4"
+          instance-ids: "i-04e6cdbebfead7150"
           working-directory: /
           comment: Deploy
           command: |
@@ -269,6 +269,9 @@ jobs:
             PROD_REDIS_HOST=redis_1
             PROD_REDIS_PORT=6379
             PROD_REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+            
+            RROD_QDRANT_HOST=qdrant_1
+            RROD_QDRANT_PORT=6334
             
             send_email_address=${{ secrets.SEND_EMAIL_ADDRESS }}
             email_address=${{ secrets.EMAIL_ADDRESS }}
