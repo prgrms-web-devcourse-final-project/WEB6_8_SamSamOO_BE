@@ -148,8 +148,8 @@ class PollControllerTest {
         Mockito.when(pollService.getPoll(Mockito.anyLong())).thenReturn(responseDto);
         mockMvc.perform(get("/api/polls/1"))
                 .andExpect(status().isOk())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.pollId").value(1L))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.voteTitle").value("테스트 투표"));
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result.pollId").value(1L))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result.voteTitle").value("테스트 투표"));
     }
 
     @Test
@@ -162,7 +162,7 @@ class PollControllerTest {
                 org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/polls/1/vote")
                         .param("pollItemsId", "1")
         ).andExpect(status().isOk())
-         .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.pollId").value(1L))
-         .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.memberId").value(1L));
+         .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result.pollId").value(1L))
+         .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result.memberId").value(1L));
     }
 }

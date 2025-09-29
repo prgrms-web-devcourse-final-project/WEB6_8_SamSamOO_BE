@@ -18,14 +18,14 @@ public class PollVote {
     private Long pollVoteId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "poll_id", nullable = false)
+    @JoinColumn(name = "poll_id", nullable = false, foreignKey = @ForeignKey(name = "FK_POLLVOTE_POLL"))
     private Poll poll;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "member_id", nullable = false)
+    @JoinColumn(name = "member_id", nullable = false, foreignKey = @ForeignKey(name = "FK_POLLVOTE_MEMBER"))
     private Member member;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "poll_items_id", nullable = false)
+    @JoinColumn(name = "poll_items_id", nullable = false, foreignKey = @ForeignKey(name = "FK_POLLVOTE_POLLOPTIONS"))
     private PollOptions pollOptions;
 }

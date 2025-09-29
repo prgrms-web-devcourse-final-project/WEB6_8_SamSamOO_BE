@@ -8,6 +8,7 @@ import com.ai.lawyer.domain.post.service.PostService;
 import com.ai.lawyer.domain.member.entity.Member;
 import com.ai.lawyer.domain.member.repositories.MemberRepository;
 import com.ai.lawyer.global.jwt.TokenProvider;
+import com.ai.lawyer.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -147,12 +148,4 @@ public class PostController {
          List<PostDto> posts = postService.getMyPosts(memberId);
          return ResponseEntity.ok(new ApiResponse<>(200, "본인 게시글 전체 조회 성공", posts));
      }
-
-    @Data
-    @AllArgsConstructor
-    public static class ApiResponse<T> {
-        private int code;
-        private String message;
-        private T result;
-    }
 }

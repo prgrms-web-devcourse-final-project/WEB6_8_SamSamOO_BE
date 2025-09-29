@@ -17,10 +17,10 @@ public class PollOptions {
     private Long pollItemsId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "poll_id", nullable = false)
+    @JoinColumn(name = "poll_id", nullable = false, foreignKey = @ForeignKey(name = "FK_POLLOPTIONS_POLL"))
     private Poll poll;
 
-    @Column(length = 100, nullable = false, name = "option")
+    @Column(length = 100, nullable = false, name = "option_text")
     private String option;
 
     @Column(name = "count")

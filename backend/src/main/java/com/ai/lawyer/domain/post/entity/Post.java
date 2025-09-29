@@ -22,7 +22,7 @@ public class Post {
     private Long postId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "member_id", nullable = false)
+    @JoinColumn(name = "member_id", nullable = false, foreignKey = @ForeignKey(name = "FK_POST_MEMBER"))
     private Member member;
 
     @Column(name = "post_name", length = 100, nullable = false)
@@ -37,7 +37,7 @@ public class Post {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true) // 포스트 삭제 시 연관된 투표도 삭제
-    @JoinColumn(name = "poll_id")
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "poll_id", foreignKey = @ForeignKey(name = "FK_POST_POLL"))
     private Poll poll;
 }

@@ -93,6 +93,8 @@ public class PollServiceImpl implements PollService {
                 pollOptionsRepository.save(option);
             }
             return convertToDto(savedPoll);
+        } catch (ResponseStatusException e) {
+            throw e;
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "투표 생성 중 오류가 발생했습니다.");
         }
