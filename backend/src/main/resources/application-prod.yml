@@ -1,0 +1,30 @@
+spring:
+  autoconfigure:
+    exclude:
+  datasource:
+    url: ${PROD_DATASOURCE_URL}
+    driver-class-name: ${PROD_DATASOURCE_DRIVER}
+    username: ${PROD_DATASOURCE_USERNAME}
+    password: ${PROD_DATASOURCE_PASSWORD}
+    hikari:
+      maximum-pool-size: 20          # 트래픽에 맞춰 조정
+      minimum-idle: 5
+      idle-timeout: 30000
+      connection-timeout: 30000
+      max-lifetime: 1800000          # MySQL wait_timeout(기본 28800)보다 짧게
+  jpa:
+    open-in-view: false              # 프로덕션 권장
+    hibernate:
+      ddl-auto: ${PROD_JPA_HIBERNATE_DDL_AUTO} # 운영 DB는 보통 validate (또는 none)
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect  # 부트가 자동 감지하지만 명시해도 OK
+        format_sql: false
+  sql:
+    init:
+      mode: never
+  data:
+    redis:
+      host: ${PROD_REDIS_HOST}
+      port: ${PROD_REDIS_PORT}
+      password: ${PROD_REDIS_PASSWORD}
