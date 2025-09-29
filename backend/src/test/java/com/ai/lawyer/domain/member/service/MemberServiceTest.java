@@ -102,7 +102,7 @@ class MemberServiceTest {
 
         // when
         log.info("회원가입 서비스 호출 중...");
-        MemberResponse result = memberService.signup(signupRequest);
+        MemberResponse result = memberService.signup(signupRequest, response);
         log.info("회원가입 완료: memberId={}", result.getMemberId());
 
         // then
@@ -138,7 +138,7 @@ class MemberServiceTest {
         log.info("예외 발생 검증 시작");
         assertThatThrownBy(() -> {
             log.info("회원가입 시도 중... (실패 예상)");
-            memberService.signup(signupRequest);
+            memberService.signup(signupRequest, response);
         })
                 .as("이메일 중복 시 IllegalArgumentException 발생")
                 .isInstanceOf(IllegalArgumentException.class)
@@ -262,8 +262,8 @@ class MemberServiceTest {
         log.info("2단계: Redis에서 리프레시 토큰 유효성 검증");
         verify(memberRepository).findByLoginId("test@example.com");
         log.info("3단계: 회원 정보 조회");
-        verify(tokenProvider).deleteRefreshToken("test@example.com");
-        log.info("4단계: 기존 리프레시 토큰 Redis에서 삭제 (RTR 패턴)");
+        verify(tokenProvider).deleteAllTokens("test@example.com");
+        log.info("4단계: 기존 모든 토큰 Redis에서 삭제 (RTR 패턴)");
         verify(tokenProvider).generateAccessToken(member);
         log.info("5단계: 새 액세스 토큰 생성");
         verify(tokenProvider).generateRefreshToken(member);
@@ -370,8 +370,8 @@ class MemberServiceTest {
 
         // then
         log.info("검증 시작: Redis 토큰 삭제 및 쿠키 클리어 확인");
-        verify(tokenProvider).deleteRefreshToken(loginId);
-        log.info("Redis에서 리프레시 토큰 삭제 호출 확인");
+        verify(tokenProvider).deleteAllTokens(loginId);
+        log.info("Redis에서 모든 토큰 삭제 호출 확인");
         verify(cookieUtil).clearTokenCookies(response);
         log.info("쿠키에서 토큰 클리어 호출 확인");
         log.info("=== 로그아웃 성공 테스트 완료 ===");
@@ -499,7 +499,7 @@ class MemberServiceTest {
         given(memberRepository.findByLoginId(loginId)).willReturn(Optional.of(member));
         given(emailAuthService.isEmailVerified(loginId)).willReturn(true); // Redis 인증 성공
         given(passwordEncoder.encode(newPassword)).willReturn("encodedNewPassword");
-        doNothing().when(tokenProvider).deleteRefreshToken(loginId);
+        doNothing().when(tokenProvider).deleteAllTokens(loginId);
         doNothing().when(emailAuthService).clearAuthData(loginId);
         log.info("Mock 설정 완료: 회원 존재, 클라이언트 인증 성공, Redis 인증 성공, 비밀번호 인코딩 준비");
 
@@ -520,8 +520,8 @@ class MemberServiceTest {
         log.info("회원 정보 저장 호출 확인");
         verify(emailAuthService).clearAuthData(loginId);
         log.info("인증 데이터 삭제 호출 확인");
-        verify(tokenProvider).deleteRefreshToken(loginId);
-        log.info("기존 리프레시 토큰 삭제 호출 확인 (보안상 로그아웃 처리)");
+        verify(tokenProvider).deleteAllTokens(loginId);
+        log.info("기존 모든 토큰 삭제 호출 확인 (보안상 로그아웃 처리)");
         log.info("=== 비밀번호 재설정 성공 테스트 완료 ===");
     }
 
@@ -545,7 +545,7 @@ class MemberServiceTest {
         verify(emailAuthService, never()).isEmailVerified(anyString());
         verify(passwordEncoder, never()).encode(anyString());
         verify(memberRepository, never()).save(any(Member.class));
-        verify(tokenProvider, never()).deleteRefreshToken(anyString());
+        verify(tokenProvider, never()).deleteAllTokens(anyString());
     }
 
     @Test
@@ -567,7 +567,7 @@ class MemberServiceTest {
         verify(emailAuthService).isEmailVerified(loginId);
         verify(passwordEncoder, never()).encode(anyString());
         verify(memberRepository, never()).save(any(Member.class));
-        verify(tokenProvider, never()).deleteRefreshToken(anyString());
+        verify(tokenProvider, never()).deleteAllTokens(anyString());
     }
 
     @Test
@@ -587,7 +587,7 @@ class MemberServiceTest {
         verify(memberRepository).findByLoginId(loginId);
         verify(passwordEncoder, never()).encode(anyString());
         verify(memberRepository, never()).save(any(Member.class));
-        verify(tokenProvider, never()).deleteRefreshToken(anyString());
+        verify(tokenProvider, never()).deleteAllTokens(anyString());
     }
 
     @Test
@@ -607,7 +607,7 @@ class MemberServiceTest {
         verify(memberRepository).findByLoginId(loginId);
         verify(passwordEncoder, never()).encode(anyString());
         verify(memberRepository, never()).save(any(Member.class));
-        verify(tokenProvider, never()).deleteRefreshToken(anyString());
+        verify(tokenProvider, never()).deleteAllTokens(anyString());
     }
 
     @Test
