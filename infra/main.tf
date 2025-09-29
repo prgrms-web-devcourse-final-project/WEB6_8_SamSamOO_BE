@@ -215,7 +215,7 @@ docker network create common
 
 # nginx 설치
 docker run -d \
-  --name npm_1 \
+  --name npm \
   --restart unless-stopped \
   --network common \
   -p 80:80 \
@@ -230,7 +230,7 @@ docker run -d \
 
 # redis 설치
 docker run -d \
-  --name=redis_1 \
+  --name=redis \
   --restart unless-stopped \
   --network common \
   -p 6379:6379 \
@@ -239,7 +239,7 @@ docker run -d \
 
 # mysql 설치
 docker run -d \
-  --name mysql_1 \
+  --name mysql \
   --restart unless-stopped \
   -v /dockerProjects/mysql_1/volumes/var/lib/mysql:/var/lib/mysql \
   -v /dockerProjects/mysql_1/volumes/etc/mysql/conf.d:/etc/mysql/conf.d \
@@ -273,7 +273,7 @@ FLUSH PRIVILEGES;
 
 # Qdrant 설치
 docker run -d \
-  --name qdrant_1 \
+  --name qdrant \
   --restart unless-stopped \
   --network common \
   -p 6333:6333 \
