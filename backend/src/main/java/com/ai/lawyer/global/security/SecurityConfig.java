@@ -47,6 +47,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/law/**").permitAll()
                         .requestMatchers("/api/law-word/**").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
+                        .requestMatchers("/api/chat/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 // JWT 필터 추가
