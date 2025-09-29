@@ -32,47 +32,41 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         if (request != null && response != null) {
-            // 1. Authorization 헤더에서 Bearer 토큰 추출 시도 (우선순위 1)
-            String accessToken = extractTokenFromAuthorizationHeader(request);
-            boolean fromHeader = accessToken != null;
+            try {
+                // 1. 쿠키에서 액세스 토큰 확인
+                String accessToken = cookieUtil.getAccessTokenFromCookies(request);
 
-            // 2. Authorization 헤더에 없으면 쿠키에서 토큰 추출 (우선순위 2)
-            if (accessToken == null) {
-                accessToken = cookieUtil.getAccessTokenFromCookies(request);
-            }
+                if (accessToken != null) {
+                    // 액세스 토큰이 있는 경우 검증
+                    TokenProvider.TokenValidationResult validationResult = tokenProvider.validateTokenWithResult(accessToken);
 
-            // JWT 액세스 토큰 검증 및 인증 처리
-            if (accessToken != null) {
-                TokenProvider.TokenValidationResult validationResult = tokenProvider.validateTokenWithResult(accessToken);
-
-                if (validationResult == TokenProvider.TokenValidationResult.VALID) {
-                    // 유효한 토큰인 경우 인증 처리
-                    setAuthentication(accessToken);
-                } else if (validationResult == TokenProvider.TokenValidationResult.EXPIRED && !fromHeader) {
-                    // 만료된 토큰이고 쿠키에서 왔을 경우에만 자동 갱신 시도
-                    // (Authorization 헤더 토큰은 클라이언트가 직접 관리해야 함)
-                    tryAutoRefreshToken(request, response, accessToken);
+                    if (validationResult == TokenProvider.TokenValidationResult.VALID) {
+                        // 유효한 액세스 토큰 - 인증 처리
+                        setAuthentication(accessToken);
+                        log.debug("유효한 액세스 토큰으로 인증 완료");
+                    } else if (validationResult == TokenProvider.TokenValidationResult.EXPIRED) {
+                        // 만료된 액세스 토큰 - 리프레시 토큰으로 갱신 시도
+                        log.info("액세스 토큰 만료, 리프레시 토큰으로 갱신 시도");
+                        handleTokenRefresh(request, response, accessToken);
+                    } else {
+                        // 유효하지 않은 액세스 토큰 - 리프레시 토큰 확인
+                        log.warn("유효하지 않은 액세스 토큰, 리프레시 토큰으로 갱신 시도");
+                        handleTokenRefresh(request, response, null);
+                    }
+                } else {
+                    // 4. 액세스 토큰이 없는 경우 바로 리프레시 토큰 확인
+                    log.debug("액세스 토큰이 없음, 리프레시 토큰 확인");
+                    handleTokenRefresh(request, response, null);
                 }
-                // INVALID인 경우 아무 처리 하지 않음 (인증되지 않은 상태로 진행)
+            } catch (Exception e) {
+                log.error("JWT 인증 처리 중 오류 발생: {}", e.getMessage(), e);
+                clearAuthenticationAndCookies(response);
             }
         }
 
         if (filterChain != null) {
             filterChain.doFilter(request, response);
         }
-    }
-
-    /**
-     * Authorization 헤더에서 Bearer 토큰을 추출합니다.
-     * @param request HTTP 요청
-     * @return Bearer 토큰 값 또는 null
-     */
-    private String extractTokenFromAuthorizationHeader(HttpServletRequest request) {
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            return authHeader.substring(7); // "Bearer " 제거
-        }
-        return null;
     }
 
     /**
@@ -104,58 +98,86 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     /**
-     * 만료된 액세스 토큰으로 자동 갱신을 시도합니다.
-     * @param request HTTP 요청
-     * @param response HTTP 응답
-     * @param expiredAccessToken 만료된 액세스 토큰
+     * 토큰 갱신을 처리합니다.
+     * 2. 액세스토큰이 만료되었으면 리프레시토큰을확인한다
+     * 3. 리프레시토큰이 레디스의 저장값과 동일하면 토큰 재발급을 진행한다
+     * 6. 리프레시토큰을 확인하는절차에서 리프레시토큰이 없을 경우 쿠키에 있는 모든 정보를 제거하고 로그인을 해달라고 메시지를 반환한다
      */
-    private void tryAutoRefreshToken(HttpServletRequest request, HttpServletResponse response, String expiredAccessToken) {
+    private void handleTokenRefresh(HttpServletRequest request, HttpServletResponse response, String expiredAccessToken) {
         try {
-            // 1. 만료된 토큰에서 loginId 추출
-            String loginId = tokenProvider.getLoginIdFromExpiredToken(expiredAccessToken);
-            if (loginId == null) {
-                log.warn("만료된 토큰에서 loginId 추출 실패");
-                return;
-            }
-
-            // 2. 쿠키에서 리프레시 토큰 추출
+            // 2. 리프레시 토큰 확인
             String refreshToken = cookieUtil.getRefreshTokenFromCookies(request);
             if (refreshToken == null) {
-                log.info("리프레시 토큰이 없어 자동 갱신 불가: {}", loginId);
+                // 6. 리프레시 토큰이 없을 경우 쿠키 클리어
+                log.info("리프레시 토큰이 없음 - 쿠키 클리어 및 재로그인 필요");
+                clearAuthenticationAndCookies(response);
                 return;
             }
 
-            // 3. 리프레시 토큰 유효성 검증
+            // loginId 추출 시도 (만료된 토큰이 있으면 그것에서, 없으면 리프레시 토큰으로 찾기)
+            String loginId = null;
+            if (expiredAccessToken != null) {
+                loginId = tokenProvider.getLoginIdFromExpiredToken(expiredAccessToken);
+            }
+
+            // 만료된 토큰에서 추출 실패 시 리프레시 토큰으로 사용자 찾기
+            if (loginId == null) {
+                loginId = tokenProvider.findUsernameByRefreshToken(refreshToken);
+            }
+
+            if (loginId == null) {
+                log.warn("loginId 추출 실패 - 쿠키 클리어");
+                clearAuthenticationAndCookies(response);
+                return;
+            }
+
+            // 3. 리프레시 토큰이 Redis의 저장값과 동일한지 검증
             if (!tokenProvider.validateRefreshToken(loginId, refreshToken)) {
-                log.info("유효하지 않은 리프레시 토큰으로 자동 갱신 불가: {}", loginId);
+                log.info("유효하지 않은 리프레시 토큰 - 쿠키 클리어: {}", loginId);
+                clearAuthenticationAndCookies(response);
                 return;
             }
 
-            // 4. 회원 정보 조회
+            // 회원 정보 조회
             Member member = memberRepository.findByLoginId(loginId).orElse(null);
             if (member == null) {
-                log.warn("존재하지 않는 회원으로 자동 갱신 불가: {}", loginId);
+                log.warn("존재하지 않는 회원 - 쿠키 클리어: {}", loginId);
+                clearAuthenticationAndCookies(response);
                 return;
             }
 
-            // 5. RTR(Refresh Token Rotation) 패턴: 기존 리프레시 토큰 삭제
-            tokenProvider.deleteRefreshToken(loginId);
+            // RTR(Refresh Token Rotation) 패턴: 기존 모든 토큰 삭제
+            tokenProvider.deleteAllTokens(loginId);
 
-            // 6. 새로운 액세스 토큰과 리프레시 토큰 생성
+            // 새로운 액세스 토큰과 리프레시 토큰 생성
             String newAccessToken = tokenProvider.generateAccessToken(member);
             String newRefreshToken = tokenProvider.generateRefreshToken(member);
 
-            // 7. 새로운 토큰들을 쿠키에 설정
+            // 새로운 토큰들을 쿠키에 설정
             cookieUtil.setTokenCookies(response, newAccessToken, newRefreshToken);
 
-            // 8. 새로운 액세스 토큰으로 인증 설정
+            // 새로운 액세스 토큰으로 인증 설정
             setAuthentication(newAccessToken);
 
-            log.info("액세스 토큰 자동 갱신 성공: {}", loginId);
+            log.info("토큰 자동 갱신 성공: {}", loginId);
 
         } catch (Exception e) {
-            log.warn("액세스 토큰 자동 갱신 실패: {}", e.getMessage());
+            log.error("토큰 갱신 처리 실패: {}", e.getMessage(), e);
+            clearAuthenticationAndCookies(response);
         }
+    }
+
+    /**
+     * 인증 정보와 쿠키를 모두 클리어합니다.
+     */
+    private void clearAuthenticationAndCookies(HttpServletResponse response) {
+        // Spring Security 인증 정보 클리어
+        SecurityContextHolder.clearContext();
+
+        // 쿠키 클리어
+        cookieUtil.clearTokenCookies(response);
+
+        log.debug("인증 정보 및 쿠키 클리어 완료");
     }
 
     /**
@@ -170,7 +192,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                path.equals("/api/auth/login") ||
                path.equals("/api/auth/refresh") ||
                path.startsWith("/api/public/") ||
+               path.startsWith("/api/redis-test/") ||
                path.startsWith("/swagger-") ||
-               path.startsWith("/v3/api-docs");
+               path.startsWith("/v3/api-docs") ||
+               path.equals("/actuator/health") ||
+               path.startsWith("/h2-console");
     }
 }

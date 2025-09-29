@@ -31,12 +31,12 @@ public class MemberController {
             @ApiResponse(responseCode = "201", description = "회원가입 성공"),
             @ApiResponse(responseCode = "400", description = "잘못된 요청 (중복 이메일/닉네임, 유효성 검증 실패)")
     })
-    public ResponseEntity<MemberResponse> signup(@Valid @RequestBody MemberSignupRequest request) {
+    public ResponseEntity<MemberResponse> signup(@Valid @RequestBody MemberSignupRequest request, HttpServletResponse response) {
         log.info("회원가입 요청: email={}, name={}", request.getLoginId(), request.getName());
 
-        MemberResponse response = memberService.signup(request);
-        log.info("회원가입 성공: memberId={}", response.getMemberId());
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        MemberResponse memberResponse = memberService.signup(request, response);
+        log.info("회원가입 및 자동 로그인 성공: memberId={}", memberResponse.getMemberId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(memberResponse);
     }
 
     @PostMapping("/login")

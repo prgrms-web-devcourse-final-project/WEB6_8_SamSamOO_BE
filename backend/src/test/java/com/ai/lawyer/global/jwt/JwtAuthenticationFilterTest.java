@@ -69,10 +69,10 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
-    @DisplayName("유효한 Authorization 헤더 토큰으로 인증 성공")
-    void doFilterInternal_ValidHeaderToken_Success() throws Exception {
+    @DisplayName("유효한 쿠키 토큰으로 인증 성공")
+    void doFilterInternal_ValidCookieToken_Success() throws Exception {
         // given
-        given(request.getHeader("Authorization")).willReturn("Bearer " + validAccessToken);
+        given(cookieUtil.getAccessTokenFromCookies(request)).willReturn(validAccessToken);
         given(tokenProvider.validateTokenWithResult(validAccessToken))
                 .willReturn(TokenProvider.TokenValidationResult.VALID);
         given(tokenProvider.getMemberIdFromToken(validAccessToken)).willReturn(1L);
@@ -94,14 +94,13 @@ class JwtAuthenticationFilterTest {
         String newAccessToken = "newAccessToken";
         String newRefreshToken = "newRefreshToken";
 
-        given(request.getHeader("Authorization")).willReturn(null);
         given(cookieUtil.getAccessTokenFromCookies(request)).willReturn(expiredAccessToken);
         given(tokenProvider.validateTokenWithResult(expiredAccessToken))
                 .willReturn(TokenProvider.TokenValidationResult.EXPIRED);
 
         // 자동 리프레시 관련
-        given(tokenProvider.getLoginIdFromExpiredToken(expiredAccessToken)).willReturn("test@example.com");
         given(cookieUtil.getRefreshTokenFromCookies(request)).willReturn(refreshToken);
+        given(tokenProvider.getLoginIdFromExpiredToken(expiredAccessToken)).willReturn("test@example.com");
         given(tokenProvider.validateRefreshToken("test@example.com", refreshToken)).willReturn(true);
         given(memberRepository.findByLoginId("test@example.com")).willReturn(Optional.of(testMember));
         given(tokenProvider.generateAccessToken(testMember)).willReturn(newAccessToken);
@@ -115,45 +114,26 @@ class JwtAuthenticationFilterTest {
         jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
 
         // then
-        verify(tokenProvider).deleteRefreshToken("test@example.com");
+        verify(tokenProvider).deleteAllTokens("test@example.com");
         verify(cookieUtil).setTokenCookies(response, newAccessToken, newRefreshToken);
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNotNull();
         verify(filterChain).doFilter(request, response);
     }
 
     @Test
-    @DisplayName("만료된 Authorization 헤더 토큰은 자동 리프레시하지 않음")
-    void doFilterInternal_ExpiredHeaderToken_NoAutoRefresh() throws Exception {
+    @DisplayName("리프레시 토큰이 없으면 쿠키 클리어")
+    void doFilterInternal_NoRefreshToken_ClearCookies() throws Exception {
         // given
-        given(request.getHeader("Authorization")).willReturn("Bearer " + expiredAccessToken);
-        given(tokenProvider.validateTokenWithResult(expiredAccessToken))
-                .willReturn(TokenProvider.TokenValidationResult.EXPIRED);
-
-        // when
-        jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
-
-        // then
-        verify(tokenProvider, never()).getLoginIdFromExpiredToken(anyString());
-        verify(cookieUtil, never()).getRefreshTokenFromCookies(request);
-        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
-        verify(filterChain).doFilter(request, response);
-    }
-
-    @Test
-    @DisplayName("리프레시 토큰이 없으면 자동 갱신 실패")
-    void doFilterInternal_NoRefreshToken_AutoRefreshFail() throws Exception {
-        // given
-        given(request.getHeader("Authorization")).willReturn(null);
         given(cookieUtil.getAccessTokenFromCookies(request)).willReturn(expiredAccessToken);
         given(tokenProvider.validateTokenWithResult(expiredAccessToken))
                 .willReturn(TokenProvider.TokenValidationResult.EXPIRED);
-        given(tokenProvider.getLoginIdFromExpiredToken(expiredAccessToken)).willReturn("test@example.com");
         given(cookieUtil.getRefreshTokenFromCookies(request)).willReturn(null);
 
         // when
         jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
 
         // then
+        verify(cookieUtil).clearTokenCookies(response);
         verify(tokenProvider, never()).validateRefreshToken(anyString(), anyString());
         verify(cookieUtil, never()).setTokenCookies(any(), anyString(), anyString());
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
@@ -161,18 +141,78 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
-    @DisplayName("잘못된 토큰으로 인증 실패")
-    void doFilterInternal_InvalidToken_AuthFail() throws Exception {
+    @DisplayName("액세스 토큰이 없으면 리프레시 토큰 확인")
+    void doFilterInternal_NoAccessToken_CheckRefreshToken() throws Exception {
         // given
-        String invalidToken = "invalidToken";
-        given(request.getHeader("Authorization")).willReturn("Bearer " + invalidToken);
-        given(tokenProvider.validateTokenWithResult(invalidToken))
-                .willReturn(TokenProvider.TokenValidationResult.INVALID);
+        String newAccessToken = "newAccessToken";
+        String newRefreshToken = "newRefreshToken";
+
+        given(cookieUtil.getAccessTokenFromCookies(request)).willReturn(null);
+        given(cookieUtil.getRefreshTokenFromCookies(request)).willReturn(refreshToken);
+        given(tokenProvider.findUsernameByRefreshToken(refreshToken)).willReturn("test@example.com");
+        given(tokenProvider.validateRefreshToken("test@example.com", refreshToken)).willReturn(true);
+        given(memberRepository.findByLoginId("test@example.com")).willReturn(Optional.of(testMember));
+        given(tokenProvider.generateAccessToken(testMember)).willReturn(newAccessToken);
+        given(tokenProvider.generateRefreshToken(testMember)).willReturn(newRefreshToken);
+
+        // 새 토큰으로 인증 설정
+        given(tokenProvider.getMemberIdFromToken(newAccessToken)).willReturn(1L);
+        given(tokenProvider.getRoleFromToken(newAccessToken)).willReturn("USER");
 
         // when
         jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
 
         // then
+        verify(tokenProvider).deleteAllTokens("test@example.com");
+        verify(cookieUtil).setTokenCookies(response, newAccessToken, newRefreshToken);
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNotNull();
+        verify(filterChain).doFilter(request, response);
+    }
+
+    @Test
+    @DisplayName("유효하지 않은 쿠키 토큰으로 리프레시 시도")
+    void doFilterInternal_InvalidCookieToken_TryRefresh() throws Exception {
+        // given
+        String invalidToken = "invalidToken";
+        String newAccessToken = "newAccessToken";
+        String newRefreshToken = "newRefreshToken";
+
+        given(cookieUtil.getAccessTokenFromCookies(request)).willReturn(invalidToken);
+        given(tokenProvider.validateTokenWithResult(invalidToken))
+                .willReturn(TokenProvider.TokenValidationResult.INVALID);
+        given(cookieUtil.getRefreshTokenFromCookies(request)).willReturn(refreshToken);
+        given(tokenProvider.findUsernameByRefreshToken(refreshToken)).willReturn("test@example.com");
+        given(tokenProvider.validateRefreshToken("test@example.com", refreshToken)).willReturn(true);
+        given(memberRepository.findByLoginId("test@example.com")).willReturn(Optional.of(testMember));
+        given(tokenProvider.generateAccessToken(testMember)).willReturn(newAccessToken);
+        given(tokenProvider.generateRefreshToken(testMember)).willReturn(newRefreshToken);
+
+        // 새 토큰으로 인증 설정
+        given(tokenProvider.getMemberIdFromToken(newAccessToken)).willReturn(1L);
+        given(tokenProvider.getRoleFromToken(newAccessToken)).willReturn("USER");
+
+        // when
+        jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
+
+        // then
+        verify(tokenProvider).deleteAllTokens("test@example.com");
+        verify(cookieUtil).setTokenCookies(response, newAccessToken, newRefreshToken);
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNotNull();
+        verify(filterChain).doFilter(request, response);
+    }
+
+    @Test
+    @DisplayName("모든 토큰이 없으면 쿠키 클리어")
+    void doFilterInternal_NoTokens_ClearCookies() throws Exception {
+        // given
+        given(cookieUtil.getAccessTokenFromCookies(request)).willReturn(null);
+        given(cookieUtil.getRefreshTokenFromCookies(request)).willReturn(null);
+
+        // when
+        jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
+
+        // then
+        verify(cookieUtil).clearTokenCookies(response);
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
         verify(filterChain).doFilter(request, response);
     }
