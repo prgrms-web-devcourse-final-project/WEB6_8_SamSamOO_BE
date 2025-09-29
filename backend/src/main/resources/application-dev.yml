@@ -1,3 +1,6 @@
+server:
+  url: ${DEV_URL}
+
 spring:
   datasource:
     url: ${DEV_DATASOURCE_URL}
