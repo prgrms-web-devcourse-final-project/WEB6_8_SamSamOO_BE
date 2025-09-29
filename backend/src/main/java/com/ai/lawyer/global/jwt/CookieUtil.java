@@ -25,9 +25,6 @@ public class CookieUtil {
         accessCookie.setPath("/");
         accessCookie.setMaxAge(ACCESS_TOKEN_EXPIRE_TIME);
         response.addCookie(accessCookie);
-        // SameSite=None 옵션 추가
-        response.addHeader("Set-Cookie",
-                ACCESS_TOKEN_NAME + "=" + accessToken + "; Path=/; HttpOnly; SameSite=None; Secure");
     }
 
     public void setRefreshTokenCookie(HttpServletResponse response, String refreshToken) {
@@ -37,9 +34,6 @@ public class CookieUtil {
         refreshCookie.setPath("/");
         refreshCookie.setMaxAge(REFRESH_TOKEN_EXPIRE_TIME);
         response.addCookie(refreshCookie);
-        // SameSite=None 옵션 추가
-        response.addHeader("Set-Cookie",
-                REFRESH_TOKEN_NAME + "=" + refreshToken + "; Path=/; HttpOnly; SameSite=None; Secure");
     }
 
     public void clearTokenCookies(HttpServletResponse response) {
@@ -54,9 +48,6 @@ public class CookieUtil {
         cookie.setPath("/");
         cookie.setMaxAge(0);
         response.addCookie(cookie);
-        // SameSite=None 옵션 추가
-        response.addHeader("Set-Cookie",
-                cookieName + "=; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0");
     }
 
     public String getAccessTokenFromCookies(HttpServletRequest request) {
