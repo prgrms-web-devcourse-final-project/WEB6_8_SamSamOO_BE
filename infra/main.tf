@@ -224,8 +224,8 @@ docker run -d \
   -e TZ=Asia/Seoul \
   -e INITIAL_ADMIN_EMAIL=admin@npm.com \
   -e INITIAL_ADMIN_PASSWORD=${var.password_1} \
-  -v /dockerProjects/npm_1/volumes/data:/data \
-  -v /dockerProjects/npm_1/volumes/etc/letsencrypt:/etc/letsencrypt \
+  -v /dockerProjects/npm/volumes/data:/data \
+  -v /dockerProjects/npm/volumes/etc/letsencrypt:/etc/letsencrypt \
   jc21/nginx-proxy-manager:latest
 
 # redis 설치
@@ -241,8 +241,8 @@ docker run -d \
 docker run -d \
   --name mysql \
   --restart unless-stopped \
-  -v /dockerProjects/mysql_1/volumes/var/lib/mysql:/var/lib/mysql \
-  -v /dockerProjects/mysql_1/volumes/etc/mysql/conf.d:/etc/mysql/conf.d \
+  -v /dockerProjects/mysql/volumes/var/lib/mysql:/var/lib/mysql \
+  -v /dockerProjects/mysql/volumes/etc/mysql/conf.d:/etc/mysql/conf.d \
   --network common \
   -p 3306:3306 \
   -e MYSQL_ROOT_PASSWORD=${var.password_1} \
@@ -251,13 +251,13 @@ docker run -d \
 
 # MySQL 컨테이너가 준비될 때까지 대기
 echo "MySQL이 기동될 때까지 대기 중..."
-until docker exec mysql_1 mysql -uroot -p${var.password_1} -e "SELECT 1" &> /dev/null; do
+until docker exec mysql mysql -uroot -p${var.password_1} -e "SELECT 1" &> /dev/null; do
   echo "MySQL이 아직 준비되지 않음. 5초 후 재시도..."
   sleep 5
 done
 echo "MySQL이 준비됨. 초기화 스크립트 실행 중..."
 
-docker exec mysql_1 mysql -uroot -p${var.password_1} -e "
+docker exec mysql mysql -uroot -p${var.password_1} -e "
 CREATE USER 'lldjlocal'@'127.0.0.1' IDENTIFIED WITH caching_sha2_password BY '1234';
 CREATE USER 'lldjlocal'@'172.18.%.%' IDENTIFIED WITH caching_sha2_password BY '1234';
 CREATE USER 'lldj'@'%' IDENTIFIED WITH caching_sha2_password BY '${var.password_1}';
