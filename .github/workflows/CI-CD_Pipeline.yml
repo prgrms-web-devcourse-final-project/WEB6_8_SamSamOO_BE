@@ -270,7 +270,7 @@ jobs:
             PROD_REDIS_PORT=6379
             PROD_REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
             
-            PROD_QDRANT_HOST=qdrant
+            PROD_QDRANT_HOST=qdrant_1
             PROD_QDRANT_PORT=6334
             
             send_email_address=${{ secrets.SEND_EMAIL_ADDRESS }}
