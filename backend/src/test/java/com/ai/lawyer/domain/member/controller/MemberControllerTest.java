@@ -108,7 +108,7 @@ class MemberControllerTest {
     @DisplayName("회원가입 성공")
     void signup_Success() throws Exception {
         // given
-        given(memberService.signup(any(MemberSignupRequest.class))).willReturn(memberResponse);
+        given(memberService.signup(any(MemberSignupRequest.class), any(HttpServletResponse.class))).willReturn(memberResponse);
 
         // when and then
         mockMvc.perform(post("/api/auth/signup")
@@ -124,13 +124,13 @@ class MemberControllerTest {
                 .andExpect(jsonPath("$.name").value("테스트"))
                 .andExpect(jsonPath("$.role").value("USER"));
 
-        verify(memberService).signup(any(MemberSignupRequest.class));
+        verify(memberService).signup(any(MemberSignupRequest.class), any(HttpServletResponse.class));
     }
 
     @Test
     @DisplayName("회원가입 실패 - 이메일 중복")
     void signup_Fail_DuplicateEmail() throws Exception {
-        given(memberService.signup(any(MemberSignupRequest.class)))
+        given(memberService.signup(any(MemberSignupRequest.class), any(HttpServletResponse.class)))
                 .willThrow(new IllegalArgumentException("이미 존재하는 이메일입니다."));
 
         mockMvc.perform(post("/api/auth/signup")
@@ -140,7 +140,7 @@ class MemberControllerTest {
                 .andDo(print())
                 .andExpect(status().isBadRequest());
 
-        verify(memberService).signup(any(MemberSignupRequest.class));
+        verify(memberService).signup(any(MemberSignupRequest.class), any(HttpServletResponse.class));
     }
 
     @Test
@@ -163,7 +163,7 @@ class MemberControllerTest {
                 .andDo(print())
                 .andExpect(status().isBadRequest());
 
-        verify(memberService, never()).signup(any(MemberSignupRequest.class));
+        verify(memberService, never()).signup(any(MemberSignupRequest.class), any(HttpServletResponse.class));
     }
 
     @Test

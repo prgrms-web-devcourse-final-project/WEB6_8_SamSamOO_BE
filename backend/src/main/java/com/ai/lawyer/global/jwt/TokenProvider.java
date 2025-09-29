@@ -23,7 +23,11 @@ public class TokenProvider {
     private final JwtProperties jwtProperties;
     private final RedisTemplate<String, Object> redisTemplate;
 
-    private static final String REFRESH_TOKEN_PREFIX = "refresh_token:";
+    private static final String TOKEN_PREFIX = "tokens:";
+    private static final String ACCESS_TOKEN_FIELD = "accessToken";
+    private static final String ACCESS_TOKEN_EXPIRY_FIELD = "accessTokenExpiry";
+    private static final String REFRESH_TOKEN_FIELD = "refreshToken";
+    private static final String REFRESH_TOKEN_EXPIRY_FIELD = "refreshTokenExpiry";
     private static final long REFRESH_TOKEN_EXPIRE_TIME = 7 * 24 * 60 * 60; // 7일
 
     private SecretKey getSigningKey() {
@@ -34,7 +38,7 @@ public class TokenProvider {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + jwtProperties.getAccessToken().getExpirationSeconds() * 1000);
 
-        return Jwts.builder()
+        String accessToken = Jwts.builder()
                 .setIssuedAt(now)
                 .setExpiration(expiry)
                 .claim("loginid", member.getLoginId())
@@ -42,14 +46,56 @@ public class TokenProvider {
                 .claim("role", member.getRole().name())
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
+
+        // Redis Hash에 액세스 토큰 정보 저장
+        try {
+            String loginId = member.getLoginId();
+            String tokenKey = TOKEN_PREFIX + loginId;
+
+            // Hash에 액세스 토큰과 만료시점 저장
+            redisTemplate.opsForHash().put(tokenKey, ACCESS_TOKEN_FIELD, accessToken);
+            redisTemplate.opsForHash().put(tokenKey, ACCESS_TOKEN_EXPIRY_FIELD, String.valueOf(expiry.getTime()));
+
+            // 전체 Hash에 TTL 설정 (리프레시 토큰 만료시간으로 설정)
+            redisTemplate.expire(tokenKey, Duration.ofSeconds(REFRESH_TOKEN_EXPIRE_TIME));
+
+            log.info("=== Access token Hash 저장 성공: key={}, expiry={} ===", tokenKey, expiry);
+        } catch (Exception e) {
+            log.error("=== Access token Hash 저장 실패: {} ===", e.getMessage(), e);
+        }
+
+        return accessToken;
     }
 
     public String generateRefreshToken(Member member) {
         String refreshToken = UUID.randomUUID().toString();
+        Date now = new Date();
+        Date refreshExpiry = new Date(now.getTime() + REFRESH_TOKEN_EXPIRE_TIME * 1000);
 
-        // Redis에 리프레시 토큰 저장 (만료시간: 7일)
-        String redisKey = REFRESH_TOKEN_PREFIX + member.getLoginId();
-        redisTemplate.opsForValue().set(redisKey, refreshToken, Duration.ofSeconds(REFRESH_TOKEN_EXPIRE_TIME));
+        // Redis Hash에 리프레시 토큰 정보 저장
+        try {
+            String loginId = member.getLoginId();
+            String tokenKey = TOKEN_PREFIX + loginId;
+
+            // Hash에 리프레시 토큰과 만료시점 저장
+            redisTemplate.opsForHash().put(tokenKey, REFRESH_TOKEN_FIELD, refreshToken);
+            redisTemplate.opsForHash().put(tokenKey, REFRESH_TOKEN_EXPIRY_FIELD, String.valueOf(refreshExpiry.getTime()));
+
+            // 전체 Hash에 TTL 설정 (리프레시 토큰 만료시간으로 설정)
+            redisTemplate.expire(tokenKey, Duration.ofSeconds(REFRESH_TOKEN_EXPIRE_TIME));
+
+            log.info("=== Refresh token Hash 저장 성공: key={}, value={}, expiry={} ===", tokenKey, refreshToken, refreshExpiry);
+
+            // 저장 확인
+            String storedToken = (String) redisTemplate.opsForHash().get(tokenKey, REFRESH_TOKEN_FIELD);
+            String storedExpiryStr = (String) redisTemplate.opsForHash().get(tokenKey, REFRESH_TOKEN_EXPIRY_FIELD);
+            if (storedExpiryStr != null) {
+                long storedExpiry = Long.parseLong(storedExpiryStr);
+                log.info("=== Hash 저장 확인: storedToken={}, storedExpiry={} ===", storedToken, new Date(storedExpiry));
+            }
+        } catch (Exception e) {
+            log.error("=== Refresh token Hash 저장 실패: {} ===", e.getMessage(), e);
+        }
 
         return refreshToken;
     }
@@ -146,29 +192,30 @@ public class TokenProvider {
     }
 
     public boolean validateRefreshToken(String loginId, String refreshToken) {
-        String redisKey = REFRESH_TOKEN_PREFIX + loginId;
-        String storedToken = (String) redisTemplate.opsForValue().get(redisKey);
+        String tokenKey = TOKEN_PREFIX + loginId;
+        String storedToken = (String) redisTemplate.opsForHash().get(tokenKey, REFRESH_TOKEN_FIELD);
         return refreshToken.equals(storedToken);
     }
 
-    public void deleteRefreshToken(String loginId) {
-        String redisKey = REFRESH_TOKEN_PREFIX + loginId;
-        redisTemplate.delete(redisKey);
+    public void deleteAllTokens(String loginId) {
+        String tokenKey = TOKEN_PREFIX + loginId;
+        redisTemplate.delete(tokenKey);
+        log.info("=== 모든 토큰 Hash 삭제 완료: loginId={} ===", loginId);
     }
 
     /**
      * 리프레시 토큰으로 사용자명을 찾습니다.
-     * Redis에서 모든 리프레시 토큰 키를 순회하며 일치하는 토큰을 찾습니다.
+     * Redis에서 모든 토큰 Hash를 순회하며 일치하는 리프레시 토큰을 찾습니다.
      * @param refreshToken 찾을 리프레시 토큰
      * @return 사용자명 또는 null
      */
     public String findUsernameByRefreshToken(String refreshToken) {
-        String pattern = REFRESH_TOKEN_PREFIX + "*";
+        String pattern = TOKEN_PREFIX + "*";
         var keys = redisTemplate.keys(pattern);
         for (String key : keys) {
-            String storedToken = (String) redisTemplate.opsForValue().get(key);
+            String storedToken = (String) redisTemplate.opsForHash().get(key, REFRESH_TOKEN_FIELD);
             if (refreshToken.equals(storedToken)) {
-                return key.substring(REFRESH_TOKEN_PREFIX.length());
+                return key.substring(TOKEN_PREFIX.length());
             }
         }
         return null;
