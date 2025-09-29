@@ -3,6 +3,7 @@ package com.ai.lawyer.domain.lawWord.controller;
 import com.ai.lawyer.domain.lawWord.service.LawWordService;
 import com.ai.lawyer.domain.precedent.entity.Precedent;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/law-word")
+@Tag(name = "법령 용어", description = "법령 용어 API")
 public class LawWordController {
 
     private final LawWordService lawWordService;

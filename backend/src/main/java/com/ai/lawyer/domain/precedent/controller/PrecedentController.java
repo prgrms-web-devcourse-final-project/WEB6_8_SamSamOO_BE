@@ -6,6 +6,7 @@ import com.ai.lawyer.domain.precedent.entity.Precedent;
 import com.ai.lawyer.domain.precedent.service.PrecedentService;
 import com.ai.lawyer.global.dto.PageResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/precedent")
+@Tag(name = "판례", description = "판례 API")
 public class PrecedentController {
 
     private final PrecedentService precedentService;
