@@ -32,6 +32,6 @@ spring:
     vectorstore:
       qdrant:
         host: ${PROD_QDRANT_HOST}
-        port: ${RROD_QDRANT_PORT}
+        port: ${PROD_QDRANT_PORT}
         collection-name: legal_cases
         vector-size: 1536
