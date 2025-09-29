@@ -19,8 +19,7 @@ public class Poll {
     @Column(name = "poll_id")
     private Long pollId;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "post_id", nullable = true)
+    @OneToOne(mappedBy = "poll", fetch = FetchType.LAZY)
     private Post post;
 
     @Column(length = 100, nullable = false, name = "vote_title")

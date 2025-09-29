@@ -17,11 +17,11 @@ public class PollStatics {
     private Long statId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "poll_id", nullable = false)
+    @JoinColumn(name = "poll_id", nullable = false, foreignKey = @ForeignKey(name = "FK_POLLSTATICS_POLL"))
     private Poll poll;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "poll_items_id", nullable = false)
+    @JoinColumn(name = "poll_items_id", nullable = false, foreignKey = @ForeignKey(name = "FK_POLLSTATICS_POLLOPTIONS"))
     private PollOptions pollOptions;
 
     @Column(length = 10, name = "gender")
