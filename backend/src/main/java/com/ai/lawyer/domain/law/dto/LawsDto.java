@@ -23,4 +23,6 @@ public class LawsDto {
     private LocalDate promulgationDate; // 공포일자
 
     private LocalDate enforcementDate; // 시행일자
+
+    private String firstJoContent; // 조
 }
