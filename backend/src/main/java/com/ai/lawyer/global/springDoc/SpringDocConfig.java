@@ -108,7 +108,7 @@ public class SpringDocConfig {
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
                 .servers(List.of(
-                        new Server().url("/api").description("Relative (proxy-friendly)")
+                        new Server().url("/").description("Relative (proxy-friendly)")
                 ));
     }
 }
