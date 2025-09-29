@@ -270,8 +270,8 @@ jobs:
             PROD_REDIS_PORT=6379
             PROD_REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
             
-            PROD_QDRANT_HOST=qdrant_1
-            PROD_QDRANT_PORT=6334
+            SPRING_AI_VECTORSTORE_QDRANT_HOST=qdrant_1
+            SPRING_AI_VECTORSTORE_QDRANT_PORT=6334
             
             send_email_address=${{ secrets.SEND_EMAIL_ADDRESS }}
             email_address=${{ secrets.EMAIL_ADDRESS }}
@@ -291,7 +291,7 @@ jobs:
             docker run --env-file /home/ec2-user/configs/prod.env \
               -d --name app1 \
               --network common \
-              --restart unless-stopped \
+#              --restart unless-stopped \
               -p 8080:8080 \
               ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ env.DOCKER_IMAGE_NAME }}:latest
             echo "===== 새 컨테이너 로그 출력 ====="
