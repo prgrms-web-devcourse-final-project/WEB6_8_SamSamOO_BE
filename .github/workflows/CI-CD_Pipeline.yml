@@ -296,5 +296,5 @@ jobs:
             docker logs --tail=100 app1 || true
 
             echo "===== 배포 완료 ====="
-            # dangling image 정리 + .env 삭제
+            # dangling image 정리
             docker rmi $(docker images -f "dangling=true" -q) || true
