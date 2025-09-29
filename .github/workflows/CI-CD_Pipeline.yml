@@ -227,7 +227,7 @@ jobs:
           PROD_DATASOURCE_USERNAME=${{ secrets.DB_USER }}
           PROD_DATASOURCE_PASSWORD=${{ secrets.DB_PASSWORD }}
           
-          PROD_REDIS_HOST=redis_1
+          PROD_REDIS_HOST=redis
           PROD_REDIS_PORT=6379
           PROD_REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
           EOF
@@ -248,8 +248,8 @@ jobs:
             docker ps -a || true
             
             echo "===== 기존 컨테이너 종료 & 제거 ====="
-            docker stop app1 2>/dev/null || true
-            docker rm app1 2>/dev/null || true
+            docker stop app 2>/dev/null || true
+            docker rm app 2>/dev/null || true
             
             # EC2 내부에서 prod.env 파일 생성 (기존 파일 있으면 덮어쓰기)
             mkdir -p /home/ec2-user/configs
@@ -259,18 +259,18 @@ jobs:
             CUSTOM_JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
             CUSTOM_JWT_ACCESS_TOKEN_EXPIRATION_SECONDS=3600
             
-            PROD_DATASOURCE_URL=jdbc:mysql://mysql_1:3306/${{ secrets.DB_NAME }}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+            PROD_DATASOURCE_URL=jdbc:mysql://mysql:3306/${{ secrets.DB_NAME }}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
             PROD_DATASOURCE_DRIVER=com.mysql.cj.jdbc.Driver
             PROD_DATASOURCE_USERNAME=root
             PROD_DATASOURCE_PASSWORD=${{ secrets.DB_PASSWORD }}
             # 추후 validate 변경
             PROD_JPA_HIBERNATE_DDL_AUTO=update 
             
-            PROD_REDIS_HOST=redis_1
+            PROD_REDIS_HOST=redis
             PROD_REDIS_PORT=6379
             PROD_REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
             
-            PROD_QDRANT_HOST=qdrant_1
+            PROD_QDRANT_HOST=qdrant
             PROD_QDRANT_PORT=6334
             
             send_email_address=${{ secrets.SEND_EMAIL_ADDRESS }}
@@ -289,13 +289,13 @@ jobs:
             
             echo "===== 새로운 컨테이너 실행 ====="
             docker run --env-file /home/ec2-user/configs/prod.env \
-              -d --name app1 \
+              -d --name app \
               --network common \
               -p 8080:8080 \
               ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ env.DOCKER_IMAGE_NAME }}:latest
             echo "===== 새 컨테이너 로그 출력 ====="
             sleep 5
-            docker logs --tail=100 app1 || true
+            docker logs --tail=100 app || true
 
             echo "===== 배포 완료 ====="
             # dangling image 정리
