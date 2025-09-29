@@ -12,4 +12,5 @@ public class PrecedentSummaryListDto {
     private String caseName;        // 사건명
     private String caseNumber;      // 사건번호
     private LocalDate sentencingDate; // 선고일자
+    private String contents;
 }

@@ -239,7 +239,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          instance-ids: "i-04e6cdbebfead7150"
+          instance-ids: "i-083c532175a61cd43"
           working-directory: /
           comment: Deploy
           command: |
@@ -270,8 +270,8 @@ jobs:
             PROD_REDIS_PORT=6379
             PROD_REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
             
-            SPRING_AI_VECTORSTORE_QDRANT_HOST=qdrant_1
-            SPRING_AI_VECTORSTORE_QDRANT_PORT=6334
+            PROD_QDRANT_HOST=qdrant_1
+            PROD_QDRANT_PORT=6334
             
             send_email_address=${{ secrets.SEND_EMAIL_ADDRESS }}
             email_address=${{ secrets.EMAIL_ADDRESS }}
