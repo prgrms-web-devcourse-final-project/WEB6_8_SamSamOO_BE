@@ -291,7 +291,6 @@ jobs:
             docker run --env-file /home/ec2-user/configs/prod.env \
               -d --name app1 \
               --network common \
-#              --restart unless-stopped \
               -p 8080:8080 \
               ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ env.DOCKER_IMAGE_NAME }}:latest
             echo "===== 새 컨테이너 로그 출력 ====="
