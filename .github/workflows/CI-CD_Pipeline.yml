@@ -42,6 +42,13 @@ jobs:
         env:
           REDIS_PASSWORD: ""
 
+      # ✅ Qdrant 서비스 추가
+      qdrant:
+        image: qdrant/qdrant:v1.3.1
+        ports:
+          - 6333:6333
+          - 6334:6334
+
     steps:
       - uses: actions/checkout@v4
       - name: Set up JDK 21
@@ -61,6 +68,13 @@ jobs:
           echo "Testing Redis connection..."
           timeout 10s bash -c 'until printf "" 2>>/dev/null >>/dev/tcp/localhost/6379; do sleep 1; done'
           echo "Redis is ready!"
+
+      # ✅ Qdrant 연결 테스트
+      - name: Wait for Qdrant
+        run: |
+          echo "Waiting for Qdrant to be ready..."
+          timeout 40s bash -c 'until curl -sSf http://localhost:6333/collections >/dev/null; do sleep 1; done'
+          echo "Qdrant is ready!"
 
       # ✅ application-test.yml에서 사용하는 모든 환경변수를 .env 파일에 생성
       - name: Create test .env file
@@ -84,6 +98,10 @@ jobs:
           TEST_REDIS_HOST=localhost
           TEST_REDIS_PORT=6379
           TEST_REDIS_PASSWORD=
+          
+          # Qdrant
+          TEST_QDRANT_HOST=localhost
+          TEST_QDRANT_PORT=6333
           
           # CI/CD 환경에서는 Embedded Redis 끄기
           SPRING_DATA_REDIS_EMBEDDED=false
@@ -228,12 +246,14 @@ jobs:
             set -xe
             echo "===== 현재 실행 중인 컨테이너 ====="
             docker ps -a || true
-  
+            
             echo "===== 기존 컨테이너 종료 & 제거 ====="
             docker stop app1 2>/dev/null || true
             docker rm app1 2>/dev/null || true
-            # EC2 내부에서 prod.env 파일 생성
-            cat > /home/ec2-user/prod.env << 'EOF'
+            
+            # EC2 내부에서 prod.env 파일 생성 (기존 파일 있으면 덮어쓰기)
+            mkdir -p /home/ec2-user/configs
+            cat > /home/ec2-user/configs/prod.env << 'EOF'
             SPRING_PROFILES_ACTIVE=prod
 
             CUSTOM_JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
@@ -243,7 +263,8 @@ jobs:
             PROD_DATASOURCE_DRIVER=com.mysql.cj.jdbc.Driver
             PROD_DATASOURCE_USERNAME=root
             PROD_DATASOURCE_PASSWORD=${{ secrets.DB_PASSWORD }}
-            PROD_JPA_HIBERNATE_DDL_AUTO=update
+            # 추후 validate 변경
+            PROD_JPA_HIBERNATE_DDL_AUTO=update 
             
             PROD_REDIS_HOST=redis_1
             PROD_REDIS_PORT=6379
@@ -254,16 +275,20 @@ jobs:
             send_email_password=${{ secrets.EMAIL_PASSWORD }}
             EOF
             
+            # 파일 권한 최소화 
+            chmod 600 /home/ec2-user/configs/prod.env
+            
             # EC2에서 GHCR 로그인
             echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
             # 최신 이미지 pull & 컨테이너 실행
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ env.DOCKER_IMAGE_NAME }}:latest
-            docker stop app1 2>/dev/null || true
-            docker rm app1 2>/dev/null || true
-            docker run --env-file /home/ec2-user/prod.env \
+            
+            echo "===== 새로운 컨테이너 실행 ====="
+            docker run --env-file /home/ec2-user/configs/prod.env \
               -d --name app1 \
               --network common \
+              --restart unless-stopped \
               -p 8080:8080 \
               ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ env.DOCKER_IMAGE_NAME }}:latest
             echo "===== 새 컨테이너 로그 출력 ====="
@@ -271,6 +296,5 @@ jobs:
             docker logs --tail=100 app1 || true
 
             echo "===== 배포 완료 ====="
-            # dangling image 정리 + .env 삭제
+            # dangling image 정리
             docker rmi $(docker images -f "dangling=true" -q) || true
-            rm -f /home/ec2-user/prod.env
