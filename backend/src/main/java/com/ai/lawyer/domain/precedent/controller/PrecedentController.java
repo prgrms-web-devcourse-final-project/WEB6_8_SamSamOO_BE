@@ -2,7 +2,6 @@ package com.ai.lawyer.domain.precedent.controller;
 
 import com.ai.lawyer.domain.precedent.dto.PrecedentSearchRequestDto;
 import com.ai.lawyer.domain.precedent.dto.PrecedentSummaryListDto;
-import com.ai.lawyer.domain.precedent.entity.Precedent;
 import com.ai.lawyer.domain.precedent.service.PrecedentService;
 import com.ai.lawyer.global.dto.PageResponseDto;
 import io.swagger.v3.oas.annotations.Operation;

@@ -1,7 +1,6 @@
 package com.ai.lawyer.domain.lawWord.controller;
 
 import com.ai.lawyer.domain.lawWord.service.LawWordService;
-import com.ai.lawyer.domain.precedent.entity.Precedent;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

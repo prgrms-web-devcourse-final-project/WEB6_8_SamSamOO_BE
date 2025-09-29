@@ -2,7 +2,6 @@ package com.ai.lawyer.domain.precedent.service;
 
 import com.ai.lawyer.domain.precedent.dto.PrecedentSearchRequestDto;
 import com.ai.lawyer.domain.precedent.dto.PrecedentSummaryListDto;
-import com.ai.lawyer.domain.precedent.entity.Precedent;
 import com.ai.lawyer.domain.precedent.repository.PrecedentRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

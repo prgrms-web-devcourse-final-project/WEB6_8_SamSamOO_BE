@@ -1,6 +1,5 @@
 package com.ai.lawyer.domain.precedent.repository;
 
-import com.ai.lawyer.domain.precedent.entity.Precedent;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
