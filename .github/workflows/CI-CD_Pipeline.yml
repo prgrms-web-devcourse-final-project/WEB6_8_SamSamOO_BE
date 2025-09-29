@@ -223,7 +223,7 @@ jobs:
         run: |
           cat > .env << 'EOF'
           SPRING_PROFILES_ACTIVE=prod
-          PROD_DATASOURCE_URL=jdbc:mysql://mysql_1:3306/${{ secrets.DB_NAME }}
+          PROD_DATASOURCE_URL=jdbc:mysql://mysql:3306/${{ secrets.DB_NAME }}
           PROD_DATASOURCE_USERNAME=${{ secrets.DB_USER }}
           PROD_DATASOURCE_PASSWORD=${{ secrets.DB_PASSWORD }}
           
