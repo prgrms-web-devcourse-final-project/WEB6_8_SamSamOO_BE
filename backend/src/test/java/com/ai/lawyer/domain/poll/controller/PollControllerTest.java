@@ -19,6 +19,7 @@ import org.junit.jupiter.api.DisplayName;
 import jakarta.servlet.http.Cookie;
 import static org.mockito.BDDMockito.*;
 import com.ai.lawyer.global.jwt.TokenProvider;
+import com.ai.lawyer.domain.poll.dto.PollStaticsResponseDto;
 
 @Import(SecurityConfig.class)
 @AutoConfigureMockMvc
@@ -92,7 +93,7 @@ class PollControllerTest {
     @Test
     @DisplayName("투표 통계 조회")
     void t4() throws Exception {
-        Mockito.when(pollService.getPollStatics(Mockito.anyLong())).thenReturn(java.util.Collections.emptyList());
+        Mockito.when(pollService.getPollStatics(Mockito.anyLong())).thenReturn(new PollStaticsResponseDto());
 
         mockMvc.perform(get("/api/polls/1/statics")
                 .cookie(new Cookie("accessToken", "valid-access-token")))
