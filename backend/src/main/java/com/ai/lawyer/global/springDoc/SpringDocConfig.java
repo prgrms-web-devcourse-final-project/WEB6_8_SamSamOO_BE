@@ -64,6 +64,7 @@ public class SpringDocConfig {
                 .group("All APIs")
                 .pathsToMatch("/api/**")
                 .packagesToScan("com.ai.lawyer.domain")
+                .addOpenApiCustomizer(orderBySummaryNumber())
                 .build();
     }
 
