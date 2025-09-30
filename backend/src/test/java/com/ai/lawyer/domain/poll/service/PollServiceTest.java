@@ -4,6 +4,7 @@ import com.ai.lawyer.domain.poll.dto.PollDto;
 import com.ai.lawyer.domain.poll.dto.PollCreateDto;
 import com.ai.lawyer.domain.poll.dto.PollVoteDto;
 import com.ai.lawyer.domain.poll.dto.PollUpdateDto;
+import com.ai.lawyer.domain.poll.dto.PollStaticsResponseDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -54,9 +55,9 @@ class PollServiceTest {
     @Test
     @DisplayName("투표 통계 조회")
     void t4() {
-        java.util.List expected = java.util.Collections.emptyList();
+        PollStaticsResponseDto expected = new PollStaticsResponseDto();
         Mockito.when(pollService.getPollStatics(Mockito.anyLong())).thenReturn(expected);
-        java.util.List result = pollService.getPollStatics(1L);
+        PollStaticsResponseDto result = pollService.getPollStatics(1L);
         assertThat(result).isEqualTo(expected);
     }
 

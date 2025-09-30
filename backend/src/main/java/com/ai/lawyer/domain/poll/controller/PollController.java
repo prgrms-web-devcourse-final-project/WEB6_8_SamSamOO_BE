@@ -2,10 +2,10 @@ package com.ai.lawyer.domain.poll.controller;
 
 import com.ai.lawyer.domain.poll.dto.PollCreateDto;
 import com.ai.lawyer.domain.poll.dto.PollDto;
+import com.ai.lawyer.domain.poll.dto.PollStaticsResponseDto;
 import com.ai.lawyer.domain.poll.dto.PollVoteDto;
 import com.ai.lawyer.domain.poll.entity.PollVote;
 import com.ai.lawyer.domain.poll.entity.PollOptions;
-import com.ai.lawyer.domain.poll.entity.PollStatics;
 import com.ai.lawyer.domain.poll.service.PollService;
 import com.ai.lawyer.domain.post.dto.PostDetailDto;
 import com.ai.lawyer.domain.post.service.PostService;
@@ -54,10 +54,10 @@ public class PollController {
         return ResponseEntity.ok(new ApiResponse<>(200, "투표가 성공적으로 완료되었습니다.", result));
     }
 
-    @Operation(summary = "투표 통계 조회")
+    @Operation(summary = "투표 통계 조회 (항목별 나이/성별 카운트)")
     @GetMapping("/{pollId}/statics")
-    public ResponseEntity<ApiResponse<List<PollStatics>>> getPollStatics(@PathVariable Long pollId) {
-        List<PollStatics> statics = pollService.getPollStatics(pollId);
+    public ResponseEntity<ApiResponse<PollStaticsResponseDto>> getPollStatics(@PathVariable Long pollId) {
+        PollStaticsResponseDto statics = pollService.getPollStatics(pollId);
         return ResponseEntity.ok(new ApiResponse<>(200, "투표 통계 조회 성공", statics));
     }
 
