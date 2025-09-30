@@ -36,3 +36,8 @@ spring:
         port: ${PROD_QDRANT_PORT}
         collection-name: legal_cases
         vector-size: 1536
+sentry:
+  dsn: ${PROD_SENTRY_DSN}
+  environment: "dev"
+  release: "my-app@0.1.0-dev"
+  send-default-pii: true
