@@ -604,4 +604,99 @@ class MemberControllerTest {
 
         verify(memberService, never()).resetPassword(anyString(), anyString(), any());
     }
+
+    @Test
+    @DisplayName("비밀번호 검증 성공 - 로그인된 사용자")
+    void verifyPassword_Success_LoggedInUser() throws Exception {
+        // given
+        PasswordVerifyRequestDto requestDto = new PasswordVerifyRequestDto();
+        requestDto.setPassword("password123");
+
+        given(memberService.extractLoginIdFromToken(anyString())).willReturn("test@example.com");
+        given(memberService.verifyPassword("test@example.com", "password123")).willReturn(true);
+
+        // when and then - with() 사용해 Authentication 주입
+        mockMvc.perform(post("/api/auth/verifyPassword")
+                        .with(csrf())
+                        .with(request -> {
+                            request.setAttribute("org.springframework.security.web.authentication.WebAuthenticationDetails.REMOTE_ADDRESS", "127.0.0.1");
+                            return request;
+                        })
+                        .principal(authentication)
+                        .header("Authorization", "Bearer validAccessToken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("비밀번호 검증 성공"))
+                .andExpect(jsonPath("$.email").value("test@example.com"))
+                .andExpect(jsonPath("$.success").value(true));
+
+        verify(memberService).extractLoginIdFromToken(anyString());
+        verify(memberService).verifyPassword("test@example.com", "password123");
+    }
+
+    @Test
+    @DisplayName("비밀번호 검증 실패 - 비밀번호 불일치")
+    void verifyPassword_Fail_PasswordMismatch() throws Exception {
+        // given
+        PasswordVerifyRequestDto requestDto = new PasswordVerifyRequestDto();
+        requestDto.setPassword("wrongPassword");
+
+        given(memberService.extractLoginIdFromToken(anyString())).willReturn("test@example.com");
+        given(memberService.verifyPassword("test@example.com", "wrongPassword")).willReturn(false);
+
+        // when and then
+        mockMvc.perform(post("/api/auth/verifyPassword")
+                        .with(csrf())
+                        .principal(authentication)
+                        .header("Authorization", "Bearer validAccessToken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+
+        verify(memberService).extractLoginIdFromToken(anyString());
+        verify(memberService).verifyPassword("test@example.com", "wrongPassword");
+    }
+
+    @Test
+    @DisplayName("비밀번호 검증 실패 - 로그인되지 않은 사용자")
+    void verifyPassword_Fail_NotLoggedIn() throws Exception {
+        // given
+        PasswordVerifyRequestDto requestDto = new PasswordVerifyRequestDto();
+        requestDto.setPassword("password123");
+
+        // when and then - Authorization 헤더 없이 요청
+        mockMvc.perform(post("/api/auth/verifyPassword")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+
+        verify(memberService, never()).extractLoginIdFromToken(anyString());
+        verify(memberService, never()).verifyPassword(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("이메일 인증번호 검증 실패 - 로그인된 사용자 접근 차단")
+    void verifyEmail_Fail_LoggedInUser() throws Exception {
+        // given
+        EmailVerifyCodeRequestDto requestDto = new EmailVerifyCodeRequestDto();
+        requestDto.setLoginId("test@example.com");
+        requestDto.setVerificationCode("123456");
+
+        // when and then - principal과 함께 요청 (로그인 상태)
+        mockMvc.perform(post("/api/auth/verifyEmail")
+                        .with(csrf())
+                        .principal(authentication)
+                        .header("Authorization", "Bearer validAccessToken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+
+        verify(memberService, never()).verifyAuthCode(anyString(), anyString());
+    }
 }

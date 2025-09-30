@@ -21,7 +21,7 @@ public class CookieUtil {
     public void setAccessTokenCookie(HttpServletResponse response, String accessToken) {
         Cookie accessCookie = new Cookie(ACCESS_TOKEN_NAME, accessToken);
         accessCookie.setHttpOnly(true);
-        accessCookie.setSecure(false); // TODO: 운영환경에서는 true로 변경 (HTTPS)
+        accessCookie.setSecure(false); // 운영환경에서는 true로 변경 (HTTPS)
         accessCookie.setPath("/");
         accessCookie.setMaxAge(ACCESS_TOKEN_EXPIRE_TIME);
         response.addCookie(accessCookie);
@@ -30,7 +30,7 @@ public class CookieUtil {
     public void setRefreshTokenCookie(HttpServletResponse response, String refreshToken) {
         Cookie refreshCookie = new Cookie(REFRESH_TOKEN_NAME, refreshToken);
         refreshCookie.setHttpOnly(true);
-        refreshCookie.setSecure(false); // TODO: 운영환경에서는 true로 변경 (HTTPS)
+        refreshCookie.setSecure(false); // 운영환경에서는 true로 변경 (HTTPS)
         refreshCookie.setPath("/");
         refreshCookie.setMaxAge(REFRESH_TOKEN_EXPIRE_TIME);
         response.addCookie(refreshCookie);
