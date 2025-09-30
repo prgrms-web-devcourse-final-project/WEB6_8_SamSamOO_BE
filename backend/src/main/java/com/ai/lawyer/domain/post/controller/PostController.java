@@ -6,6 +6,7 @@ import com.ai.lawyer.domain.post.dto.PostRequestDto;
 import com.ai.lawyer.domain.post.dto.PostUpdateDto;
 import com.ai.lawyer.domain.post.dto.PostWithPollCreateDto;
 import com.ai.lawyer.domain.post.service.PostService;
+import com.ai.lawyer.domain.post.dto.PostSimpleDto;
 import com.ai.lawyer.domain.member.entity.Member;
 import com.ai.lawyer.domain.member.repositories.MemberRepository;
 import com.ai.lawyer.global.jwt.TokenProvider;
@@ -68,6 +69,13 @@ public class PostController {
     public ResponseEntity<ApiResponse<List<PostDetailDto>>> getAllPosts() {
         List<PostDetailDto> posts = postService.getAllPosts();
         return ResponseEntity.ok(new ApiResponse<>(200, "게시글 전체 조회 성공", posts));
+    }
+
+    @Operation(summary = "게시글 간편 전체 조회")
+    @GetMapping("/simple")
+    public ResponseEntity<ApiResponse<List<PostSimpleDto>>> getAllSimplePosts() {
+        List<PostSimpleDto> posts = postService.getAllSimplePosts();
+        return ResponseEntity.ok(new ApiResponse<>(200, "게시글 간편 전체 조회 성공", posts));
     }
 
     @Operation(summary = "게시글 단일 조회")

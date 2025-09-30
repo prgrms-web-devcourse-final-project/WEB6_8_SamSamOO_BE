@@ -7,6 +7,7 @@ import com.ai.lawyer.domain.post.dto.PostDetailDto;
 import com.ai.lawyer.domain.post.dto.PostRequestDto;
 import com.ai.lawyer.domain.post.dto.PostUpdateDto;
 import com.ai.lawyer.domain.post.dto.PostWithPollCreateDto;
+import com.ai.lawyer.domain.post.dto.PostSimpleDto;
 import com.ai.lawyer.domain.post.entity.Post;
 import com.ai.lawyer.domain.post.repository.PostRepository;
 import com.ai.lawyer.domain.poll.repository.PollRepository;
@@ -223,6 +224,27 @@ public class PostServiceImpl implements PostService {
         savedPost.setPoll(savedPoll);
         postRepository.save(savedPost);
         return getPostDetailById(savedPost.getPostId());
+    }
+
+    @Override
+    public List<PostSimpleDto> getAllSimplePosts() {
+        List<Post> posts = postRepository.findAll();
+        return posts.stream()
+            .map(post -> {
+                PostSimpleDto.PollInfo pollInfo = null;
+                if (post.getPoll() != null) {
+                    pollInfo = PostSimpleDto.PollInfo.builder()
+                        .pollId(post.getPoll().getPollId())
+                        .pollStatus(post.getPoll().getStatus().name())
+                        .build();
+                }
+                return PostSimpleDto.builder()
+                    .postId(post.getPostId())
+                    .memberId(post.getMember().getMemberId())
+                    .poll(pollInfo)
+                    .build();
+            })
+            .collect(Collectors.toList());
     }
 
     private PostDto convertToDto(Post entity) {
