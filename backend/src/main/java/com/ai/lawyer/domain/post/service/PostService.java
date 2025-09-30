@@ -5,6 +5,7 @@ import com.ai.lawyer.domain.post.dto.PostDetailDto;
 import com.ai.lawyer.domain.post.dto.PostDto;
 import com.ai.lawyer.domain.post.dto.PostRequestDto;
 import com.ai.lawyer.domain.post.dto.PostUpdateDto;
+import com.ai.lawyer.domain.post.dto.PostWithPollCreateDto;
 
 import java.util.List;
 
@@ -29,4 +30,6 @@ public interface PostService {
     List<PostDto> getMyPosts(Long requesterMemberId);
 
     void patchUpdatePost(Long postId, PostUpdateDto postUpdateDto);
+
+    PostDetailDto createPostWithPoll(PostWithPollCreateDto dto, Long memberId);
 }

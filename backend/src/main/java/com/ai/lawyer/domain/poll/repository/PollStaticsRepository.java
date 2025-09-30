@@ -8,3 +8,4 @@ import java.util.List;
 public interface PollStaticsRepository extends JpaRepository<PollStatics, Long> {
     List<PollStatics> findByPoll_PollId(Long pollId);
 }
+

@@ -4,6 +4,7 @@ import com.ai.lawyer.domain.post.dto.PostDto;
 import com.ai.lawyer.domain.post.dto.PostDetailDto;
 import com.ai.lawyer.domain.post.dto.PostRequestDto;
 import com.ai.lawyer.domain.post.dto.PostUpdateDto;
+import com.ai.lawyer.domain.post.dto.PostWithPollCreateDto;
 import com.ai.lawyer.domain.post.service.PostService;
 import com.ai.lawyer.domain.member.entity.Member;
 import com.ai.lawyer.domain.member.repositories.MemberRepository;
@@ -126,7 +127,7 @@ public class PostController {
          } else if (principal instanceof Long) {
              memberId = (Long) principal;
          } else {
-             throw new IllegalArgumentException("principal이 올바른 회원 ID가 아닙니다");
+             throw new IllegalArgumentException("올바른 회원 ID가 아닙니다");
          }
          PostDto postDto = postService.getMyPostById(postId, memberId);
          return ResponseEntity.ok(new ApiResponse<>(200, "본인 게시글 단일 조회 성공", postDto));
@@ -143,9 +144,26 @@ public class PostController {
          } else if (principal instanceof Long) {
              memberId = (Long) principal;
          } else {
-             throw new IllegalArgumentException("principal이 올바른 회원 ID가 아닙니다");
+             throw new IllegalArgumentException("올바른 회원 ID가 아닙니다");
          }
          List<PostDto> posts = postService.getMyPosts(memberId);
          return ResponseEntity.ok(new ApiResponse<>(200, "본인 게시글 전체 조회 성공", posts));
      }
+
+    @Operation(summary = "게시글+투표 동시 등록")
+    @PostMapping("/with-poll")
+    public ResponseEntity<ApiResponse<PostDetailDto>> createPostWithPoll(@RequestBody PostWithPollCreateDto dto) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Object principal = authentication.getPrincipal();
+        Long memberId;
+        if (principal instanceof org.springframework.security.core.userdetails.User user) {
+            memberId = Long.valueOf(user.getUsername());
+        } else if (principal instanceof Long) {
+            memberId = (Long) principal;
+        } else {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.UNAUTHORIZED, "인증 정보가 올바르지 않습니다.");
+        }
+        PostDetailDto result = postService.createPostWithPoll(dto, memberId);
+        return ResponseEntity.ok(new ApiResponse<>(200, "게시글+투표 등록 완료", result));
+    }
 }

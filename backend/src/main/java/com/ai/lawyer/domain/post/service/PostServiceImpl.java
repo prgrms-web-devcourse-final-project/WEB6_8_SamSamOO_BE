@@ -6,10 +6,12 @@ import com.ai.lawyer.domain.post.dto.PostDto;
 import com.ai.lawyer.domain.post.dto.PostDetailDto;
 import com.ai.lawyer.domain.post.dto.PostRequestDto;
 import com.ai.lawyer.domain.post.dto.PostUpdateDto;
+import com.ai.lawyer.domain.post.dto.PostWithPollCreateDto;
 import com.ai.lawyer.domain.post.entity.Post;
 import com.ai.lawyer.domain.post.repository.PostRepository;
 import com.ai.lawyer.domain.poll.repository.PollRepository;
 import com.ai.lawyer.domain.poll.entity.Poll;
+import com.ai.lawyer.domain.poll.dto.PollCreateDto;
 import com.ai.lawyer.domain.poll.dto.PollDto;
 import com.ai.lawyer.domain.poll.dto.PollUpdateDto;
 import com.ai.lawyer.domain.poll.repository.PollOptionsRepository;
@@ -18,6 +20,7 @@ import com.ai.lawyer.domain.poll.repository.PollVoteRepository;
 import com.ai.lawyer.domain.poll.service.PollService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
@@ -45,6 +48,10 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public PostDto createPost(PostRequestDto postRequestDto, Long memberId) {
+        if (postRequestDto.getPostName() == null || postRequestDto.getPostName().trim().isEmpty() ||
+            postRequestDto.getPostContent() == null || postRequestDto.getPostContent().trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "게시글 제목과 내용은 필수입니다.");
+        }
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 정보를 찾을 수 없습니다."));
         Post post = Post.builder()
@@ -176,6 +183,46 @@ public class PostServiceImpl implements PostService {
             pollService.patchUpdatePoll(post.getPoll().getPollId(), pollUpdateDto);
         }
         postRepository.save(post);
+    }
+
+    @Override
+    @Transactional
+    public PostDetailDto createPostWithPoll(PostWithPollCreateDto dto, Long memberId) {
+        PostRequestDto postDto = dto.getPost();
+        if (postDto == null || postDto.getPostName() == null || postDto.getPostName().trim().isEmpty() ||
+            postDto.getPostContent() == null || postDto.getPostContent().trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "게시글 제목과 내용은 필수입니다.");
+        }
+        var pollDto = dto.getPoll();
+        pollService.validatePollCreate(pollDto);
+        Member member = memberRepository.findById(memberId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 정보를 찾을 수 없습니다."));
+        Post post = Post.builder()
+            .member(member)
+            .postName(postDto.getPostName())
+            .postContent(postDto.getPostContent())
+            .category(postDto.getCategory())
+            .createdAt(LocalDateTime.now())
+            .build();
+        Post savedPost = postRepository.save(post);
+        Poll poll = Poll.builder()
+            .voteTitle(pollDto.getVoteTitle())
+            .reservedCloseAt(pollDto.getReservedCloseAt())
+            .createdAt(LocalDateTime.now())
+            .status(Poll.PollStatus.ONGOING)
+            .post(savedPost)
+            .build();
+        Poll savedPoll = pollRepository.save(poll);
+        for (var optionDto : pollDto.getPollOptions()) {
+            PollOptions option = PollOptions.builder()
+                .poll(savedPoll)
+                .option(optionDto.getContent())
+                .build();
+            pollOptionsRepository.save(option);
+        }
+        savedPost.setPoll(savedPoll);
+        postRepository.save(savedPost);
+        return getPostDetailById(savedPost.getPostId());
     }
 
     private PostDto convertToDto(Post entity) {
