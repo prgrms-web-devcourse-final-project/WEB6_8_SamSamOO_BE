@@ -98,17 +98,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     /**
-     * 토큰 갱신을 처리합니다.
-     * 2. 액세스토큰이 만료되었으면 리프레시토큰을확인한다
-     * 3. 리프레시토큰이 레디스의 저장값과 동일하면 토큰 재발급을 진행한다
-     * 6. 리프레시토큰을 확인하는절차에서 리프레시토큰이 없을 경우 쿠키에 있는 모든 정보를 제거하고 로그인을 해달라고 메시지를 반환한다
+     * 리프레시 토큰을 사용하여 액세스 토큰을 갱신합니다.
+     * RTR(Refresh Token Rotation) 패턴을 적용하여 새로운 토큰 쌍을 생성합니다.
      */
     private void handleTokenRefresh(HttpServletRequest request, HttpServletResponse response, String expiredAccessToken) {
         try {
-            // 2. 리프레시 토큰 확인
+            // 리프레시 토큰 확인
             String refreshToken = cookieUtil.getRefreshTokenFromCookies(request);
             if (refreshToken == null) {
-                // 6. 리프레시 토큰이 없을 경우 쿠키 클리어
+                // 리프레시 토큰이 없을 경우 쿠키 클리어
                 log.info("리프레시 토큰이 없음 - 쿠키 클리어 및 재로그인 필요");
                 clearAuthenticationAndCookies(response);
                 return;

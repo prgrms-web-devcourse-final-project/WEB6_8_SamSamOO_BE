@@ -30,7 +30,7 @@ public class Member {
     @Column(name = "loginid", nullable = false, unique = true, length = 100)
     @Email(message = "올바른 이메일 형식이 아닙니다")
     @NotBlank(message = "이메일(로그인 ID)은 필수입니다")
-    private String loginId; // 반드시 이메일 형식
+    private String loginId;
 
     @Column(name = "password", nullable = false)
     @NotBlank(message = "비밀번호는 필수입니다")
@@ -60,10 +60,9 @@ public class Member {
     private LocalDateTime createdAt;
 
     @UpdateTimestamp
-    @Column(name = "updated_at") // nullable = true (유일하게 null 허용)
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    // Enums
     @Getter
     public enum Gender {
         MALE("남성"), FEMALE("여성"), OTHER("기타");
