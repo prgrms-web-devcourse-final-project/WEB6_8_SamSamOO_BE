@@ -67,6 +67,22 @@ public class SpringDocConfig {
                 .build();
     }
 
+    @Bean GroupedOpenApi chatApi() {
+        return GroupedOpenApi.builder()
+                .group("챗봇과 관련된 API")
+                .pathsToMatch("/api/chat/**")
+                .packagesToScan("com.ai.lawyer.domain.chatbot.controller")
+                .build();
+    }
+
+    @Bean
+    public OpenAPI customOpenAPI() {
+        return new OpenAPI()
+                .servers(List.of(
+                        new Server().url("/").description("Relative (proxy-friendly)")
+                ));
+    }
+
     private OpenApiCustomizer orderBySummaryNumber() {
         return openApi -> {
             if (openApi.getPaths() == null) return;
@@ -94,21 +110,5 @@ public class SpringDocConfig {
             openApi.setPaths(new io.swagger.v3.oas.models.Paths());
             sortedPaths.forEach(openApi.getPaths()::addPathItem);
         };
-    }
-
-    @Bean GroupedOpenApi chatApi() {
-        return GroupedOpenApi.builder()
-                .group("챗봇과 관련된 API")
-                .pathsToMatch("/api/chat/**")
-                .packagesToScan("com.ai.lawyer.domain.chatbot.controller")
-                .build();
-    }
-
-    @Bean
-    public OpenAPI customOpenAPI() {
-        return new OpenAPI()
-                .servers(List.of(
-                        new Server().url("/").description("Relative (proxy-friendly)")
-                ));
     }
 }

@@ -25,7 +25,7 @@ public class ChatBotController {
 
     private final ChatBotService chatBotService;
 
-    @Operation(summary = "새로운 채팅", description = "첫 메시지 전송으로 새로운 채팅방을 생성하고 챗봇과 대화를 시작")
+    @Operation(summary = "01. 새로운 채팅", description = "첫 메시지 전송으로 새로운 채팅방을 생성하고 챗봇과 대화를 시작")
     @PostMapping("/message")
     public ResponseEntity<Flux<ChatResponse>> postNewMessage(
             @AuthenticationPrincipal Long memberId,
@@ -33,7 +33,7 @@ public class ChatBotController {
         return ResponseEntity.ok(chatBotService.sendMessage(memberId, chatRequest, null));
     }
 
-    @Operation(summary = "기존 채팅", description = "기존 채팅방에 메시지를 보내고 챗봇과 대화를 이어감")
+    @Operation(summary = "02. 기존 채팅", description = "기존 채팅방에 메시지를 보내고 챗봇과 대화를 이어감")
     @PostMapping("{roomId}/message")
     public ResponseEntity<Flux<ChatResponse>> postMessage(@AuthenticationPrincipal Long memberId, @RequestBody ChatRequest chatRequest, @PathVariable(value = "roomId", required = false) Long roomId) {
         return ResponseEntity.ok(chatBotService.sendMessage(memberId, chatRequest, roomId));
