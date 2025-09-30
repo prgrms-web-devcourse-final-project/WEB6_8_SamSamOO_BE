@@ -19,7 +19,6 @@ import org.slf4j.LoggerFactory;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -50,7 +49,6 @@ class TokenProviderTest {
 
     private Member member;
     private String secretKey;
-    private long accessTokenExpirationSeconds;
 
     private static final String TOKEN_PREFIX = "tokens:";
     private static final String ACCESS_TOKEN_FIELD = "accessToken";
@@ -76,11 +74,11 @@ class TokenProviderTest {
 
         // JWT 설정 (최소 256비트 = 32바이트 이상의 키 필요)
         secretKey = "testSecretKeyForJWTTokenGenerationAndValidation1234567890";
-        accessTokenExpirationSeconds = 3600L; // 1시간
 
         // Mock 설정 - lenient() 사용하여 모든 테스트에서 사용되지 않아도 경고하지 않음
         lenient().when(jwtProperties.getSecretKey()).thenReturn(secretKey);
         lenient().when(jwtProperties.getAccessToken()).thenReturn(accessTokenProperties);
+        long accessTokenExpirationSeconds = 3600L;
         lenient().when(accessTokenProperties.getExpirationSeconds()).thenReturn(accessTokenExpirationSeconds);
         lenient().when(redisTemplate.opsForHash()).thenReturn(hashOperations);
 
