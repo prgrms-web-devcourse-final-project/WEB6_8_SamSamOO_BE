@@ -55,7 +55,7 @@ public class MemberController {
     }
 
     @PostMapping("/logout")
-    @Operation(summary = "08. 로그아웃", description = "현재 로그인된 사용자를 로그아웃합니다.")
+    @Operation(summary = "09. 로그아웃", description = "현재 로그인된 사용자를 로그아웃합니다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "로그아웃 성공")
     })
@@ -98,7 +98,7 @@ public class MemberController {
     }
 
     @DeleteMapping("/withdraw")
-    @Operation(summary = "09. 회원탈퇴", description = "현재 로그인된 사용자의 계정을 삭제합니다.")
+    @Operation(summary = "10. 회원탈퇴", description = "현재 로그인된 사용자의 계정을 삭제합니다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "회원탈퇴 성공"),
             @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자"),
@@ -198,48 +198,29 @@ public class MemberController {
     }
 
     @PostMapping("/verifyEmail")
-    @Operation(summary = "06. 인증번호 검증", description = "로그인된 사용자는 자동으로 인증번호를 검증하고, 비로그인 사용자는 요청 바디의 loginId(이메일)와 함께 인증번호를 검증합니다.")
+    @Operation(summary = "06. 인증번호 검증", description = "비로그인 사용자가 이메일로 받은 인증번호를 검증합니다. (비밀번호 재설정용)")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "인증번호 검증 성공"),
             @ApiResponse(responseCode = "400", description = "잘못된 요청 (인증번호 불일치, loginId 없음)")
     })
-    public ResponseEntity<EmailResponse> verifyEmail(
+    public ResponseEntity<VerificationResponse> verifyEmail(
             @RequestBody @Valid EmailVerifyCodeRequestDto requestDto,
-            Authentication authentication,
-            HttpServletRequest request) {
+            Authentication authentication
+            ) {
 
-        String loginId = null;
-
-        // 1. 로그인된 사용자인 경우 JWT 토큰에서 loginId 추출 (우선순위 1)
         if (authentication != null && authentication.isAuthenticated() &&
             !"anonymousUser".equals(authentication.getPrincipal())) {
-
-            // JWT 토큰에서 직접 loginid claim 추출
-            try {
-                String token = extractAccessTokenFromRequest(request);
-                if (token != null) {
-                    loginId = memberService.extractLoginIdFromToken(token);
-                    if (loginId != null) {
-                        log.info("JWT 토큰에서 loginId 추출 성공: {}", loginId);
-                    } else {
-                        log.warn("JWT 토큰에서 loginId 추출 실패");
-                    }
-                }
-            } catch (Exception e) {
-                log.warn("JWT 토큰에서 loginId 추출 중 오류: {}", e.getMessage());
-            }
+            log.error("로그인된 사용자의 이메일 인증 시도");
+            throw new IllegalArgumentException("로그인된 사용자는 비밀번호 검증을 사용해야 합니다.");
         }
 
-        // 2. 비로그인 사용자인 경우 요청 바디에서 loginId 추출 (우선순위 2)
-        if (loginId == null) {
-            if (requestDto.getLoginId() != null && !requestDto.getLoginId().isBlank()) {
-                loginId = requestDto.getLoginId();
-                log.info("요청 바디에서 loginId 추출 성공: {}", loginId);
-            } else {
-                log.error("로그인하지 않은 상태에서 요청 바디에 loginId가 없음");
-                throw new IllegalArgumentException("인증번호를 검증할 이메일 주소가 필요합니다. 로그인하거나 요청 바디에 loginId를 포함해주세요.");
-            }
+        if (requestDto.getLoginId() == null || requestDto.getLoginId().isBlank()) {
+            log.error("요청 바디에 loginId가 없음");
+            throw new IllegalArgumentException("인증번호를 검증할 이메일 주소가 필요합니다.");
         }
+
+        String loginId = requestDto.getLoginId();
+        log.info("이메일 인증번호 검증 요청: {}", loginId);
 
         try {
             // 서비스 호출 - 인증번호 검증
@@ -247,7 +228,7 @@ public class MemberController {
 
             if (isValid) {
                 log.info("이메일 인증번호 검증 성공: {}", loginId);
-                return ResponseEntity.ok(EmailResponse.success("인증번호 검증 성공", loginId));
+                return ResponseEntity.ok(VerificationResponse.success("인증번호 검증 성공", loginId));
             } else {
                 log.error("이메일 인증번호 검증 실패 - 잘못된 인증번호: {}", loginId);
                 throw new IllegalArgumentException("잘못된 인증번호이거나 만료된 인증번호입니다.");
@@ -262,10 +243,63 @@ public class MemberController {
         }
     }
 
-    // ===== 비밀번호 재설정 엔드포인트 =====
+    @PostMapping("/verifyPassword")
+    @Operation(summary = "07. 비밀번호 검증", description = "로그인된 사용자가 비밀번호를 통해 인증합니다. (비밀번호 재설정용)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "비밀번호 검증 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 (비밀번호 불일치)"),
+            @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자")
+    })
+    public ResponseEntity<VerificationResponse> verifyPassword(
+        @RequestBody @Valid PasswordVerifyRequestDto requestDto,
+        Authentication authentication,
+        HttpServletRequest request){
+
+        if (authentication == null || !authentication.isAuthenticated() ||
+            "anonymousUser".equals(authentication.getPrincipal())) {
+            log.error("비로그인 사용자의 비밀번호 검증 시도");
+            throw new IllegalArgumentException("비밀번호 검증은 로그인된 사용자만 가능합니다. 비로그인 사용자는 이메일 인증을 사용하세요.");
+        }
+
+        String loginId = null;
+        try {
+            String token = extractAccessTokenFromRequest(request);
+            if (token != null) {
+                loginId = memberService.extractLoginIdFromToken(token);
+            }
+        } catch (Exception e) {
+            log.warn("JWT 토큰에서 loginId 추출 중 오류: {}", e.getMessage());
+        }
+
+        if (loginId == null) {
+            log.error("JWT 토큰에서 loginId 추출 실패");
+            throw new IllegalArgumentException("유효하지 않은 토큰입니다.");
+        }
+
+        log.info("비밀번호 검증 요청: {}", loginId);
+
+        try {
+            boolean isValid = memberService.verifyPassword(loginId, requestDto.getPassword());
+
+            if (isValid) {
+                log.info("비밀번호 검증 성공: {}", loginId);
+                return ResponseEntity.ok(VerificationResponse.success("비밀번호 검증 성공", loginId));
+            } else {
+                log.error("비밀번호 검증 실패 - 비밀번호 불일치: {}", loginId);
+                throw new IllegalArgumentException("잘못된 입력입니다.");
+            }
+
+        } catch (IllegalArgumentException e) {
+            log.error("비밀번호 검증 실패: loginId={}, error={}", loginId, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("비밀번호 검증 중 오류 발생: loginId={}, error={}", loginId, e.getMessage());
+            throw new RuntimeException("비밀번호 검증 중 오류가 발생했습니다.");
+        }
+    }
 
     @PostMapping("/password-reset/reset")
-    @Operation(summary = "07. 비밀번호 재설정", description = "인증 토큰과 함께 새 비밀번호로 재설정합니다.")
+    @Operation(summary = "08. 비밀번호 재설정", description = "인증 토큰과 함께 새 비밀번호로 재설정합니다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "비밀번호 재설정 성공"),
             @ApiResponse(responseCode = "400", description = "인증되지 않았거나 잘못된 요청")
@@ -285,7 +319,6 @@ public class MemberController {
 
         String loginId = null;
 
-        // 1. 로그인된 사용자인 경우 JWT 토큰에서 loginId 추출 (우선순위 1)
         if (authentication != null && authentication.isAuthenticated() &&
             !"anonymousUser".equals(authentication.getPrincipal())) {
 
@@ -341,7 +374,8 @@ public class MemberController {
     }
 
     /**
-     * HTTP 쿠키에서 액세스 토큰을 추출합니다.
+     * HTTP 요청에서 액세스 토큰을 추출합니다.
+     * Authorization 헤더 또는 쿠키에서 토큰을 확인합니다.
      * @param request HTTP 요청 객체
      * @return 액세스 토큰 값 또는 null
      */

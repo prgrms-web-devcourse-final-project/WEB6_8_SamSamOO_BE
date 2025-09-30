@@ -640,4 +640,67 @@ class MemberServiceTest {
         assertThat(result).isNull();
         verify(tokenProvider).getLoginIdFromToken(token);
     }
+
+    @Test
+    @DisplayName("비밀번호 검증 성공")
+    void verifyPassword_Success() {
+        // given
+        log.info("=== 비밀번호 검증 성공 테스트 시작 ===");
+        String loginId = "test@example.com";
+        String password = "password123";
+        log.info("비밀번호 검증: 이메일={}", loginId);
+
+        given(memberRepository.findByLoginId(loginId)).willReturn(Optional.of(member));
+        given(passwordEncoder.matches(password, member.getPassword())).willReturn(true);
+        log.info("Mock 설정 완료: 회원 존재, 비밀번호 일치");
+
+        // when
+        log.info("비밀번호 검증 서비스 호출 중...");
+        boolean result = memberService.verifyPassword(loginId, password);
+        log.info("비밀번호 검증 완료: 결과={}", result);
+
+        // then
+        log.info("검증 시작: 비밀번호 검증 결과 확인");
+        assertThat(result).as("비밀번호 검증 성공").isTrue();
+        verify(memberRepository).findByLoginId(loginId);
+        log.info("회원 존재 여부 조회 호출 확인");
+        verify(passwordEncoder).matches(password, member.getPassword());
+        log.info("비밀번호 일치 여부 검증 호출 확인");
+        log.info("=== 비밀번호 검증 성공 테스트 완료 ===");
+    }
+
+    @Test
+    @DisplayName("비밀번호 검증 실패 - 비밀번호 불일치")
+    void verifyPassword_Fail_PasswordMismatch() {
+        // given
+        String loginId = "test@example.com";
+        String password = "wrongPassword";
+        given(memberRepository.findByLoginId(loginId)).willReturn(Optional.of(member));
+        given(passwordEncoder.matches(password, member.getPassword())).willReturn(false);
+
+        // when
+        boolean result = memberService.verifyPassword(loginId, password);
+
+        // then
+        assertThat(result).as("비밀번호 불일치로 검증 실패").isFalse();
+        verify(memberRepository).findByLoginId(loginId);
+        verify(passwordEncoder).matches(password, member.getPassword());
+    }
+
+    @Test
+    @DisplayName("비밀번호 검증 실패 - 존재하지 않는 회원")
+    void verifyPassword_Fail_MemberNotFound() {
+        // given
+        String loginId = "nonexistent@example.com";
+        String password = "password123";
+        given(memberRepository.findByLoginId(loginId)).willReturn(Optional.empty());
+
+        // when and then
+        assertThatThrownBy(() -> memberService.verifyPassword(loginId, password))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("존재하지 않는 회원입니다.");
+
+        verify(memberRepository).findByLoginId(loginId);
+        verify(passwordEncoder, never()).matches(anyString(), anyString());
+    }
 }
