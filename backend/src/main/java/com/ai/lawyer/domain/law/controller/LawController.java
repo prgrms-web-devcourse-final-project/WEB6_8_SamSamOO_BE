@@ -24,12 +24,11 @@ public class LawController {
     @GetMapping(value = "/list/save")
     @Operation(summary = "키워드 관련 법령 데이터 저장(벡엔드 전용 API)", description = "벡엔드 데이터 저장용 API입니다")
     public ResponseEntity<?> getStatisticsCard(
-            @RequestParam String query,
-            @RequestParam int page
+            @RequestParam String query
     ) throws Exception {
         long startTime = System.currentTimeMillis();
 
-        lawService.saveLaw(query, page);
+        lawService.saveLaw(query);
 
         long endTime = System.currentTimeMillis();
         long elapsedTime = endTime - startTime;
