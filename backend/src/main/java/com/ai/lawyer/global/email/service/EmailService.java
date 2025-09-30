@@ -48,10 +48,10 @@ public class EmailService {
         helper.setSubject(title);
         helper.setText(content, true);
 
-        helper.setFrom(fromAddress, "TrybaLaw 인증시스템");
+        helper.setFrom(fromAddress, "BaLaw 이메일 인증");
         helper.setReplyTo(fromAddress);
 
-        log.info("발신자: {} (표시 이름: TrybaLaw 인증시스템)", fromAddress);
+        log.info("발신자: {} (표시 이름: BaLaw 이메일 인증)", fromAddress);
 
         emailSender.send(message);
     }
