@@ -107,12 +107,12 @@ public class LawRepositoryCustomImpl implements LawRepositoryCustom {
             return new PageImpl<>(content, pageable, 0);
         }
 
-        // 2. 조회한 법령 ID 목록 추출
+        // 조회한 법령 ID 목록 추출
         List<Long> lawIds = content.stream()
                 .map(LawsDto::getId)
-                .collect(Collectors.toList());
+                .toList();
 
-// 3. 법령별 첫 번째 조 내용 조회 - 반복문으로 각각 조회
+        // 3. 법령별 첫 번째 조 내용 조회 - 반복문으로 각각 조회
         Map<Long, String> firstJoContentMap = new HashMap<>();
         for (Long lawId : lawIds) {
             String firstJoContent = queryFactory

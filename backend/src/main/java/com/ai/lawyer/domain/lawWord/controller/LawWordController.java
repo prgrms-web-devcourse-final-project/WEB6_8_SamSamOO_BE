@@ -23,6 +23,11 @@ public class LawWordController {
     @Operation(summary = "법령 용어 검색", description = "법령 용어에 대한 정의를 반환합니다. \n" +
             "예시: /api/law-word/선박")
     public ResponseEntity<?> getPrecedent(@PathVariable String  word) {
-        return ResponseEntity.ok(lawWordService.findDefinition(word));
+        try {
+            return ResponseEntity.ok(lawWordService.findDefinition(word));
+        }catch (Exception e){
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+
     }
 }
