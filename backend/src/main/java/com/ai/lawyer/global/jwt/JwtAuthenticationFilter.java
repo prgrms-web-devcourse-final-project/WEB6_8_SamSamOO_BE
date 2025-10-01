@@ -1,7 +1,8 @@
 package com.ai.lawyer.global.jwt;
 
-import com.ai.lawyer.domain.member.entity.Member;
+import com.ai.lawyer.domain.member.entity.MemberAdapter;
 import com.ai.lawyer.domain.member.repositories.MemberRepository;
+import com.ai.lawyer.domain.member.repositories.OAuth2MemberRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,6 +27,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final TokenProvider tokenProvider;
     private final CookieUtil cookieUtil;
     private final MemberRepository memberRepository;
+    private final OAuth2MemberRepository oauth2MemberRepository;
 
     @Override
     protected void doFilterInternal(@Nullable HttpServletRequest request, @Nullable HttpServletResponse response, @Nullable FilterChain filterChain)
@@ -136,8 +138,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 return;
             }
 
-            // 회원 정보 조회
-            Member member = memberRepository.findByLoginId(loginId).orElse(null);
+            // 회원 정보 조회 (Member 또는 OAuth2Member)
+            MemberAdapter member = memberRepository.findByLoginId(loginId)
+                    .map(m -> (MemberAdapter) m)
+                    .orElse(oauth2MemberRepository.findByLoginId(loginId)
+                            .map(m -> (MemberAdapter) m)
+                            .orElse(null));
+
             if (member == null) {
                 log.warn("존재하지 않는 회원 - 쿠키 클리어: {}", loginId);
                 clearAuthenticationAndCookies(response);

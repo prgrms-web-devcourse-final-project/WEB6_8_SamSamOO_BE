@@ -9,18 +9,19 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "member",
+@Table(name = "oauth2_member",
         indexes = {
-                @Index(name = "idx_member_loginid", columnList = "loginid")
+                @Index(name = "idx_oauth2_member_loginid", columnList = "loginid"),
+                @Index(name = "idx_oauth2_member_provider", columnList = "provider, provider_id")
         })
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = "password")
+@ToString
 @EqualsAndHashCode(of = "memberId")
-public class Member implements MemberAdapter {
+public class OAuth2Member implements MemberAdapter {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -32,9 +33,10 @@ public class Member implements MemberAdapter {
     @NotBlank(message = "이메일(로그인 ID)은 필수입니다")
     private String loginId;
 
-    @Column(name = "password", nullable = false)
-    @NotBlank(message = "비밀번호는 필수입니다")
-    private String password;
+    @Column(name = "email", nullable = false, length = 100)
+    @Email(message = "올바른 이메일 형식이 아닙니다")
+    @NotBlank(message = "이메일은 필수입니다")
+    private String email;
 
     @Column(name = "age", nullable = false)
     @NotNull(message = "나이는 필수입니다")
@@ -44,16 +46,25 @@ public class Member implements MemberAdapter {
     @Enumerated(EnumType.STRING)
     @Column(name = "gender", nullable = false, length = 10)
     @NotNull(message = "성별은 필수입니다")
-    private Gender gender;
+    private Member.Gender gender;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, length = 20)
     @Builder.Default
-    private Role role = Role.USER;
+    private Member.Role role = Member.Role.USER;
 
     @Column(name = "name", nullable = false, length = 20)
     @NotBlank(message = "이름은 필수입니다")
     private String name;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "provider", nullable = false, length = 20)
+    @NotNull(message = "OAuth Provider는 필수입니다")
+    private Provider provider;
+
+    @Column(name = "provider_id", nullable = false, length = 100)
+    @NotBlank(message = "Provider ID는 필수입니다")
+    private String providerId;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -64,20 +75,20 @@ public class Member implements MemberAdapter {
     private LocalDateTime updatedAt;
 
     @Getter
-    public enum Gender {
-        MALE("남성"), FEMALE("여성"), OTHER("기타");
+    public enum Provider {
+        KAKAO("카카오"), NAVER("네이버");
         private final String description;
-        Gender(String description) { this.description = description; }
+        Provider(String description) { this.description = description; }
     }
 
-    @Getter
-    public enum Role {
-        USER("일반사용자"), ADMIN("관리자");
-        private final String description;
-        Role(String description) { this.description = description; }
+    /**
+     * OAuth2Member를 Member 인터페이스로 변환하기 위한 어댑터 메서드
+     */
+    public boolean isOAuthMember() {
+        return true;
     }
 
-    public void updatePassword(String newPassword) {
-        this.password = newPassword;
+    public String getProvider() {
+        return provider != null ? provider.name() : null;
     }
 }

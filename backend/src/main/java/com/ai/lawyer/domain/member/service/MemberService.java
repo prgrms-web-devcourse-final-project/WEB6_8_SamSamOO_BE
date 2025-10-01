@@ -2,7 +2,9 @@ package com.ai.lawyer.domain.member.service;
 
 import com.ai.lawyer.domain.member.dto.*;
 import com.ai.lawyer.domain.member.entity.Member;
+import com.ai.lawyer.domain.member.entity.OAuth2Member;
 import com.ai.lawyer.domain.member.repositories.MemberRepository;
+import com.ai.lawyer.domain.member.repositories.OAuth2MemberRepository;
 import com.ai.lawyer.global.jwt.TokenProvider;
 import com.ai.lawyer.global.jwt.CookieUtil;
 import com.ai.lawyer.global.email.service.EmailService;
@@ -19,6 +21,7 @@ import jakarta.servlet.http.HttpServletResponse;
 public class MemberService {
 
     private final MemberRepository memberRepository;
+    private final OAuth2MemberRepository oauth2MemberRepository;
     private final PasswordEncoder passwordEncoder;
     private final TokenProvider tokenProvider;
     private final CookieUtil cookieUtil;
@@ -80,8 +83,16 @@ public class MemberService {
             throw new IllegalArgumentException("유효하지 않은 리프레시 토큰입니다.");
         }
 
-        Member member = memberRepository.findByLoginId(loginId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+        // Member 또는 OAuth2Member 조회
+        com.ai.lawyer.domain.member.entity.MemberAdapter member = memberRepository.findByLoginId(loginId)
+                .map(m -> (com.ai.lawyer.domain.member.entity.MemberAdapter) m)
+                .orElse(oauth2MemberRepository.findByLoginId(loginId)
+                        .map(m -> (com.ai.lawyer.domain.member.entity.MemberAdapter) m)
+                        .orElse(null));
+
+        if (member == null) {
+            throw new IllegalArgumentException("존재하지 않는 회원입니다.");
+        }
 
         tokenProvider.deleteAllTokens(loginId);
 
@@ -102,8 +113,16 @@ public class MemberService {
     }
 
     public MemberResponse getMemberById(Long memberId) {
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+        // Member 또는 OAuth2Member 조회
+        com.ai.lawyer.domain.member.entity.MemberAdapter member = memberRepository.findById(memberId)
+                .map(m -> (com.ai.lawyer.domain.member.entity.MemberAdapter) m)
+                .orElse(oauth2MemberRepository.findById(memberId)
+                        .map(m -> (com.ai.lawyer.domain.member.entity.MemberAdapter) m)
+                        .orElse(null));
+
+        if (member == null) {
+            throw new IllegalArgumentException("존재하지 않는 회원입니다.");
+        }
 
         return MemberResponse.from(member);
     }
@@ -163,6 +182,34 @@ public class MemberService {
 
     public String extractLoginIdFromToken(String token) {
         return tokenProvider.getLoginIdFromToken(token);
+    }
+
+    @Transactional
+    public MemberResponse oauth2LoginTest(OAuth2LoginTestRequest request, HttpServletResponse response) {
+        // 기존 OAuth2 회원 조회
+        OAuth2Member oauth2Member = oauth2MemberRepository.findByLoginId(request.getEmail()).orElse(null);
+
+        if (oauth2Member == null) {
+            // 신규 OAuth2 회원 생성
+            oauth2Member = OAuth2Member.builder()
+                    .loginId(request.getEmail())  // loginId와 email을 동일하게 설정
+                    .email(request.getEmail())    // email 컬럼에도 저장
+                    .name(request.getName())
+                    .age(request.getAge())
+                    .gender(Member.Gender.valueOf(request.getGender()))
+                    .provider(OAuth2Member.Provider.valueOf(request.getProvider()))
+                    .providerId(request.getProviderId())
+                    .role(Member.Role.USER)
+                    .build();
+            oauth2Member = oauth2MemberRepository.save(oauth2Member);
+        }
+
+        // JWT 토큰 생성 및 쿠키 설정
+        String accessToken = tokenProvider.generateAccessToken(oauth2Member);
+        String refreshToken = tokenProvider.generateRefreshToken(oauth2Member);
+        cookieUtil.setTokenCookies(response, accessToken, refreshToken);
+
+        return MemberResponse.from(oauth2Member);
     }
 
     private void validateDuplicateLoginId(String loginId) {

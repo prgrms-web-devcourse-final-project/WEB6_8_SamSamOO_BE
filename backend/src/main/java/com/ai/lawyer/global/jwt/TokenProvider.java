@@ -34,7 +34,7 @@ public class TokenProvider {
         return Keys.hmacShaKeyFor(jwtProperties.getSecretKey().getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateAccessToken(Member member) {
+    public String generateAccessToken(com.ai.lawyer.domain.member.entity.MemberAdapter member) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + jwtProperties.getAccessToken().getExpirationSeconds() * 1000);
 
@@ -67,7 +67,7 @@ public class TokenProvider {
         return accessToken;
     }
 
-    public String generateRefreshToken(Member member) {
+    public String generateRefreshToken(com.ai.lawyer.domain.member.entity.MemberAdapter member) {
         String refreshToken = UUID.randomUUID().toString();
         Date now = new Date();
         Date refreshExpiry = new Date(now.getTime() + REFRESH_TOKEN_EXPIRE_TIME * 1000);

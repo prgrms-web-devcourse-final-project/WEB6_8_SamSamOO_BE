@@ -29,6 +29,14 @@ spring:
       port: ${PROD_REDIS_PORT}
       password: ${PROD_REDIS_PASSWORD}
       embedded: false
+  security:
+    oauth2:
+      client:
+        registration:
+          kakao:
+            redirect-uri: "${PROD_URL}/login/oauth2/code/{registrationId}"
+          naver:
+            redirect-uri: "${PROD_URL}/login/oauth2/code/{registrationId}"
   ai:
     vectorstore:
       qdrant:
@@ -36,8 +44,12 @@ spring:
         port: ${PROD_QDRANT_PORT}
         collection-name: legal_cases
         vector-size: 1536
+custom:
+  oauth2:
+    redirect-url: ${PROD_OAUTH2_REDIRECT_URI}
+
 sentry:
   dsn: ${PROD_SENTRY_DSN}
-  environment: "dev"
-  release: "my-app@0.1.0-dev"
+  environment: "prod"
+  release: "my-app@0.1.0-prod"
   send-default-pii: true

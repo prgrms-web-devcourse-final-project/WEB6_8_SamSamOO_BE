@@ -54,6 +54,49 @@ public class MemberController {
         return ResponseEntity.ok(memberResponse);
     }
 
+    @GetMapping("/oauth2/kakao")
+    @Operation(summary = "11. 카카오 로그인", description = "카카오 OAuth2 로그인 페이지로 리다이렉트합니다. Swagger에서 'Try it out' 실행 후 응답의 Location 헤더 URL을 브라우저에서 열어주세요.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "302", description = "카카오 로그인 페이지로 리다이렉트")
+    })
+    public void kakaoLogin(HttpServletResponse response) throws Exception {
+        log.info("카카오 로그인 요청");
+        response.sendRedirect("/oauth2/authorization/kakao");
+    }
+
+    @GetMapping("/oauth2/naver")
+    @Operation(summary = "12. 네이버 로그인", description = "네이버 OAuth2 로그인 페이지로 리다이렉트합니다. Swagger에서 'Try it out' 실행 후 응답의 Location 헤더 URL을 브라우저에서 열어주세요.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "302", description = "네이버 로그인 페이지로 리다이렉트")
+    })
+    public void naverLogin(HttpServletResponse response) throws Exception {
+        log.info("네이버 로그인 요청");
+        response.sendRedirect("/oauth2/authorization/naver");
+    }
+
+    @PostMapping("/oauth2/test")
+    @Operation(
+        summary = "13. OAuth2 로그인 테스트 (개발용)",
+        description = "실제 OAuth2 플로우 없이 소셜 로그인 결과를 시뮬레이션합니다. " +
+                      "카카오/네이버에서 받은 사용자 정보를 그대로 입력하면 JWT 토큰이 발급됩니다. " +
+                      "신규 회원이면 생성하고, 기존 회원이면 OAuth 연동합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "OAuth2 로그인 성공 - JWT 토큰이 쿠키에 설정됨"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 (유효성 검증 실패)")
+    })
+    public ResponseEntity<MemberResponse> oauth2LoginTest(
+            @Valid @RequestBody OAuth2LoginTestRequest request,
+            HttpServletResponse response) {
+        log.info("OAuth2 로그인 테스트: email={}, provider={}", request.getEmail(), request.getProvider());
+
+        MemberResponse memberResponse = memberService.oauth2LoginTest(request, response);
+        log.info("OAuth2 로그인 테스트 성공: memberId={}, provider={}",
+                memberResponse.getMemberId(), request.getProvider());
+
+        return ResponseEntity.ok(memberResponse);
+    }
+
     @PostMapping("/logout")
     @Operation(summary = "09. 로그아웃", description = "현재 로그인된 사용자를 로그아웃합니다.")
     @ApiResponses({

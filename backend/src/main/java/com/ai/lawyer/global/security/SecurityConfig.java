@@ -1,6 +1,8 @@
 package com.ai.lawyer.global.security;
 
 import com.ai.lawyer.global.jwt.JwtAuthenticationFilter;
+import com.ai.lawyer.global.oauth.CustomOAuth2UserService;
+import com.ai.lawyer.global.oauth.OAuth2SuccessHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -25,6 +27,8 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final CustomOAuth2UserService customOAuth2UserService;
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -46,7 +50,10 @@ public class SecurityConfig {
                                 "/api/auth/sendEmail",
                                 "/api/auth/verifyEmail",
                                 "/api/auth/passwordReset",
-                                "/api/public/**").permitAll()
+                                "/api/auth/oauth2/**",
+                                "/api/public/**",
+                                "/oauth2/**",
+                                "/login/oauth2/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/api/posts/**").permitAll()
                         .requestMatchers("/api/precedent/**").permitAll()
@@ -55,6 +62,13 @@ public class SecurityConfig {
                         .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers("/api/chat/**").permitAll()
                         .anyRequest().authenticated()
+                )
+                // OAuth2 로그인 설정
+                .oauth2Login(oauth2 -> oauth2
+                        .userInfoEndpoint(userInfo -> userInfo
+                                .userService(customOAuth2UserService)
+                        )
+                        .successHandler(oAuth2SuccessHandler)
                 )
                 // JWT 필터 추가
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
