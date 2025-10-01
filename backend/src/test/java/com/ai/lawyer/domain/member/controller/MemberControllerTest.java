@@ -517,7 +517,7 @@ class MemberControllerTest {
                 .andExpect(jsonPath("$.success").value(true));
 
         verify(memberService).resetPassword("test@example.com", "newPassword123", true);
-        verify(memberService).logout("test@example.com", any());
+        verify(memberService).logout(eq("test@example.com"), any(HttpServletResponse.class));
     }
 
     @Test
