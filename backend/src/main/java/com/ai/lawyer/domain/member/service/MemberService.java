@@ -126,7 +126,14 @@ public class MemberService {
         Member member = memberRepository.findByLoginId(loginId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
 
-        return passwordEncoder.matches(password, member.getPassword());
+        boolean isValid = passwordEncoder.matches(password, member.getPassword());
+
+        // 비밀번호 검증 성공 시 Redis에 인증 성공 표시 저장
+        if (isValid) {
+            emailAuthService.markPasswordVerified(loginId);
+        }
+
+        return isValid;
     }
 
     @Transactional
