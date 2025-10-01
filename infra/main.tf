@@ -287,6 +287,21 @@ aws s3 cp s3://${var.prefix}-s3-bucket-1/init.sql /home/ec2-user/app/init/sql/in
 aws s3 cp s3://${var.prefix}-s3-bucket-1/lawData-dev.sql /home/ec2-user/app/init/sql/dev/lawData-dev.sql
 aws s3 cp s3://${var.prefix}-s3-bucket-1/precedentData-dev.sql /home/ec2-user/app/init/sql/dev/precedentData-dev.sql
 
+# MySQL 설정 폴더 생성 및 UTF8 설정
+mkdir -p /dockerProjects/mysql/volumes/etc/mysql/conf.d
+
+cat <<EOF > /dockerProjects/mysql/volumes/etc/mysql/conf.d/charset.cnf
+[mysqld]
+character-set-server = utf8mb4
+collation-server = utf8mb4_general_ci
+
+[client]
+default-character-set = utf8mb4
+
+[mysql]
+default-character-set = utf8mb4
+EOF
+
 # mysql 설치
 docker run -d \
   --name mysql \
