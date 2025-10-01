@@ -307,7 +307,8 @@ public class MemberController {
     public ResponseEntity<PasswordResetResponse> resetPassword(
             @RequestBody ResetPasswordRequestDto request,
             Authentication authentication,
-            HttpServletRequest httpRequest) {
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
 
         // 입력값 검증
         if (request.getNewPassword() == null || request.getNewPassword().isBlank()) {
@@ -353,7 +354,10 @@ public class MemberController {
 
         memberService.resetPassword(loginId, request.getNewPassword(), request.getSuccess());
 
-        log.info("비밀번호 재설정 성공: email={}", loginId);
+        // 비밀번호 재설정 성공 시 로그아웃 처리
+        memberService.logout(loginId, httpResponse);
+
+        log.info("비밀번호 재설정 및 로그아웃 성공: email={}", loginId);
         return ResponseEntity.ok(PasswordResetResponse.success("비밀번호가 성공적으로 재설정되었습니다.", loginId));
     }
 

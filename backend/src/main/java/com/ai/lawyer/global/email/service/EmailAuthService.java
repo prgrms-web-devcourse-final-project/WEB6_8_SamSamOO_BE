@@ -39,6 +39,14 @@ public class EmailAuthService {
     }
 
     /**
+     * 비밀번호 검증 성공 표시 (로그인 사용자용)
+     */
+    public void markPasswordVerified(String loginId) {
+        String successKey = buildSuccessKey(loginId);
+        redisTemplate.opsForValue().set(successKey, "true", EXPIRATION_MINUTES, TimeUnit.MINUTES);
+    }
+
+    /**
      * 이메일 인증 성공 여부 확인
      */
     public boolean isEmailVerified(String loginId) {

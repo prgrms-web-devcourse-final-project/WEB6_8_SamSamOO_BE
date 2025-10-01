@@ -652,6 +652,7 @@ class MemberServiceTest {
 
         given(memberRepository.findByLoginId(loginId)).willReturn(Optional.of(member));
         given(passwordEncoder.matches(password, member.getPassword())).willReturn(true);
+        doNothing().when(emailAuthService).markPasswordVerified(loginId);
         log.info("Mock 설정 완료: 회원 존재, 비밀번호 일치");
 
         // when
@@ -666,6 +667,8 @@ class MemberServiceTest {
         log.info("회원 존재 여부 조회 호출 확인");
         verify(passwordEncoder).matches(password, member.getPassword());
         log.info("비밀번호 일치 여부 검증 호출 확인");
+        verify(emailAuthService).markPasswordVerified(loginId);
+        log.info("Redis에 비밀번호 검증 성공 표시 저장 호출 확인");
         log.info("=== 비밀번호 검증 성공 테스트 완료 ===");
     }
 
@@ -685,6 +688,7 @@ class MemberServiceTest {
         assertThat(result).as("비밀번호 불일치로 검증 실패").isFalse();
         verify(memberRepository).findByLoginId(loginId);
         verify(passwordEncoder).matches(password, member.getPassword());
+        verify(emailAuthService, never()).markPasswordVerified(anyString());
     }
 
     @Test
