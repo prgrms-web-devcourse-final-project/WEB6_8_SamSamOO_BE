@@ -57,8 +57,12 @@ public class ChatBotService {
     // 멤버 조회 -> 벡터 검색 (판례, 법령) -> 프롬프트 생성 (시스템, 유저) -> 채팅 클라이언트 호출 (스트림) -> 응답 저장, 제목/키워드 추출
     public Flux<ChatResponse> sendMessage(Long memberId, ChatRequest chatChatRequestDto, Long roomId) {
 
-        Member member = memberRepository.findById(memberId).orElseThrow(
-                () -> new IllegalArgumentException("존재하지 않는 회원입니다.")
+        if(memberId == null) {
+            log.error("해당 멤버는 존재하지 않거나, accessToken이 만료되거나 잘못되었습니다.");
+        }
+
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다.")
         );
 
         // 벡터 검색 (판례, 법령)
@@ -150,11 +154,11 @@ public class ChatBotService {
         setHistoryTitle(chatDto, history, fullResponse);
 
         // 채팅 기록 저장
-        saveChat(history, MessageType.USER, chatDto.getMessage(), similarCaseDocuments, similarLawDocuments);
-        saveChat(history, MessageType.ASSISTANT, fullResponse, similarCaseDocuments, similarLawDocuments);
+        saveChatWithDocuments(history, MessageType.USER, chatDto.getMessage(), similarCaseDocuments, similarLawDocuments);
+        saveChatWithDocuments(history, MessageType.ASSISTANT, fullResponse, similarCaseDocuments, similarLawDocuments);
 
         // 키워드 추출 및 키워드 랭킹 저장 (법과 관련 없는 질문은 제외)
-        if (!fullResponse.contains("해당 질문은 법과 관련된")) {
+        if (!fullResponse.contains("해당 질문은 법률")) {
             extractAndUpdateKeywordRanks(chatDto.getMessage());
         }
 
@@ -178,13 +182,13 @@ public class ChatBotService {
     }
 
     private void setHistoryTitle(ChatRequest chatDto, History history, String fullResponse) {
-        String targetText = fullResponse.contains("해당 질문은 법과 관련된") ? chatDto.getMessage() : fullResponse;
+        String targetText = fullResponse.contains("해당 질문은 법률") ? chatDto.getMessage() : fullResponse;
         TitleExtractionDto titleDto = keywordExtract(targetText, titleExtraction, TitleExtractionDto.class);
         history.setTitle(titleDto.getTitle());
         historyRepository.save(history);
     }
 
-    private void saveChat(History history, MessageType type, String message, List<Document> similarCaseDocuments, List<Document> similarLawDocuments) {
+    private void saveChatWithDocuments(History history, MessageType type, String message, List<Document> similarCaseDocuments, List<Document> similarLawDocuments) {
         Chat chat = chatRepository.save(Chat.builder()
                 .historyId(history)
                 .type(type)
