@@ -273,7 +273,7 @@ jobs:
             PROD_QDRANT_PORT=6334
             
             send_email_address=${{ secrets.SEND_EMAIL_ADDRESS }}
-            send_email_password=${{ secrets.EMAIL_PASSWORD }}
+            send_email_password=${{ secrets.SEND_EMAIL_PASSWORD }}
             
             PROD_SENTRY_DSN=${{ secrets.SENTRY_DSN }}
 
