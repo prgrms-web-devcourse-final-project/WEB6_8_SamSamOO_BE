@@ -21,7 +21,7 @@ public interface MemberAdapter {
         if (isLocalMember()) {
             return getLoginId(); // 로컬 회원은 loginId가 이메일
         } else if (isOAuth2Member()) {
-            return ((OAuth2Member) this).getEmail();
+            return this.getEmail();
         }
         return null;
     }

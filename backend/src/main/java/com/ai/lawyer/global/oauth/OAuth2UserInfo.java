@@ -1,7 +1,5 @@
 package com.ai.lawyer.global.oauth;
 
-import java.util.Map;
-
 public interface OAuth2UserInfo {
     String getProviderId();
     String getProvider();

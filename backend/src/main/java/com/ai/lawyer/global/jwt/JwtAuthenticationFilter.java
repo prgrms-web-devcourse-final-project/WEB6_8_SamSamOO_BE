@@ -141,9 +141,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // 회원 정보 조회 (Member 또는 OAuth2Member)
             MemberAdapter member = memberRepository.findByLoginId(loginId)
                     .map(m -> (MemberAdapter) m)
-                    .orElse(oauth2MemberRepository.findByLoginId(loginId)
-                            .map(m -> (MemberAdapter) m)
-                            .orElse(null));
+                    .orElse(oauth2MemberRepository.findByLoginId(loginId).orElse(null));
 
             if (member == null) {
                 log.warn("존재하지 않는 회원 - 쿠키 클리어: {}", loginId);

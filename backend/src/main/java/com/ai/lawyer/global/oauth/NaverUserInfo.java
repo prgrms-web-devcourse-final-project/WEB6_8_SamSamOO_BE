@@ -50,4 +50,8 @@ public class NaverUserInfo implements OAuth2UserInfo {
         }
         return null;
     }
+
+    public Map<String, Object> getAttributes() {
+        return attributes;
+    }
 }

@@ -81,13 +81,6 @@ public class OAuth2Member implements MemberAdapter {
         Provider(String description) { this.description = description; }
     }
 
-    /**
-     * OAuth2Member를 Member 인터페이스로 변환하기 위한 어댑터 메서드
-     */
-    public boolean isOAuthMember() {
-        return true;
-    }
-
     public String getProvider() {
         return provider != null ? provider.name() : null;
     }

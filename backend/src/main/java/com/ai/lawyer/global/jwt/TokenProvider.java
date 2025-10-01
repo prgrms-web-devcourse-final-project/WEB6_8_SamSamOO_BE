@@ -1,6 +1,5 @@
 package com.ai.lawyer.global.jwt;
 
-import com.ai.lawyer.domain.member.entity.Member;
 import com.ai.lawyer.global.config.JwtProperties;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;

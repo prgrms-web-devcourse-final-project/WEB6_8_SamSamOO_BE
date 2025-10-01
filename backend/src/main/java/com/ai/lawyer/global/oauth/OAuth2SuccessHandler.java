@@ -1,6 +1,5 @@
 package com.ai.lawyer.global.oauth;
 
-import com.ai.lawyer.domain.member.entity.Member;
 import com.ai.lawyer.global.jwt.CookieUtil;
 import com.ai.lawyer.global.jwt.TokenProvider;
 import jakarta.servlet.http.HttpServletRequest;

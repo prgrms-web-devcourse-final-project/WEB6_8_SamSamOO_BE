@@ -41,8 +41,7 @@ public class MemberResponse {
     public static MemberResponse from(MemberAdapter memberAdapter) {
         if (memberAdapter instanceof Member) {
             return from((Member) memberAdapter);
-        } else if (memberAdapter instanceof OAuth2Member) {
-            OAuth2Member oauth2Member = (OAuth2Member) memberAdapter;
+        } else if (memberAdapter instanceof OAuth2Member oauth2Member) {
             return MemberResponse.builder()
                     .memberId(oauth2Member.getMemberId())
                     .loginId(oauth2Member.getLoginId())

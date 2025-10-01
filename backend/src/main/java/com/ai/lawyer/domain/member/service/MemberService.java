@@ -86,9 +86,7 @@ public class MemberService {
         // Member 또는 OAuth2Member 조회
         com.ai.lawyer.domain.member.entity.MemberAdapter member = memberRepository.findByLoginId(loginId)
                 .map(m -> (com.ai.lawyer.domain.member.entity.MemberAdapter) m)
-                .orElse(oauth2MemberRepository.findByLoginId(loginId)
-                        .map(m -> (com.ai.lawyer.domain.member.entity.MemberAdapter) m)
-                        .orElse(null));
+                .orElse(oauth2MemberRepository.findByLoginId(loginId).orElse(null));
 
         if (member == null) {
             throw new IllegalArgumentException("존재하지 않는 회원입니다.");
