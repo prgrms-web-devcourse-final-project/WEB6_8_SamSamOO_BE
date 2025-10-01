@@ -178,19 +178,4 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         log.debug("인증 정보 및 쿠키 클리어 완료");
     }
 
-    /**
-     * JWT 인증이 필요하지 않은 경로들을 필터링에서 제외합니다.
-     * @param request HTTP 요청
-     * @return true인 경우 필터 제외
-     */
-    @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = request.getRequestURI();
-        return path.equals("/api/auth/signup") ||
-               path.equals("/api/auth/login") ||
-               path.startsWith("/api/public/") ||
-               path.startsWith("/v3/api-docs") ||
-               path.equals("/actuator/health") ||
-               path.startsWith("/h2-console");
-    }
 }

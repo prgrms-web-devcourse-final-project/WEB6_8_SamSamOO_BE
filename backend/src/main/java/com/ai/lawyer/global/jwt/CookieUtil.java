@@ -10,7 +10,7 @@ public class CookieUtil {
 
     private static final String ACCESS_TOKEN_NAME = "accessToken";
     private static final String REFRESH_TOKEN_NAME = "refreshToken";
-    private static final int ACCESS_TOKEN_EXPIRE_TIME = 5 * 60; // 5분
+    private static final int ACCESS_TOKEN_EXPIRE_TIME = 10; // 5분
     private static final int REFRESH_TOKEN_EXPIRE_TIME = 7 * 24 * 60 * 60; // 7일
 
     public void setTokenCookies(HttpServletResponse response, String accessToken, String refreshToken) {
