@@ -204,8 +204,7 @@ public class MemberController {
             @ApiResponse(responseCode = "400", description = "잘못된 요청 (인증번호 불일치, loginId 없음)")
     })
     public ResponseEntity<VerificationResponse> verifyEmail(
-            @RequestBody @Valid EmailVerifyCodeRequestDto requestDto,
-            Authentication authentication
+            @RequestBody @Valid EmailVerifyCodeRequestDto requestDto
             ) {
 
         if (requestDto.getLoginId() == null || requestDto.getLoginId().isBlank()) {
