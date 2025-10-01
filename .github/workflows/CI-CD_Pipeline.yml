@@ -263,8 +263,7 @@ jobs:
             PROD_DATASOURCE_DRIVER=com.mysql.cj.jdbc.Driver
             PROD_DATASOURCE_USERNAME=root
             PROD_DATASOURCE_PASSWORD=${{ secrets.DB_PASSWORD }}
-            # 추후 validate 변경
-            PROD_JPA_HIBERNATE_DDL_AUTO=create 
+            PROD_JPA_HIBERNATE_DDL_AUTO=none 
             
             PROD_REDIS_HOST=redis
             PROD_REDIS_PORT=6379
@@ -274,7 +273,6 @@ jobs:
             PROD_QDRANT_PORT=6334
             
             send_email_address=${{ secrets.SEND_EMAIL_ADDRESS }}
-            email_address=${{ secrets.EMAIL_ADDRESS }}
             send_email_password=${{ secrets.EMAIL_PASSWORD }}
             
             PROD_SENTRY_DSN=${{ secrets.SENTRY_DSN }}

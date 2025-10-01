@@ -198,21 +198,14 @@ public class MemberController {
     }
 
     @PostMapping("/verifyEmail")
-    @Operation(summary = "06. 인증번호 검증", description = "비로그인 사용자가 이메일로 받은 인증번호를 검증합니다. (비밀번호 재설정용)")
+    @Operation(summary = "06. 인증번호 검증", description = "이메일로 받은 인증번호를 검증합니다. (비밀번호 재설정용)")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "인증번호 검증 성공"),
             @ApiResponse(responseCode = "400", description = "잘못된 요청 (인증번호 불일치, loginId 없음)")
     })
     public ResponseEntity<VerificationResponse> verifyEmail(
-            @RequestBody @Valid EmailVerifyCodeRequestDto requestDto,
-            Authentication authentication
+            @RequestBody @Valid EmailVerifyCodeRequestDto requestDto
             ) {
-
-        if (authentication != null && authentication.isAuthenticated() &&
-            !"anonymousUser".equals(authentication.getPrincipal())) {
-            log.error("로그인된 사용자의 이메일 인증 시도");
-            throw new IllegalArgumentException("로그인된 사용자는 비밀번호 검증을 사용해야 합니다.");
-        }
 
         if (requestDto.getLoginId() == null || requestDto.getLoginId().isBlank()) {
             log.error("요청 바디에 loginId가 없음");
@@ -298,7 +291,7 @@ public class MemberController {
         }
     }
 
-    @PostMapping("/password-reset/reset")
+    @PostMapping("/passwordReset")
     @Operation(summary = "08. 비밀번호 재설정", description = "인증 토큰과 함께 새 비밀번호로 재설정합니다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "비밀번호 재설정 성공"),
@@ -307,7 +300,8 @@ public class MemberController {
     public ResponseEntity<PasswordResetResponse> resetPassword(
             @RequestBody ResetPasswordRequestDto request,
             Authentication authentication,
-            HttpServletRequest httpRequest) {
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
 
         // 입력값 검증
         if (request.getNewPassword() == null || request.getNewPassword().isBlank()) {
@@ -353,7 +347,10 @@ public class MemberController {
 
         memberService.resetPassword(loginId, request.getNewPassword(), request.getSuccess());
 
-        log.info("비밀번호 재설정 성공: email={}", loginId);
+        // 비밀번호 재설정 성공 시 로그아웃 처리
+        memberService.logout(loginId, httpResponse);
+
+        log.info("비밀번호 재설정 및 로그아웃 성공: email={}", loginId);
         return ResponseEntity.ok(PasswordResetResponse.success("비밀번호가 성공적으로 재설정되었습니다.", loginId));
     }
 
