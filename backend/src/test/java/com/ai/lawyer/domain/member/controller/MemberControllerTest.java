@@ -506,7 +506,7 @@ class MemberControllerTest {
         doNothing().when(memberService).resetPassword("test@example.com", "newPassword123", true);
 
         // when and then
-        mockMvc.perform(post("/api/auth/password-reset/reset")
+        mockMvc.perform(post("/api/auth/passwordReset")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDto)))
@@ -517,6 +517,7 @@ class MemberControllerTest {
                 .andExpect(jsonPath("$.success").value(true));
 
         verify(memberService).resetPassword("test@example.com", "newPassword123", true);
+        verify(memberService).logout(eq("test@example.com"), any());
     }
 
     @Test
@@ -532,7 +533,7 @@ class MemberControllerTest {
                 .when(memberService).resetPassword("test@example.com", "newPassword123", false);
 
         // when and then
-        mockMvc.perform(post("/api/auth/password-reset/reset")
+        mockMvc.perform(post("/api/auth/passwordReset")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDto)))
@@ -540,6 +541,7 @@ class MemberControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(memberService).resetPassword("test@example.com", "newPassword123", false);
+        verify(memberService, never()).logout(anyString(), any());
     }
 
     @Test
@@ -555,7 +557,7 @@ class MemberControllerTest {
                 .when(memberService).resetPassword("nonexistent@example.com", "newPassword123", true);
 
         // when and then
-        mockMvc.perform(post("/api/auth/password-reset/reset")
+        mockMvc.perform(post("/api/auth/passwordReset")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDto)))
@@ -563,11 +565,12 @@ class MemberControllerTest {
                 .andExpect(status().isUnauthorized());
 
         verify(memberService).resetPassword("nonexistent@example.com", "newPassword123", true);
+        verify(memberService, never()).logout(anyString(), any());
     }
 
     @Test
-    @DisplayName("비밀번호 재설정 성공 - 토큰 없이 loginId만으로")
-    void resetPassword_Success_WithoutToken() throws Exception {
+    @DisplayName("비밀번호 재설정 실패 - loginId 없음")
+    void resetPassword_Fail_NoLoginId() throws Exception {
         // given - loginId 없이 요청
         ResetPasswordRequestDto requestDto = new ResetPasswordRequestDto();
         requestDto.setNewPassword("newPassword123");
@@ -575,7 +578,7 @@ class MemberControllerTest {
         // loginId는 설정하지 않음
 
         // when and then - loginId가 없으면 예외가 발생해야 함
-        mockMvc.perform(post("/api/auth/password-reset/reset")
+        mockMvc.perform(post("/api/auth/passwordReset")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDto)))
@@ -583,6 +586,7 @@ class MemberControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(memberService, never()).resetPassword(anyString(), anyString(), any());
+        verify(memberService, never()).logout(anyString(), any());
     }
 
     @Test
@@ -595,7 +599,7 @@ class MemberControllerTest {
         invalidRequest.setSuccess(null); // null success
 
         // when and then
-        mockMvc.perform(post("/api/auth/password-reset/reset")
+        mockMvc.perform(post("/api/auth/passwordReset")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidRequest)))
@@ -603,6 +607,7 @@ class MemberControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(memberService, never()).resetPassword(anyString(), anyString(), any());
+        verify(memberService, never()).logout(anyString(), any());
     }
 
     @Test
