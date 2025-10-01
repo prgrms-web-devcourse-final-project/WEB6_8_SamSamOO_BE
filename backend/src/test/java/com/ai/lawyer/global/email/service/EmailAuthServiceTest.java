@@ -236,4 +236,42 @@ class EmailAuthServiceTest {
         verify(valueOperations).set(successKey, "true", 5L, TimeUnit.MINUTES);
         verify(valueOperations).get(successKey);
     }
+
+    @Test
+    @DisplayName("비밀번호 검증 성공 표시 저장")
+    void markPasswordVerified_Success() {
+        // given
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        doNothing().when(valueOperations).set(eq(successKey), eq("true"), eq(5L), eq(TimeUnit.MINUTES));
+
+        // when
+        emailAuthService.markPasswordVerified(loginId);
+
+        // then
+        verify(redisTemplate).opsForValue();
+        verify(valueOperations).set(successKey, "true", 5L, TimeUnit.MINUTES);
+    }
+
+    @Test
+    @DisplayName("비밀번호 검증 성공 후 성공 상태 확인 플로우")
+    void passwordVerificationFlow_Success() {
+        // given
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+
+        // 1. 비밀번호 검증 성공 표시
+        doNothing().when(valueOperations).set(eq(successKey), eq("true"), eq(5L), eq(TimeUnit.MINUTES));
+
+        // 2. 성공 상태 확인
+        given(valueOperations.get(successKey)).willReturn("true");
+
+        // when
+        emailAuthService.markPasswordVerified(loginId);
+        boolean isVerified = emailAuthService.isEmailVerified(loginId);
+
+        // then
+        assertThat(isVerified).isTrue();
+
+        verify(valueOperations).set(successKey, "true", 5L, TimeUnit.MINUTES);
+        verify(valueOperations).get(successKey);
+    }
 }

@@ -680,12 +680,14 @@ class MemberControllerTest {
     }
 
     @Test
-    @DisplayName("이메일 인증번호 검증 실패 - 로그인된 사용자 접근 차단")
-    void verifyEmail_Fail_LoggedInUser() throws Exception {
+    @DisplayName("이메일 인증번호 검증 성공 - 로그인된 사용자도 가능")
+    void verifyEmail_Success_LoggedInUser() throws Exception {
         // given
         EmailVerifyCodeRequestDto requestDto = new EmailVerifyCodeRequestDto();
         requestDto.setLoginId("test@example.com");
         requestDto.setVerificationCode("123456");
+
+        given(memberService.verifyAuthCode("test@example.com", "123456")).willReturn(true);
 
         // when and then - principal과 함께 요청 (로그인 상태)
         mockMvc.perform(post("/api/auth/verifyEmail")
@@ -695,8 +697,11 @@ class MemberControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDto)))
                 .andDo(print())
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("인증번호 검증 성공"))
+                .andExpect(jsonPath("$.email").value("test@example.com"))
+                .andExpect(jsonPath("$.success").value(true));
 
-        verify(memberService, never()).verifyAuthCode(anyString(), anyString());
+        verify(memberService).verifyAuthCode("test@example.com", "123456");
     }
 }
