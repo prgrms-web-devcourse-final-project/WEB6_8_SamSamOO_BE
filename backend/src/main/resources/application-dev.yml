@@ -16,6 +16,18 @@ spring:
       port: ${DEV_REDIS_PORT}
       password: ${DEV_REDIS_PASSWORD}
       embedded: false
+
+  batch:
+    job:
+      enabled: false     # 최소 한번 시작
+    jdbc:
+      initialize-schema: always
+
+  datasource-meta:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    jdbc-url: jdbc:mysql://localhost:3306/meta_db?useSSL=false&useUnicode=true&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
+    username: root
+    password: balaw
   security:
     oauth2:
       client:
