@@ -21,7 +21,6 @@ import java.util.HashMap;
         entityManagerFactoryRef = "dataEntityManager",
         transactionManagerRef = "dataTransactionManager"
 )
-@Profile("!test")
 public class DataDBConfig {
 
     @Value("${spring.datasource.url}")
