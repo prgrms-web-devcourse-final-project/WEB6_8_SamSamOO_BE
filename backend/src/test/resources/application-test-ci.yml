@@ -12,10 +12,10 @@ spring:
     driver-class-name: ${TEST_DATASOURCE_DRIVER}
 
   datasource-meta:
-    url: jdbc:mysql://localhost:3306/meta_db?useSSL=false&useUnicode=true&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
-    username: root
-    password: balaw
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:h2:mem:meta_db_test;MODE=MySQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
 
   jpa:
     show-sql: true
