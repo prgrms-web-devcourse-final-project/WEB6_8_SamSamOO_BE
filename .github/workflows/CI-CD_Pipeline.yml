@@ -82,7 +82,7 @@ jobs:
         run: |
           set -euo pipefail
           install -d -m 700 .
-          echo "${{ secrets.ENV_BASE64 }}" | base64 -d > .env
+          echo "${{ secrets.DEV_ENV_BASE64 }}" | base64 -d > .env
           chmod 600 .env
           test -s .env || { echo ".env is empty"; exit 1; }
 
@@ -216,7 +216,7 @@ jobs:
             # EC2 내부에서 prod.env 복원 (ENV_BASE64 -> 디코드)
             install -d -m 700 /home/ec2-user/configs
             cat > /home/ec2-user/configs/prod.env.b64 <<'__B64__'
-            ${{ secrets.ENV_BASE64 }}
+            ${{ secrets.PROD_ENV_BASE64 }}
             __B64__
             
             base64 -d /home/ec2-user/configs/prod.env.b64 > /home/ec2-user/configs/prod.env
