@@ -5,12 +5,10 @@ import org.springframework.boot.autoconfigure.batch.BatchDataSource;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Profile;
 
 import javax.sql.DataSource;
 
 @Configuration
-@Profile("!test-ci")
 public class MetaDBConfig {
 
     @Value("${spring.datasource-meta.url}")
