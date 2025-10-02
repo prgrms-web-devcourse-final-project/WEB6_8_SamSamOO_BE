@@ -4,6 +4,12 @@ spring:
     driver-class-name: ${PROD_DATASOURCE_DRIVER}
     username: ${PROD_DATASOURCE_USERNAME}
     password: ${PROD_DATASOURCE_PASSWORD}
+  datasource-meta:
+    jdbc-url: jdbc:mysql://localhost:3306/meta_db?useSSL=false&useUnicode=true&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
+    driver-class-name: ${PROD_DATASOURCE_DRIVER}
+    username: ${PROD_DATASOURCE_USERNAME}
+    password: ${PROD_DATASOURCE_PASSWORD}
+
     hikari:
       maximum-pool-size: 20          # 트래픽에 맞춰 조정
       minimum-idle: 5
@@ -27,6 +33,7 @@ spring:
       port: ${PROD_REDIS_PORT}
       password: ${PROD_REDIS_PASSWORD}
       embedded: false
+
   security:
     oauth2:
       client:
@@ -36,6 +43,12 @@ spring:
           naver:
             redirect-uri: ${PROD_OAUTH2_NAVER_REDIRECT_URI:https://api.trybalaw.com/login/oauth2/code/naver}
   ai:
+    ollama:
+      base-url: http://ollama:11434
+      embedding:
+        options:
+          model: daynice/kure-v1:567m
+
     vectorstore:
       qdrant:
         host: ${PROD_QDRANT_HOST}

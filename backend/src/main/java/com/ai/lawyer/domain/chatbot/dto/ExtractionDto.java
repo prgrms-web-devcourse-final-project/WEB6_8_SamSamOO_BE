@@ -19,7 +19,7 @@ public class ExtractionDto {
     @AllArgsConstructor
     @NoArgsConstructor
     public static class KeywordExtractionDto {
-        private List<String> keyword;
+        private String keyword;
     }
 
 }
