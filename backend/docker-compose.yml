@@ -82,3 +82,4 @@ volumes:
   mysql-data:
   redis-data:
   qdrant-data:
+  ollama-data:
