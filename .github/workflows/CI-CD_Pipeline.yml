@@ -87,14 +87,7 @@ jobs:
           test -s .env || { echo ".env is empty"; exit 1; }
 
       - name: Run unit, and domain tests
-        run: |
-          # 1️⃣ .env export
-          set -a
-          source .env
-          set +a
-
-          # 2️⃣ Gradle 테스트 실행
-          ${{ matrix.gradle_cmd }} clean test
+        run: ${{ matrix.gradle_cmd }} clean test
         working-directory: backend
 
       - name: Upload Test Reports
