@@ -4,8 +4,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
 public class ExtractionDto {
 
     @Data
@@ -19,7 +17,7 @@ public class ExtractionDto {
     @AllArgsConstructor
     @NoArgsConstructor
     public static class KeywordExtractionDto {
-        private List<String> keyword;
+        private String keyword;
     }
 
 }
