@@ -6,7 +6,7 @@ spring:
     driver-class-name: ${DEV_DATASOURCE_DRIVER}
 
   datasource-meta:
-    jdbc-url: jdbc:mysql://localhost:3306/meta_db?useSSL=false&useUnicode=true&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
+    url: jdbc:mysql://localhost:3306/meta_db?useSSL=false&useUnicode=true&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
     username: root
     password: balaw
     driver-class-name: com.mysql.cj.jdbc.Driver
