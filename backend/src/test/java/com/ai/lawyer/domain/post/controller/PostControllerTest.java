@@ -145,4 +145,26 @@ class PostControllerTest {
                         .cookie(new Cookie("accessToken", "valid-access-token")))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    @DisplayName("게시글 페이징 API")
+    void t7() throws Exception {
+        java.util.List<com.ai.lawyer.domain.post.dto.PostDto> postList = java.util.List.of(
+            com.ai.lawyer.domain.post.dto.PostDto.builder().postId(1L).postName("테스트 제목").build()
+        );
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        org.springframework.data.domain.PageImpl<com.ai.lawyer.domain.post.dto.PostDto> page = new org.springframework.data.domain.PageImpl<>(postList, pageable, 1);
+        Mockito.when(postService.getPostsPaged(Mockito.any(org.springframework.data.domain.Pageable.class))).thenReturn(page);
+
+        mockMvc.perform(get("/api/posts/paged")
+                .param("page", "0")
+                .param("size", "10")
+                .cookie(new Cookie("accessToken", "valid-access-token")))
+            .andExpect(status().isOk())
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result.content").isArray())
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result.page").value(0))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result.size").value(10))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result.totalPages").value(1))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result.totalElements").value(1));
+    }
 }
