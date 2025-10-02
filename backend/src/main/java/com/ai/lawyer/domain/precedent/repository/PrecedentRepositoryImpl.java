@@ -38,6 +38,19 @@ public class PrecedentRepositoryImpl implements PrecedentRepositoryCustom{
                     .or(precedent.getCaseNumber().like(pattern));
         }
 
+        // 선고일자 범위 조건
+        if (requestDto.getSentencingDateStart() != null &&
+                requestDto.getSentencingDateEnd() != null) {
+            builder.and(precedent.getSentencingDate().between(
+                    requestDto.getSentencingDateStart(),
+                    requestDto.getSentencingDateEnd()));
+        } else if (requestDto.getSentencingDateStart() != null) {
+            builder.and(precedent.getSentencingDate().goe(requestDto.getSentencingDateStart()));
+        } else if (requestDto.getSentencingDateEnd() != null) {
+            builder.and(precedent.getSentencingDate().loe(requestDto.getSentencingDateEnd()));
+        }
+
+
         // 페이징 및 정렬 설정
         Pageable pageable = PageRequest.of(
                 requestDto.getPageNumber(),

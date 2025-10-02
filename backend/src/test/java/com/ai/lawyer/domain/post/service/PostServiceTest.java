@@ -127,4 +127,18 @@ class PostServiceTest {
         postService.patchUpdatePost(1L, updateDto);
         Mockito.verify(postService).patchUpdatePost(1L, updateDto);
     }
+
+    @Test
+    @DisplayName("게시글 페이징 조회")
+    void t12() {
+        java.util.List<PostDto> postList = java.util.List.of(new PostDto());
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        org.springframework.data.domain.PageImpl<PostDto> page = new org.springframework.data.domain.PageImpl<>(postList, pageable, 1);
+        Mockito.when(postService.getPostsPaged(pageable)).thenReturn(page);
+
+        var result = postService.getPostsPaged(pageable);
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        assertThat(result.getTotalPages()).isEqualTo(1);
+    }
 }

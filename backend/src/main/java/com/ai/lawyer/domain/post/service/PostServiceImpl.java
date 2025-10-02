@@ -19,6 +19,8 @@ import com.ai.lawyer.domain.poll.repository.PollOptionsRepository;
 import com.ai.lawyer.domain.poll.entity.PollOptions;
 import com.ai.lawyer.domain.poll.repository.PollVoteRepository;
 import com.ai.lawyer.domain.poll.service.PollService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -245,6 +247,11 @@ public class PostServiceImpl implements PostService {
                     .build();
             })
             .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<PostDto> getPostsPaged(Pageable pageable) {
+        return postRepository.findAll(pageable).map(this::convertToDto);
     }
 
     private PostDto convertToDto(Post entity) {

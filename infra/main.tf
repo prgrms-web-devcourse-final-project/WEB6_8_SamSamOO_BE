@@ -134,6 +134,47 @@ resource "aws_security_group" "sg_1" {
   }
 }
 
+#S3 버킷 생성
+resource "aws_s3_bucket" "s3_bucket_1" {
+  bucket = "${var.prefix}-s3-bucket-1"
+
+  force_destroy = true  # 버킷 안에 객체가 있어도 삭제 가능
+
+  tags = {
+    Name = "${var.prefix}-s3-bucket-1"
+  }
+}
+
+#S3 암호화방식 설정(SSE-S3 방식)
+resource "aws_s3_bucket_server_side_encryption_configuration" "s3_encryption" {
+  bucket = aws_s3_bucket.s3_bucket_1.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+# SQL 파일을 S3에 업로드
+resource "aws_s3_object" "init_data_sql" {
+  bucket = aws_s3_bucket.s3_bucket_1.bucket
+  key    = "init.sql"
+  source = "${path.module}/init/sql/init.sql"
+}
+
+resource "aws_s3_object" "law_data_sql" {
+  bucket = aws_s3_bucket.s3_bucket_1.bucket
+  key    = "lawData-dev.sql"
+  source = "${path.module}/init/sql/dev/lawData-dev.sql"
+}
+
+resource "aws_s3_object" "precedent_data_sql" {
+  bucket = aws_s3_bucket.s3_bucket_1.bucket
+  key    = "precedentData-dev.sql"
+  source = "${path.module}/init/sql/dev/precedentData-dev.sql"
+}
+
 # EC2 설정 시작
 
 # EC2 역할 생성
@@ -237,15 +278,41 @@ docker run -d \
   -e TZ=Asia/Seoul \
   redis --requirepass ${var.password_1}
 
+
+# SQL 폴더 생성
+mkdir -p /home/ec2-user/app/init/sql/dev
+
+# S3에서 SQL 파일 다운로드
+aws s3 cp s3://${var.prefix}-s3-bucket-1/init.sql /home/ec2-user/app/init/sql/init.sql
+aws s3 cp s3://${var.prefix}-s3-bucket-1/lawData-dev.sql /home/ec2-user/app/init/sql/dev/lawData-dev.sql
+aws s3 cp s3://${var.prefix}-s3-bucket-1/precedentData-dev.sql /home/ec2-user/app/init/sql/dev/precedentData-dev.sql
+
+# MySQL 설정 폴더 생성 및 UTF8 설정
+mkdir -p /dockerProjects/mysql/volumes/etc/mysql/conf.d
+
+cat <<EOF > /dockerProjects/mysql/volumes/etc/mysql/conf.d/charset.cnf
+[mysqld]
+character-set-server = utf8mb4
+collation-server = utf8mb4_general_ci
+
+[client]
+default-character-set = utf8mb4
+
+[mysql]
+default-character-set = utf8mb4
+EOF
+
 # mysql 설치
 docker run -d \
   --name mysql \
   --restart unless-stopped \
   -v /dockerProjects/mysql/volumes/var/lib/mysql:/var/lib/mysql \
   -v /dockerProjects/mysql/volumes/etc/mysql/conf.d:/etc/mysql/conf.d \
+  -v /home/ec2-user/app/init/sql:/docker-entrypoint-initdb.d \
   --network common \
   -p 3306:3306 \
   -e MYSQL_ROOT_PASSWORD=${var.password_1} \
+  -e MYSQL_DATABASE=${var.app_1_db_name} \
   -e TZ=Asia/Seoul \
   mysql:latest
 
@@ -258,18 +325,18 @@ done
 echo "MySQL이 준비됨. 초기화 스크립트 실행 중..."
 
 docker exec mysql mysql -uroot -p${var.password_1} -e "
-CREATE USER 'lldjlocal'@'127.0.0.1' IDENTIFIED WITH caching_sha2_password BY '1234';
-CREATE USER 'lldjlocal'@'172.18.%.%' IDENTIFIED WITH caching_sha2_password BY '1234';
-CREATE USER 'lldj'@'%' IDENTIFIED WITH caching_sha2_password BY '${var.password_1}';
+    CREATE USER 'lldjlocal'@'127.0.0.1' IDENTIFIED WITH caching_sha2_password BY '1234';
+    CREATE USER 'lldjlocal'@'172.18.%.%' IDENTIFIED WITH caching_sha2_password BY '1234';
+    CREATE USER 'lldj'@'%' IDENTIFIED WITH caching_sha2_password BY '${var.password_1}';
 
-GRANT ALL PRIVILEGES ON *.* TO 'lldjlocal'@'127.0.0.1';
-GRANT ALL PRIVILEGES ON *.* TO 'lldjlocal'@'172.18.%.%';
-GRANT ALL PRIVILEGES ON *.* TO 'lldj'@'%';
+    GRANT ALL PRIVILEGES ON *.* TO 'lldjlocal'@'127.0.0.1';
+    GRANT ALL PRIVILEGES ON *.* TO 'lldjlocal'@'172.18.%.%';
+    GRANT ALL PRIVILEGES ON *.* TO 'lldj'@'%';
 
-CREATE DATABASE \`${var.app_1_db_name}\`;
-
-FLUSH PRIVILEGES;
+    FLUSH PRIVILEGES;
 "
+docker exec -i mysql mysql -uroot -p${var.password_1} ${var.app_1_db_name} < /home/ec2-user/app/init/sql/dev/lawData-dev.sql
+docker exec -i mysql mysql -uroot -p${var.password_1} ${var.app_1_db_name} < /home/ec2-user/app/init/sql/dev/precedentData-dev.sql
 
 # Qdrant 설치
 docker run -d \
@@ -349,4 +416,20 @@ resource "aws_instance" "ec2_1" {
   user_data = <<-EOF
 ${local.ec2_user_data_base}
 EOF
+}
+
+# Elastic IP 생성
+resource "aws_eip" "eip_1" {
+  domain = "vpc"
+
+  tags = {
+    Name = "${var.prefix}-eip-1"
+  }
+
+}
+
+# Elastic IP와 EC2 인스턴스 연결
+resource "aws_eip_association" "eip_assoc" {
+  instance_id   = aws_instance.ec2_1.id
+  allocation_id = aws_eip.eip_1.id
 }
