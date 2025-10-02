@@ -3,6 +3,7 @@ package com.ai.lawyer.domain.member.service;
 import com.ai.lawyer.domain.member.dto.*;
 import com.ai.lawyer.domain.member.entity.Member;
 import com.ai.lawyer.domain.member.repositories.MemberRepository;
+import com.ai.lawyer.domain.member.repositories.OAuth2MemberRepository;
 import com.ai.lawyer.global.jwt.CookieUtil;
 import com.ai.lawyer.global.jwt.TokenProvider;
 import com.ai.lawyer.global.email.service.EmailService;
@@ -12,7 +13,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -35,6 +35,9 @@ class MemberServiceTest {
     private MemberRepository memberRepository;
 
     @Mock
+    private OAuth2MemberRepository oauth2MemberRepository;
+
+    @Mock
     private PasswordEncoder passwordEncoder;
 
     @Mock
@@ -52,7 +55,6 @@ class MemberServiceTest {
     @Mock
     private HttpServletResponse response;
 
-    @InjectMocks
     private MemberService memberService;
 
     private MemberSignupRequest signupRequest;
@@ -64,6 +66,17 @@ class MemberServiceTest {
 
     @BeforeEach
     void setUp() {
+        // MemberService 생성
+        memberService = new MemberService(
+                memberRepository,
+                passwordEncoder,
+                tokenProvider,
+                cookieUtil,
+                emailService,
+                emailAuthService
+        );
+        memberService.setOauth2MemberRepository(oauth2MemberRepository);
+
         signupRequest = MemberSignupRequest.builder()
                 .loginId("test@example.com")
                 .password("password123")
@@ -91,37 +104,22 @@ class MemberServiceTest {
     @Test
     @DisplayName("회원가입 성공")
     void signup_Success() {
-        // given
-        log.info("=== 회원가입 성공 테스트 시작 ===");
-        log.info("테스트 데이터: 이메일={}", signupRequest.getLoginId());
-
         given(memberRepository.existsByLoginId(signupRequest.getLoginId())).willReturn(false);
         given(passwordEncoder.encode(signupRequest.getPassword())).willReturn("encodedPassword");
         given(memberRepository.save(any(Member.class))).willReturn(member);
-        log.info("Mock 설정 완료: 이메일 중복 없음, 닉네임 중복 없음, 비밀번호 인코딩 성공");
 
-        // when
-        log.info("회원가입 서비스 호출 중...");
         MemberResponse result = memberService.signup(signupRequest, response);
-        log.info("회원가입 완료: memberId={}", result.getMemberId());
 
-        // then
-        log.info("검증 시작: 반환된 회원 정보 확인");
-        assertThat(result).as("회원가입 결과가 null이 아님").isNotNull();
-        assertThat(result.getLoginId()).as("로그인 ID 일치").isEqualTo("test@example.com");
-        assertThat(result.getAge()).as("나이 일치").isEqualTo(25);
-        assertThat(result.getGender()).as("성별 일치").isEqualTo(Member.Gender.MALE);
-        assertThat(result.getName()).as("이름 일치").isEqualTo("테스트");
-        assertThat(result.getRole()).as("기본 역할이 USER로 설정됨").isEqualTo(Member.Role.USER);
-        log.info("회원 정보 검증 완료");
+        assertThat(result).isNotNull();
+        assertThat(result.getLoginId()).isEqualTo("test@example.com");
+        assertThat(result.getAge()).isEqualTo(25);
+        assertThat(result.getGender()).isEqualTo(Member.Gender.MALE);
+        assertThat(result.getName()).isEqualTo("테스트");
+        assertThat(result.getRole()).isEqualTo(Member.Role.USER);
 
-        log.info(MOCK_VERIFICATION_START_LOG);
         verify(memberRepository).existsByLoginId(signupRequest.getLoginId());
         verify(passwordEncoder).encode(signupRequest.getPassword());
-        log.info("비밀번호 인코딩 호출 확인");
         verify(memberRepository).save(any(Member.class));
-        log.info("회원 저장 호출 확인");
-        log.info("=== 회원가입 성공 테스트 완료 ===");
     }
 
     @Test

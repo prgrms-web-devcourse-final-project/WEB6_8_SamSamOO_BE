@@ -6,8 +6,6 @@ import com.ai.lawyer.domain.member.service.MemberService;
 import com.ai.lawyer.domain.member.exception.MemberAuthenticationException;
 import com.ai.lawyer.domain.member.exception.MemberExceptionHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -46,9 +44,6 @@ class MemberControllerTest {
 
     @Mock
     private MemberService memberService;
-
-    @Mock
-    private HttpServletRequest request;
 
     @Mock
     private HttpServletResponse response;
@@ -247,56 +242,51 @@ class MemberControllerTest {
     }
 
     @Test
-    @DisplayName("토큰 재발급 성공 - 쿠키에서 Refresh Token 추출하여 Redis 검증")
+    @DisplayName("토큰 재발급 성공 - Authentication 기반")
     void refreshToken_Success() {
         // given
-        Cookie[] cookies = {new Cookie("refreshToken", "validRefreshToken")};
-        given(request.getCookies()).willReturn(cookies);
-        given(memberService.refreshToken(eq("validRefreshToken"), eq(response)))
-                .willReturn(memberResponse);
+        Long memberId = 1L;
+        Authentication testAuth = new UsernamePasswordAuthenticationToken(
+                memberId,
+                null,
+                List.of(new SimpleGrantedAuthority("ROLE_USER"))
+        );
+        given(memberService.getMemberById(memberId)).willReturn(memberResponse);
 
         // when
-        ResponseEntity<MemberResponse> result = memberController.refreshToken(request, response);
+        ResponseEntity<MemberResponse> result = memberController.refreshToken(testAuth);
 
         // then
         assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(result.getBody()).isEqualTo(memberResponse);
-
-        // 쿠키에서 refreshToken이 정상적으로 추출되어 서비스에 전달되는지 검증
-        verify(memberService).refreshToken(eq("validRefreshToken"), eq(response));
+        verify(memberService).getMemberById(memberId);
     }
 
     @Test
-    @DisplayName("토큰 재발급 실패 - 리프레시 토큰 없음")
-    void refreshToken_Fail_NoRefreshToken() {
-        // given
-        given(request.getCookies()).willReturn(null);
-
-        // when & then - 예외가 발생해야 함
-        try {
-            memberController.refreshToken(request, response);
-        } catch (MemberAuthenticationException e) {
-            assertThat(e.getMessage()).isEqualTo("리프레시 토큰이 없습니다.");
-        }
-
-        verify(memberService, never()).refreshToken(anyString(), any());
-    }
-
-    @Test
-    @DisplayName("토큰 재발급 실패 - 유효하지 않은 토큰")
-    void refreshToken_Fail_InvalidToken() {
-        // given
-        Cookie[] cookies = {new Cookie("refreshToken", "invalidRefreshToken")};
-        given(request.getCookies()).willReturn(cookies);
-        given(memberService.refreshToken(eq("invalidRefreshToken"), eq(response)))
-                .willThrow(new IllegalArgumentException("유효하지 않은 리프레시 토큰입니다."));
+    @DisplayName("토큰 재발급 실패 - 인증 정보 없음")
+    void refreshToken_Fail_NoAuthentication() {
+        // given - authentication이 null인 경우
 
         // when & then
-        assertThatThrownBy(() -> memberController.refreshToken(request, response))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("유효하지 않은 리프레시 토큰입니다.");
+        assertThatThrownBy(() -> memberController.refreshToken(null))
+                .isInstanceOf(MemberAuthenticationException.class)
+                .hasMessage("인증이 필요합니다.");
+    }
 
-        verify(memberService).refreshToken(eq("invalidRefreshToken"), eq(response));
+    @Test
+    @DisplayName("토큰 재발급 실패 - Principal 없음")
+    void refreshToken_Fail_NoPrincipal() {
+        // given
+        Authentication testAuth = new UsernamePasswordAuthenticationToken(
+                null,
+                null,
+                List.of(new SimpleGrantedAuthority("ROLE_USER"))
+        );
+
+        // when & then
+        assertThatThrownBy(() -> memberController.refreshToken(testAuth))
+                .isInstanceOf(MemberAuthenticationException.class)
+                .hasMessage("인증이 필요합니다.");
     }
 
     @Test
