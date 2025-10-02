@@ -13,12 +13,13 @@ public class EmailAuthService {
 
     private final RedisTemplate<String, Object> redisTemplate;
     private static final long EXPIRATION_MINUTES = 5; // 인증번호 유효시간 (5분)
+    private static final Random RANDOM = new Random(); // Random 인스턴스 재사용
 
     /**
      * 인증번호 생성 후 Redis에 저장
      */
     public String generateAndSaveAuthCode(String loginId) {
-        String code = String.format("%06d", new Random().nextInt(999999)); // 6자리 랜덤 숫자
+        String code = String.format("%06d", RANDOM.nextInt(999999)); // 6자리 랜덤 숫자
         redisTemplate.opsForValue().set(buildKey(loginId), code, EXPIRATION_MINUTES, TimeUnit.MINUTES);
         return code;
     }
