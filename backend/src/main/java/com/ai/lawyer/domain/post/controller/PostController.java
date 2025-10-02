@@ -177,6 +177,9 @@ public class PostController {
     ) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<PostDto> posts = postService.getPostsPaged(pageable);
+        if (posts == null) {
+            posts = new org.springframework.data.domain.PageImpl<>(java.util.Collections.emptyList(), pageable, 0);
+        }
         PostPageDTO response = new PostPageDTO(posts);
         return ResponseEntity.ok(new ApiResponse<>(200, "페이징 게시글 조회 성공", response));
     }
