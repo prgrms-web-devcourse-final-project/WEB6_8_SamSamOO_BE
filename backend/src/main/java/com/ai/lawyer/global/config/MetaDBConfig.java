@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Profile;
 
 import javax.sql.DataSource;
 
-@Profile("!test")
+@Profile("!test & !test-ci")
 @Configuration
 public class MetaDBConfig {
 
