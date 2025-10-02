@@ -16,30 +16,29 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 
 @Tag(name = "Post API", description = "게시글 관련 API")
 @RestController
 @RequestMapping("/api/posts")
+@RequiredArgsConstructor
 public class PostController {
 
     private final PostService postService;
     private final MemberRepository memberRepository;
     private final TokenProvider tokenProvider;
-
-    @Autowired
-    public PostController(PostService postService, MemberRepository memberRepository, TokenProvider tokenProvider) {
-        this.postService = postService;
-        this.memberRepository = memberRepository;
-        this.tokenProvider = tokenProvider;
-    }
 
     @Operation(summary = "게시글 등록")
     @PostMapping
@@ -173,5 +172,16 @@ public class PostController {
         }
         PostDetailDto result = postService.createPostWithPoll(dto, memberId);
         return ResponseEntity.ok(new ApiResponse<>(200, "게시글+투표 등록 완료", result));
+    }
+
+    @Operation(summary = "게시글 페이징 조회")
+    @GetMapping("/paged")
+    public ResponseEntity<ApiResponse<Page<PostDto>>> getPostsPaged(
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "10") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<PostDto> posts = postService.getPostsPaged(pageable);
+        return ResponseEntity.ok(new ApiResponse<>(200, "페이징 게시글 조회 성공", posts));
     }
 }
