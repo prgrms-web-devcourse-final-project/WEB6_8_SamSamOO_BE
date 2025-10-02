@@ -25,6 +25,8 @@ public class MetaDBConfig {
     @Value("${spring.datasource-meta.driver-class-name}")
     private String driver;
 
+
+
     @Bean
     @BatchDataSource
     public DataSource metaDBSource() {
