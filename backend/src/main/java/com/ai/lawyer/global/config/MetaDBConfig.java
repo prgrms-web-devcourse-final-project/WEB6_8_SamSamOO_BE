@@ -17,7 +17,6 @@ public class MetaDBConfig {
     @Bean
     @BatchDataSource
     @ConfigurationProperties(prefix = "spring.datasource-meta")
-    @ConditionalOnProperty(name = "meta.datasource.enabled", havingValue = "true", matchIfMissing = true)
     public DataSource metaDBSource() {
         return DataSourceBuilder.create().build();
     }
