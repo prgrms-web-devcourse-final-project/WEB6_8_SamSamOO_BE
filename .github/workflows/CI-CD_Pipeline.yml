@@ -232,7 +232,7 @@ jobs:
             
             echo "===== 새로운 컨테이너 실행 ====="
             docker run --env-file /home/ec2-user/configs/prod.env \
-              -e SPRING_PROFILES_ACTIVE=prod \ 
+              -e SPRING_PROFILES_ACTIVE=prod \
               -d --name app \
               --network common \
               -p 8080:8080 \
