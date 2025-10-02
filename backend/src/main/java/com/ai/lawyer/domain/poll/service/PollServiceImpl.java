@@ -102,11 +102,11 @@ public class PollServiceImpl implements PollService {
             autoCloseIfNeeded(poll);
         }
         List<PollDto> pollDtos = polls.stream()
-            .filter(p -> p.getStatus().name().equals(status.name()))
-            .map(p -> status == PollDto.PollStatus.CLOSED
-                ? getPollWithStatistics(p.getPollId())
-                : convertToDto(p))
-            .toList();
+                .filter(p -> p.getStatus().name().equals(status.name()))
+                .map(p -> status == PollDto.PollStatus.CLOSED
+                        ? getPollWithStatistics(p.getPollId())
+                        : convertToDto(p))
+                .toList();
         return pollDtos;
     }
 
@@ -170,20 +170,20 @@ public class PollServiceImpl implements PollService {
             if (opt == null) continue;
             Long pollItemsId = opt.getPollItemsId();
             PollAgeStaticsDto.AgeGroupCountDto dto = PollAgeStaticsDto.AgeGroupCountDto.builder()
-                .option(option)
-                .ageGroup(arr[1] != null ? arr[1].toString() : null)
-                .voteCount(arr[2] != null ? ((Number)arr[2]).longValue() : 0L)
-                .build();
+                    .option(option)
+                    .ageGroup(arr[1] != null ? arr[1].toString() : null)
+                    .voteCount(arr[2] != null ? ((Number)arr[2]).longValue() : 0L)
+                    .build();
             ageGroupMap.computeIfAbsent(pollItemsId, k -> new java.util.ArrayList<>()).add(dto);
         }
         java.util.List<PollAgeStaticsDto> optionAgeStatics = new java.util.ArrayList<>();
         for (int i = 0; i < options.size(); i++) {
             PollOptions opt = options.get(i);
             optionAgeStatics.add(PollAgeStaticsDto.builder()
-                .pollItemsId(opt.getPollItemsId())
-                .pollOptionIndex(i + 1)
-                .ageGroupCounts(ageGroupMap.getOrDefault(opt.getPollItemsId(), java.util.Collections.emptyList()))
-                .build());
+                    .pollItemsId(opt.getPollItemsId())
+                    .pollOptionIndex(i + 1)
+                    .ageGroupCounts(ageGroupMap.getOrDefault(opt.getPollItemsId(), java.util.Collections.emptyList()))
+                    .build());
         }
         // gender 통계 그룹핑
         List<Object[]> optionGenderRaw = pollVoteRepository.getOptionGenderStatics(pollId);
@@ -194,27 +194,27 @@ public class PollServiceImpl implements PollService {
             if (opt == null) continue;
             Long pollItemsId = opt.getPollItemsId();
             PollGenderStaticsDto.GenderCountDto dto = PollGenderStaticsDto.GenderCountDto.builder()
-                .option(option)
-                .gender(arr[1] != null ? arr[1].toString() : null)
-                .voteCount(arr[2] != null ? ((Number)arr[2]).longValue() : 0L)
-                .build();
+                    .option(option)
+                    .gender(arr[1] != null ? arr[1].toString() : null)
+                    .voteCount(arr[2] != null ? ((Number)arr[2]).longValue() : 0L)
+                    .build();
             genderGroupMap.computeIfAbsent(pollItemsId, k -> new java.util.ArrayList<>()).add(dto);
         }
         java.util.List<PollGenderStaticsDto> optionGenderStatics = new java.util.ArrayList<>();
         for (int i = 0; i < options.size(); i++) {
             PollOptions opt = options.get(i);
             optionGenderStatics.add(PollGenderStaticsDto.builder()
-                .pollItemsId(opt.getPollItemsId())
-                .pollOptionIndex(i + 1)
-                .genderCounts(genderGroupMap.getOrDefault(opt.getPollItemsId(), java.util.Collections.emptyList()))
-                .build());
+                    .pollItemsId(opt.getPollItemsId())
+                    .pollOptionIndex(i + 1)
+                    .genderCounts(genderGroupMap.getOrDefault(opt.getPollItemsId(), java.util.Collections.emptyList()))
+                    .build());
         }
         return PollStaticsResponseDto.builder()
-            .postId(postId)
-            .pollId(pollId)
-            .optionAgeStatics(optionAgeStatics)
-            .optionGenderStatics(optionGenderStatics)
-            .build();
+                .postId(postId)
+                .pollId(pollId)
+                .optionAgeStatics(optionAgeStatics)
+                .optionGenderStatics(optionGenderStatics)
+                .build();
     }
 
     // 최대 7일 동안 투표 가능 (초기 요구사항)
@@ -252,15 +252,15 @@ public class PollServiceImpl implements PollService {
         if (result.isEmpty()) {
             // 종료된 투표가 없으면 빈 PollDto 반환
             return PollDto.builder()
-                .pollId(null)
-                .postId(null)
-                .voteTitle(null)
-                .status(status)
-                .createdAt(null)
-                .closedAt(null)
-                .pollOptions(java.util.Collections.emptyList())
-                .totalVoteCount(0L)
-                .build();
+                    .pollId(null)
+                    .postId(null)
+                    .voteTitle(null)
+                    .status(status)
+                    .createdAt(null)
+                    .closedAt(null)
+                    .pollOptions(java.util.Collections.emptyList())
+                    .totalVoteCount(0L)
+                    .build();
         }
         Long pollId = (Long) result.get(0)[0];
         return getPoll(pollId);
@@ -270,13 +270,13 @@ public class PollServiceImpl implements PollService {
     public List<PollDto> getTopNPollsByStatus(PollDto.PollStatus status, int n) {
         Pageable pageable = org.springframework.data.domain.PageRequest.of(0, n);
         List<Object[]> result = pollVoteRepository.findTopNPollByStatus(
-            com.ai.lawyer.domain.poll.entity.Poll.PollStatus.valueOf(status.name()), pageable);
+                com.ai.lawyer.domain.poll.entity.Poll.PollStatus.valueOf(status.name()), pageable);
         List<PollDto> pollDtos = new java.util.ArrayList<>();
         for (Object[] row : result) {
             Long pollId = (Long) row[0];
             pollDtos.add(status == PollDto.PollStatus.CLOSED
-                ? getPollWithStatistics(pollId)
-                : getPoll(pollId));
+                    ? getPollWithStatistics(pollId)
+                    : getPoll(pollId));
         }
         return pollDtos;
     }
@@ -323,17 +323,17 @@ public class PollServiceImpl implements PollService {
                 if (optionDto.getPollItemsId() != null) {
                     // update
                     PollOptions option = existingOptions.stream()
-                        .filter(o -> o.getPollItemsId().equals(optionDto.getPollItemsId()))
-                        .findFirst().orElse(null);
+                            .filter(o -> o.getPollItemsId().equals(optionDto.getPollItemsId()))
+                            .findFirst().orElse(null);
                     if (option != null) {
                         option.setOption(optionDto.getContent());
                         pollOptionsRepository.save(option);
                     }
                 } else {
                     PollOptions newOption = PollOptions.builder()
-                        .poll(poll)
-                        .option(optionDto.getContent())
-                        .build();
+                            .poll(poll)
+                            .option(optionDto.getContent())
+                            .build();
                     pollOptionsRepository.save(newOption);
                 }
             }
@@ -381,17 +381,17 @@ public class PollServiceImpl implements PollService {
             for (var optionDto : pollUpdateDto.getPollOptions()) {
                 if (optionDto.getPollItemsId() != null) {
                     PollOptions option = existingOptions.stream()
-                        .filter(o -> o.getPollItemsId().equals(optionDto.getPollItemsId()))
-                        .findFirst().orElse(null);
+                            .filter(o -> o.getPollItemsId().equals(optionDto.getPollItemsId()))
+                            .findFirst().orElse(null);
                     if (option != null) {
                         option.setOption(optionDto.getContent());
                         pollOptionsRepository.save(option);
                     }
                 } else {
                     PollOptions newOption = PollOptions.builder()
-                        .poll(poll)
-                        .option(optionDto.getContent())
-                        .build();
+                            .poll(poll)
+                            .option(optionDto.getContent())
+                            .build();
                     pollOptionsRepository.save(newOption);
                 }
             }
@@ -428,25 +428,25 @@ public class PollServiceImpl implements PollService {
                 PollOptions option = options.get(i);
                 Long voteCount = pollVoteRepository.countByPollOptionId(option.getPollItemsId());
                 List<PollStaticsDto> statics = staticsRaw.stream()
-                    .filter(arr -> ((Long)arr[0]).equals(option.getPollItemsId()))
-                    .map(arr -> {
-                        String gender = arr[1] != null ? arr[1].toString() : null;
-                        Integer age = arr[2] != null ? ((Number)arr[2]).intValue() : null;
-                        String ageGroup = getAgeGroup(age);
-                        return PollStaticsDto.builder()
-                            .gender(gender)
-                            .ageGroup(ageGroup)
-                            .voteCount((Long)arr[3])
-                            .build();
-                    })
-                    .toList();
+                        .filter(arr -> ((Long)arr[0]).equals(option.getPollItemsId()))
+                        .map(arr -> {
+                            String gender = arr[1] != null ? arr[1].toString() : null;
+                            Integer age = arr[2] != null ? ((Number)arr[2]).intValue() : null;
+                            String ageGroup = getAgeGroup(age);
+                            return PollStaticsDto.builder()
+                                    .gender(gender)
+                                    .ageGroup(ageGroup)
+                                    .voteCount((Long)arr[3])
+                                    .build();
+                        })
+                        .toList();
                 optionDtos.add(PollOptionDto.builder()
-                    .pollItemsId(option.getPollItemsId())
-                    .content(option.getOption())
-                    .voteCount(voteCount)
-                    .statics(statics)
-                    .pollOptionIndex(i + 1)
-                    .build());
+                        .pollItemsId(option.getPollItemsId())
+                        .content(option.getOption())
+                        .voteCount(voteCount)
+                        .statics(statics)
+                        .pollOptionIndex(i + 1)
+                        .build());
             }
         } else {
             optionDtos = new ArrayList<>();
@@ -454,24 +454,24 @@ public class PollServiceImpl implements PollService {
                 PollOptions option = options.get(i);
                 Long voteCount = pollVoteRepository.countByPollOptionId(option.getPollItemsId());
                 optionDtos.add(PollOptionDto.builder()
-                    .pollItemsId(option.getPollItemsId())
-                    .content(option.getOption())
-                    .voteCount(voteCount)
-                    .statics(null)
-                    .pollOptionIndex(i + 1)
-                    .build());
+                        .pollItemsId(option.getPollItemsId())
+                        .content(option.getOption())
+                        .voteCount(voteCount)
+                        .statics(null)
+                        .pollOptionIndex(i + 1)
+                        .build());
             }
         }
         return PollDto.builder()
-            .pollId(poll.getPollId())
-            .postId(poll.getPost() != null ? poll.getPost().getPostId() : null)
-            .voteTitle(poll.getVoteTitle())
-            .status(PollDto.PollStatus.valueOf(poll.getStatus().name()))
-            .createdAt(poll.getCreatedAt())
-            .closedAt(poll.getClosedAt())
-            .pollOptions(optionDtos)
-            .totalVoteCount(totalVoteCount)
-            .build();
+                .pollId(poll.getPollId())
+                .postId(poll.getPost() != null ? poll.getPost().getPostId() : null)
+                .voteTitle(poll.getVoteTitle())
+                .status(PollDto.PollStatus.valueOf(poll.getStatus().name()))
+                .createdAt(poll.getCreatedAt())
+                .closedAt(poll.getClosedAt())
+                .pollOptions(optionDtos)
+                .totalVoteCount(totalVoteCount)
+                .build();
     }
 
     private PollDto convertToDto(Poll poll) {
@@ -482,12 +482,12 @@ public class PollServiceImpl implements PollService {
             PollOptions option = options.get(i);
             Long voteCount = pollVoteRepository.countByPollOptionId(option.getPollItemsId());
             optionDtos.add(PollOptionDto.builder()
-                .pollItemsId(option.getPollItemsId())
-                .content(option.getOption())
-                .voteCount(voteCount)
-                .statics(null)
-                .pollOptionIndex(i + 1)
-                .build());
+                    .pollItemsId(option.getPollItemsId())
+                    .content(option.getOption())
+                    .voteCount(voteCount)
+                    .statics(null)
+                    .pollOptionIndex(i + 1)
+                    .build());
         }
         LocalDateTime expectedCloseAt = poll.getReservedCloseAt() != null ? poll.getReservedCloseAt() : poll.getCreatedAt().plusDays(7);
         return PollDto.builder()

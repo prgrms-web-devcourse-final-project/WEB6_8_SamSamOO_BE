@@ -84,7 +84,7 @@ public class RedisTestController {
             StringBuilder info = new StringBuilder();
             String tokenKey = "tokens:" + loginId;
 
-            // Hash에서 토큰 정보 조회
+            // hash 토큰 정보 조회
             String accessToken = (String) redisTemplate.opsForHash().get(tokenKey, "accessToken");
             String accessTokenExpiryStr = (String) redisTemplate.opsForHash().get(tokenKey, "accessTokenExpiry");
             Long accessTokenExpiry = accessTokenExpiryStr != null ? Long.parseLong(accessTokenExpiryStr) : null;

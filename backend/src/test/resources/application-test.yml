@@ -42,6 +42,14 @@ spring:
     redis:
       port: 6370  # 기본 포트와 충돌 방지
 
+  ai:
+    vectorstore:
+      qdrant:
+        host: localhost
+        port: 6334
+        collection-name: legal_cases
+        vector-size: 1536
+
   security:
     oauth2:
       client:
@@ -50,11 +58,13 @@ spring:
             client-id: test-kakao-client-id
             client-secret: test-kakao-client-secret
             client-name: Kakao
+            redirect-uri: http://localhost:8080/login/oauth2/code/kakao
             scope: profile_nickname, account_email
           naver:
             client-id: test-naver-client-id
             client-secret: test-naver-client-secret
             client-name: Naver
+            redirect-uri: http://localhost:8080/login/oauth2/code/naver
             scope: profile, email
         provider:
           kakao:
@@ -79,7 +89,14 @@ logging:
     com.ai.lawyer: DEBUG
 
 custom:
+  cors:
+    allowed-origins: http://localhost:3000
   jwt:
     secretKey: test-secret-key-for-local-testing-only
     accessToken:
       expirationSeconds: 3600
+  oauth2:
+    redirect-url: http://localhost:3000/oauth/callback
+    failure-url: http://localhost:3000/oauth/callback?error=true
+  frontend:
+    url: http://localhost:3000

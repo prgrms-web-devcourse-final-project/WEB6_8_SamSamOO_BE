@@ -1,6 +1,4 @@
 spring:
-  autoconfigure:
-    exclude:
   datasource:
     url: ${PROD_DATASOURCE_URL}
     driver-class-name: ${PROD_DATASOURCE_DRIVER}
@@ -29,6 +27,14 @@ spring:
       port: ${PROD_REDIS_PORT}
       password: ${PROD_REDIS_PASSWORD}
       embedded: false
+  security:
+    oauth2:
+      client:
+        registration:
+          kakao:
+            redirect-uri: ${PROD_OAUTH2_KAKAO_REDIRECT_URI:https://api.trybalaw.com/login/oauth2/code/kakao}
+          naver:
+            redirect-uri: ${PROD_OAUTH2_NAVER_REDIRECT_URI:https://api.trybalaw.com/login/oauth2/code/naver}
   ai:
     vectorstore:
       qdrant:
@@ -36,8 +42,17 @@ spring:
         port: ${PROD_QDRANT_PORT}
         collection-name: legal_cases
         vector-size: 1536
+custom:
+  cors:
+    allowed-origins: ${PROD_CORS_ALLOWED_ORIGINS}
+  oauth2:
+    redirect-url: ${PROD_OAUTH2_SUCCESS_REDIRECT_URL}
+    failure-url: ${PROD_OAUTH2_FAILURE_REDIRECT_URL}
+  frontend:
+    url: ${PROD_FRONTEND_URL}
+
 sentry:
   dsn: ${PROD_SENTRY_DSN}
-  environment: "dev"
-  release: "my-app@0.1.0-dev"
+  environment: "prod"
+  release: "my-app@0.1.0-prod"
   send-default-pii: true
