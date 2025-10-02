@@ -115,7 +115,7 @@ class TokenProviderTest {
                 .parseClaimsJws(token)
                 .getBody();
 
-        assertThat(claims.get("loginid", String.class)).as("loginId claim 일치").isEqualTo("test@example.com");
+        assertThat(claims.get("loginId", String.class)).as("loginId claim 일치").isEqualTo("test@example.com");
         assertThat(claims.get("memberId", Long.class)).as("memberId claim 일치").isEqualTo(1L);
         assertThat(claims.get("role", String.class)).as("role claim 일치").isEqualTo("USER");
         assertThat(claims.getIssuedAt()).as("발급 시간 존재").isNotNull();
