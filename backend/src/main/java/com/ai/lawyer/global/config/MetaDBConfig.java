@@ -9,8 +9,9 @@ import org.springframework.context.annotation.Profile;
 
 import javax.sql.DataSource;
 
+/*
 @Configuration
-@Profile("!test-ci")
+@Profile("!test")
 public class MetaDBConfig {
 
     @Bean
@@ -20,4 +21,4 @@ public class MetaDBConfig {
         return DataSourceBuilder.create().build();
     }
 
-}
+}*/
