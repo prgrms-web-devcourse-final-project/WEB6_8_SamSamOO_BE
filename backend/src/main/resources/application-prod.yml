@@ -1,6 +1,4 @@
 spring:
-  autoconfigure:
-    exclude:
   datasource:
     url: ${PROD_DATASOURCE_URL}
     driver-class-name: ${PROD_DATASOURCE_DRIVER}
@@ -34,9 +32,9 @@ spring:
       client:
         registration:
           kakao:
-            redirect-uri: "${PROD_URL}/login/oauth2/code/{registrationId}"
+            redirect-uri: ${PROD_OAUTH2_KAKAO_REDIRECT_URI}
           naver:
-            redirect-uri: "${PROD_URL}/login/oauth2/code/{registrationId}"
+            redirect-uri: ${PROD_OAUTH2_NAVER_REDIRECT_URI}
   ai:
     vectorstore:
       qdrant:
@@ -45,8 +43,13 @@ spring:
         collection-name: legal_cases
         vector-size: 1536
 custom:
+  cors:
+    allowed-origins: ${PROD_CORS_ALLOWED_ORIGINS}
   oauth2:
-    redirect-url: ${PROD_OAUTH2_REDIRECT_URI}
+    redirect-url: ${PROD_OAUTH2_SUCCESS_REDIRECT_URL}
+    failure-url: ${PROD_OAUTH2_FAILURE_REDIRECT_URL}
+  frontend:
+    url: ${PROD_FRONTEND_URL}
 
 sentry:
   dsn: ${PROD_SENTRY_DSN}
