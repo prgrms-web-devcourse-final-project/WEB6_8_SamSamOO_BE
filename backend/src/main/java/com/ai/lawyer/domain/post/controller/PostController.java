@@ -1,12 +1,7 @@
 package com.ai.lawyer.domain.post.controller;
 
-import com.ai.lawyer.domain.post.dto.PostDto;
-import com.ai.lawyer.domain.post.dto.PostDetailDto;
-import com.ai.lawyer.domain.post.dto.PostRequestDto;
-import com.ai.lawyer.domain.post.dto.PostUpdateDto;
-import com.ai.lawyer.domain.post.dto.PostWithPollCreateDto;
+import com.ai.lawyer.domain.post.dto.*;
 import com.ai.lawyer.domain.post.service.PostService;
-import com.ai.lawyer.domain.post.dto.PostSimpleDto;
 import com.ai.lawyer.domain.member.entity.Member;
 import com.ai.lawyer.domain.member.repositories.MemberRepository;
 import com.ai.lawyer.global.jwt.TokenProvider;
@@ -176,12 +171,13 @@ public class PostController {
 
     @Operation(summary = "게시글 페이징 조회")
     @GetMapping("/paged")
-    public ResponseEntity<ApiResponse<Page<PostDto>>> getPostsPaged(
+    public ResponseEntity<ApiResponse<PostPageDTO>> getPostsPaged(
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "10") int size
     ) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<PostDto> posts = postService.getPostsPaged(pageable);
-        return ResponseEntity.ok(new ApiResponse<>(200, "페이징 게시글 조회 성공", posts));
+        PostPageDTO response = new PostPageDTO(posts);
+        return ResponseEntity.ok(new ApiResponse<>(200, "페이징 게시글 조회 성공", response));
     }
 }
