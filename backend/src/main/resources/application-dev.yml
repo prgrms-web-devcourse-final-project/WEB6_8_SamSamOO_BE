@@ -21,9 +21,14 @@ spring:
       client:
         registration:
           kakao:
-            redirect-uri: ${DEV_OAUTH2_KAKAO_REDIRECT_URI}
+            redirect-uri: ${DEV_OAUTH2_KAKAO_REDIRECT_URI:http://localhost:8080/login/oauth2/code/kakao}
           naver:
-            redirect-uri: ${DEV_OAUTH2_NAVER_REDIRECT_URI}
+            redirect-uri: ${DEV_OAUTH2_NAVER_REDIRECT_URI:http://localhost:8080/login/oauth2/code/naver}
+  ai:
+    vectorstore:
+      qdrant:
+        host: ${DEV_QDRANT_HOST}
+        port: ${DEV_QDRANT_PORT}
 
 custom:
   cors:

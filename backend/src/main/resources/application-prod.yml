@@ -32,9 +32,9 @@ spring:
       client:
         registration:
           kakao:
-            redirect-uri: ${PROD_OAUTH2_KAKAO_REDIRECT_URI}
+            redirect-uri: ${PROD_OAUTH2_KAKAO_REDIRECT_URI:https://api.trybalaw.com/login/oauth2/code/kakao}
           naver:
-            redirect-uri: ${PROD_OAUTH2_NAVER_REDIRECT_URI}
+            redirect-uri: ${PROD_OAUTH2_NAVER_REDIRECT_URI:https://api.trybalaw.com/login/oauth2/code/naver}
   ai:
     vectorstore:
       qdrant:
