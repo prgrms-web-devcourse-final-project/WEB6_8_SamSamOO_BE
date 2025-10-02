@@ -39,10 +39,10 @@ public class MemberResponse {
     }
 
     public static MemberResponse from(MemberAdapter memberAdapter) {
-        if (memberAdapter instanceof Member) {
-            return from((Member) memberAdapter);
-        } else if (memberAdapter instanceof OAuth2Member oauth2Member) {
-            return MemberResponse.builder()
+        return switch (memberAdapter) {
+            case null -> throw new IllegalArgumentException("MemberAdapter cannot be null");
+            case Member member -> from(member);
+            case OAuth2Member oauth2Member -> MemberResponse.builder()
                     .memberId(oauth2Member.getMemberId())
                     .loginId(oauth2Member.getLoginId())
                     .email(oauth2Member.getEmail())  // OAuth2Member의 email 컬럼
@@ -53,7 +53,8 @@ public class MemberResponse {
                     .createdAt(oauth2Member.getCreatedAt())
                     .updatedAt(oauth2Member.getUpdatedAt())
                     .build();
-        }
-        throw new IllegalArgumentException("Unsupported member type");
+            default ->
+                    throw new IllegalArgumentException("Unsupported member type: " + memberAdapter.getClass().getName());
+        };
     }
 }

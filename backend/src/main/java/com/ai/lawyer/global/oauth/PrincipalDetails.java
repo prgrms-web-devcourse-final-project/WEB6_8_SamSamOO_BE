@@ -23,12 +23,6 @@ public class PrincipalDetails implements OAuth2User, UserDetails {
         this.attributes = attributes;
     }
 
-    // 일반 로그인용
-    public PrincipalDetails(MemberAdapter member) {
-        this.member = member;
-        this.attributes = null;
-    }
-
     // OAuth2User 메서드
     @Override
     public Map<String, Object> getAttributes() {
@@ -60,25 +54,5 @@ public class PrincipalDetails implements OAuth2User, UserDetails {
     @Override
     public String getUsername() {
         return member.getLoginId();
-    }
-
-    @Override
-    public boolean isAccountNonExpired() {
-        return true;
-    }
-
-    @Override
-    public boolean isAccountNonLocked() {
-        return true;
-    }
-
-    @Override
-    public boolean isCredentialsNonExpired() {
-        return true;
-    }
-
-    @Override
-    public boolean isEnabled() {
-        return true;
     }
 }

@@ -22,7 +22,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     private final TokenProvider tokenProvider;
     private final CookieUtil cookieUtil;
 
-    @Value("${custom.oauth2.redirect-url:http://localhost:3000/oauth/callback}")
+    @Value("${custom.oauth2.redirect-url:http://localhost:8080/api/auth/oauth2/callback/success}")
     private String redirectUrl;
 
     @Override
@@ -41,13 +41,12 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         // 쿠키에 토큰 설정
         cookieUtil.setTokenCookies(response, accessToken, refreshToken);
 
-        // 프론트엔드로 리다이렉트
+        // 백엔드 콜백 엔드포인트로 리다이렉트
         String targetUrl = UriComponentsBuilder.fromUriString(redirectUrl)
-                .queryParam("success", "true")
                 .build()
                 .toUriString();
 
-        log.info("OAuth2 로그인 완료, 리다이렉트: {}", targetUrl);
+        log.info("OAuth2 로그인 완료, 백엔드 콜백으로 리다이렉트: {}", targetUrl);
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }
 }

@@ -9,8 +9,25 @@ public class KakaoUserInfo implements OAuth2UserInfo {
 
     public KakaoUserInfo(Map<String, Object> attributes) {
         this.attributes = attributes;
-        this.kakaoAccount = (Map<String, Object>) attributes.get("kakao_account");
-        this.profile = kakaoAccount != null ? (Map<String, Object>) kakaoAccount.get("profile") : null;
+        this.kakaoAccount = extractMapFromAttributes(attributes, "kakao_account");
+        this.profile = extractMapFromAttributes(kakaoAccount, "profile");
+    }
+
+    private Map<String, Object> extractMapFromAttributes(Map<String, Object> source, String key) {
+        if (source == null) {
+            return null;
+        }
+        Object obj = source.get(key);
+        if (obj instanceof Map) {
+            try {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> map = (Map<String, Object>) obj;
+                return map;
+            } catch (ClassCastException e) {
+                return null;
+            }
+        }
+        return null;
     }
 
     @Override

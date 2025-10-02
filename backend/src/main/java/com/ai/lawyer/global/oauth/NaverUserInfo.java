@@ -1,14 +1,31 @@
 package com.ai.lawyer.global.oauth;
 
+import lombok.Getter;
+
 import java.util.Map;
 
 public class NaverUserInfo implements OAuth2UserInfo {
+    @Getter
     private final Map<String, Object> attributes;
     private final Map<String, Object> response;
 
     public NaverUserInfo(Map<String, Object> attributes) {
         this.attributes = attributes;
-        this.response = (Map<String, Object>) attributes.get("response");
+        this.response = extractResponseMap(attributes);
+    }
+
+    private Map<String, Object> extractResponseMap(Map<String, Object> attributes) {
+        Object responseObj = attributes.get("response");
+        if (responseObj instanceof Map) {
+            try {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> responseMap = (Map<String, Object>) responseObj;
+                return responseMap;
+            } catch (ClassCastException e) {
+                return null;
+            }
+        }
+        return null;
     }
 
     @Override
@@ -51,7 +68,4 @@ public class NaverUserInfo implements OAuth2UserInfo {
         return null;
     }
 
-    public Map<String, Object> getAttributes() {
-        return attributes;
-    }
 }

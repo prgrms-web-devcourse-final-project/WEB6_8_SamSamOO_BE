@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "oauth2_member",
         indexes = {
-                @Index(name = "idx_oauth2_member_loginid", columnList = "loginid"),
+                @Index(name = "idx_oauth2_member_login_id", columnList = "login_id"),
                 @Index(name = "idx_oauth2_member_provider", columnList = "provider, provider_id")
         })
 @Getter
@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 @ToString
-@EqualsAndHashCode(of = "memberId")
+@EqualsAndHashCode()
 public class OAuth2Member implements MemberAdapter {
 
     @Id
@@ -28,7 +28,7 @@ public class OAuth2Member implements MemberAdapter {
     @Column(name = "member_id", nullable = false)
     private Long memberId;
 
-    @Column(name = "loginid", nullable = false, unique = true, length = 100)
+    @Column(name = "login_id", nullable = false, unique = true, length = 100)
     @Email(message = "올바른 이메일 형식이 아닙니다")
     @NotBlank(message = "이메일(로그인 ID)은 필수입니다")
     private String loginId;
@@ -79,9 +79,5 @@ public class OAuth2Member implements MemberAdapter {
         KAKAO("카카오"), NAVER("네이버");
         private final String description;
         Provider(String description) { this.description = description; }
-    }
-
-    public String getProvider() {
-        return provider != null ? provider.name() : null;
     }
 }

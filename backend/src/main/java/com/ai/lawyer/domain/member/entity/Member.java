@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "member",
         indexes = {
-                @Index(name = "idx_member_loginid", columnList = "loginid")
+                @Index(name = "idx_member_login_id", columnList = "login_id")
         })
 @Getter
 @Setter
@@ -27,7 +27,7 @@ public class Member implements MemberAdapter {
     @Column(name = "member_id", nullable = false)
     private Long memberId;
 
-    @Column(name = "loginid", nullable = false, unique = true, length = 100)
+    @Column(name = "login_id", nullable = false, unique = true, length = 100)
     @Email(message = "올바른 이메일 형식이 아닙니다")
     @NotBlank(message = "이메일(로그인 ID)은 필수입니다")
     private String loginId;
