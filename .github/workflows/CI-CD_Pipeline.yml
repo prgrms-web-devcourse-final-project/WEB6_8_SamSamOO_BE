@@ -80,36 +80,11 @@ jobs:
       - name: Create test .env file
         working-directory: backend
         run: |
-          cat > .env << 'EOF'
-          # Datasource 설정 (application-test.yml에서 참조)
-          TEST_DATASOURCE_URL=jdbc:h2:mem:db_test;MODE=MySQL
-          TEST_DATASOURCE_USERNAME=sa
-          TEST_DATASOURCE_PASSWORD=
-          TEST_DATASOURCE_DRIVER=org.h2.Driver
-
-          # JPA 설정 (application-test.yml에서 참조)
-          TEST_JPA_HIBERNATE_DDL_AUTO=create-drop
-          
-          email_address=${{ secrets.EMAIL_ADDRESS }}
-          send_email_password=${{ secrets.EMAIL_PASSWORD }}
-          send_email_address=${{ secrets.SEND_EMAIL_ADDRESS }}
-
-          # Redis 설정 (application-test.yml에서 참조, GitHub Actions 서비스 사용)
-          TEST_REDIS_HOST=localhost
-          TEST_REDIS_PORT=6379
-          TEST_REDIS_PASSWORD=
-          
-          # Qdrant
-          TEST_QDRANT_HOST=localhost
-          TEST_QDRANT_PORT=6333
-          
-          # CI/CD 환경에서는 Embedded Redis 끄기
-          SPRING_DATA_REDIS_EMBEDDED=false
-
-          # JWT 설정 (application-test.yml에서 참조)
-          CUSTOM_JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
-          CUSTOM_JWT_ACCESS_TOKEN_EXPIRATION_SECONDS=3600
-          EOF
+          set -euo pipefail
+          install -d -m 700 .
+          echo "${{ secrets.ENV_BASE64 }}" | base64 -d > .env
+          chmod 600 .env
+          test -s .env || { echo ".env is empty"; exit 1; }
 
       - name: Run unit, and domain tests
         run: ${{ matrix.gradle_cmd }} clean test
@@ -219,19 +194,6 @@ jobs:
         run: |
           echo "IMAGE_PREFIX=$(echo $GITHUB_REPOSITORY | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
-      - name: Create prod .env file
-        run: |
-          cat > .env << 'EOF'
-          SPRING_PROFILES_ACTIVE=prod
-          PROD_DATASOURCE_URL=jdbc:mysql://mysql:3306/${{ secrets.DB_NAME }}
-          PROD_DATASOURCE_USERNAME=${{ secrets.DB_USER }}
-          PROD_DATASOURCE_PASSWORD=${{ secrets.DB_PASSWORD }}
-          
-          PROD_REDIS_HOST=redis
-          PROD_REDIS_PORT=6379
-          PROD_REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
-          EOF
-
       - name: AWS SSM Send-Command
         uses: peterkimzz/aws-ssm-send-command@master
         id: ssm
@@ -243,7 +205,7 @@ jobs:
           working-directory: /
           comment: Deploy
           command: |
-            set -xe
+            set -euo pipefail
             echo "===== 현재 실행 중인 컨테이너 ====="
             docker ps -a || true
             
@@ -251,36 +213,16 @@ jobs:
             docker stop app 2>/dev/null || true
             docker rm app 2>/dev/null || true
             
-            # EC2 내부에서 prod.env 파일 생성 (기존 파일 있으면 덮어쓰기)
-            mkdir -p /home/ec2-user/configs
-            cat > /home/ec2-user/configs/prod.env << 'EOF'
-            SPRING_PROFILES_ACTIVE=prod
-
-            CUSTOM_JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
-            CUSTOM_JWT_ACCESS_TOKEN_EXPIRATION_SECONDS=3600
+            # EC2 내부에서 prod.env 복원 (ENV_BASE64 -> 디코드)
+            install -d -m 700 /home/ec2-user/configs
+            cat > /home/ec2-user/configs/prod.env.b64 <<'__B64__'
+            ${{ secrets.ENV_BASE64 }}
+            __B64__
             
-            PROD_DATASOURCE_URL=jdbc:mysql://mysql:3306/${{ secrets.DB_NAME }}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
-            PROD_DATASOURCE_DRIVER=com.mysql.cj.jdbc.Driver
-            PROD_DATASOURCE_USERNAME=root
-            PROD_DATASOURCE_PASSWORD=${{ secrets.DB_PASSWORD }}
-            PROD_JPA_HIBERNATE_DDL_AUTO=none 
-            
-            PROD_REDIS_HOST=redis
-            PROD_REDIS_PORT=6379
-            PROD_REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
-            
-            PROD_QDRANT_HOST=qdrant
-            PROD_QDRANT_PORT=6334
-            
-            send_email_address=${{ secrets.SEND_EMAIL_ADDRESS }}
-            send_email_password=${{ secrets.SEND_EMAIL_PASSWORD }}
-            
-            PROD_SENTRY_DSN=${{ secrets.SENTRY_DSN }}
-
-            EOF
-            
-            # 파일 권한 최소화 
+            base64 -d /home/ec2-user/configs/prod.env.b64 > /home/ec2-user/configs/prod.env
             chmod 600 /home/ec2-user/configs/prod.env
+            shred -u /home/ec2-user/configs/prod.env.b64   # 임시 파일 안전 삭제
+          
             
             # EC2에서 GHCR 로그인
             echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
