@@ -57,17 +57,13 @@ public class ChatBotService {
     // 멤버 조회 -> 벡터 검색 (판례, 법령) -> 프롬프트 생성 (시스템, 유저) -> 채팅 클라이언트 호출 (스트림) -> 응답 저장, 제목/키워드 추출
     public Flux<ChatResponse> sendMessage(Long memberId, ChatRequest chatChatRequestDto, Long roomId) {
 
-        if(memberId == null) {
-            log.error("해당 멤버는 존재하지 않거나, accessToken이 만료되거나 잘못되었습니다.");
-        }
-
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다.")
         );
 
         // 벡터 검색 (판례, 법령)
-        List<Document> similarCaseDocuments = qdrantService.searchDocument(chatChatRequestDto.getMessage(), "type", "판례", 3);
-        List<Document> similarLawDocuments = qdrantService.searchDocument(chatChatRequestDto.getMessage(), "type", "법령", 2);
+        List<Document> similarCaseDocuments = qdrantService.searchDocument(chatChatRequestDto.getMessage(), "type", "판례");
+        List<Document> similarLawDocuments = qdrantService.searchDocument(chatChatRequestDto.getMessage(), "type", "법령");
 
         // 판례와 법령 정보를 구분 있게 포맷팅
         String caseContext = formatting(similarCaseDocuments);
@@ -167,18 +163,19 @@ public class ChatBotService {
     private void extractAndUpdateKeywordRanks(String message) {
         KeywordExtractionDto keywordResponse = keywordExtract(message, keywordExtraction, KeywordExtractionDto.class);
 
-        for (String keyword : keywordResponse.getKeyword()) {
-            KeywordRank keywordRank = keywordRankRepository.findByKeyword(keyword);
-            if (keywordRank == null) {
-                keywordRank = KeywordRank.builder()
-                        .keyword(keyword)
-                        .score(1L)
-                        .build();
-            } else {
-                keywordRank.setScore(keywordRank.getScore() + 1);
-            }
-            keywordRankRepository.save(keywordRank);
+        KeywordRank keywordRank = keywordRankRepository.findByKeyword(keywordResponse.getKeyword());
+
+        if (keywordRank == null) {
+            keywordRank = KeywordRank.builder()
+                    .keyword(keywordResponse.getKeyword())
+                    .score(1L)
+                    .build();
+        } else {
+            keywordRank.setScore(keywordRank.getScore() + 1);
         }
+
+        keywordRankRepository.save(keywordRank);
+
     }
 
     private void setHistoryTitle(ChatRequest chatDto, History history, String fullResponse) {
