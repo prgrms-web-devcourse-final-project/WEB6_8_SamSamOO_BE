@@ -1,12 +1,7 @@
 package com.ai.lawyer.domain.post.controller;
 
-import com.ai.lawyer.domain.post.dto.PostDto;
-import com.ai.lawyer.domain.post.dto.PostDetailDto;
-import com.ai.lawyer.domain.post.dto.PostRequestDto;
-import com.ai.lawyer.domain.post.dto.PostUpdateDto;
-import com.ai.lawyer.domain.post.dto.PostWithPollCreateDto;
+import com.ai.lawyer.domain.post.dto.*;
 import com.ai.lawyer.domain.post.service.PostService;
-import com.ai.lawyer.domain.post.dto.PostSimpleDto;
 import com.ai.lawyer.domain.member.entity.Member;
 import com.ai.lawyer.domain.member.repositories.MemberRepository;
 import com.ai.lawyer.global.jwt.TokenProvider;
@@ -16,30 +11,29 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 
 @Tag(name = "Post API", description = "게시글 관련 API")
 @RestController
 @RequestMapping("/api/posts")
+@RequiredArgsConstructor
 public class PostController {
 
     private final PostService postService;
     private final MemberRepository memberRepository;
     private final TokenProvider tokenProvider;
-
-    @Autowired
-    public PostController(PostService postService, MemberRepository memberRepository, TokenProvider tokenProvider) {
-        this.postService = postService;
-        this.memberRepository = memberRepository;
-        this.tokenProvider = tokenProvider;
-    }
 
     @Operation(summary = "게시글 등록")
     @PostMapping
@@ -173,5 +167,20 @@ public class PostController {
         }
         PostDetailDto result = postService.createPostWithPoll(dto, memberId);
         return ResponseEntity.ok(new ApiResponse<>(200, "게시글+투표 등록 완료", result));
+    }
+
+    @Operation(summary = "게시글 페이징 조회")
+    @GetMapping("/paged")
+    public ResponseEntity<ApiResponse<PostPageDTO>> getPostsPaged(
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "10") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<PostDto> posts = postService.getPostsPaged(pageable);
+        if (posts == null) {
+            posts = new org.springframework.data.domain.PageImpl<>(java.util.Collections.emptyList(), pageable, 0);
+        }
+        PostPageDTO response = new PostPageDTO(posts);
+        return ResponseEntity.ok(new ApiResponse<>(200, "페이징 게시글 조회 성공", response));
     }
 }
