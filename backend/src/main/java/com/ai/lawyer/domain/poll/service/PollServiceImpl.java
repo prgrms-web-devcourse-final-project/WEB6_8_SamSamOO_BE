@@ -88,7 +88,7 @@ public class PollServiceImpl implements PollService {
     public PollDto getPoll(Long pollId) {
         Poll poll = pollRepository.findById(pollId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "투표를 찾을 수 없습니다."));
-        autoCloseIfNeeded(poll);
+        autoClose(poll);
         if (poll.getStatus() == Poll.PollStatus.CLOSED) {
             return getPollWithStatistics(pollId);
         }
@@ -99,7 +99,7 @@ public class PollServiceImpl implements PollService {
     public List<PollDto> getPollsByStatus(PollDto.PollStatus status) {
         List<Poll> polls = pollRepository.findAll();
         for (Poll poll : polls) {
-            autoCloseIfNeeded(poll);
+            autoClose(poll);
         }
         List<PollDto> pollDtos = polls.stream()
                 .filter(p -> p.getStatus().name().equals(status.name()))
@@ -516,7 +516,7 @@ public class PollServiceImpl implements PollService {
     }
 
     // 자동 종료 로직 보강
-    private void autoCloseIfNeeded(Poll poll) {
+    private void autoClose(Poll poll) {
         LocalDateTime now = java.time.LocalDateTime.now();
         if (poll.getStatus() == Poll.PollStatus.ONGOING) {
             if (poll.getReservedCloseAt() != null && poll.getReservedCloseAt().isBefore(now)) {
