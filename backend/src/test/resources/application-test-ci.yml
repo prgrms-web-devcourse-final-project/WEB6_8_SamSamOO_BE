@@ -12,7 +12,7 @@ spring:
     driver-class-name: ${TEST_DATASOURCE_DRIVER}
 
   datasource-meta:
-    jdbc-url: jdbc:h2:mem:meta_db_test;MODE=MySQL;DB_CLOSE_DELAY=-1
+    jdbc-url: jdbc:h2:mem:meta_db;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE
     username: sa
     password:
     driver-class-name: org.h2.Driver
