@@ -201,7 +201,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          instance-ids: "i-0f910c00568bbca61"
+          instance-ids: "i-08872fdb64acaf7f3"
           working-directory: /
           comment: Deploy
           command: |
@@ -232,6 +232,7 @@ jobs:
             
             echo "===== 새로운 컨테이너 실행 ====="
             docker run --env-file /home/ec2-user/configs/prod.env \
+              -e SPRING_PROFILES_ACTIVE=prod \ 
               -d --name app \
               --network common \
               -p 8080:8080 \
