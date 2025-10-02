@@ -355,6 +355,24 @@ until curl -fs http://localhost:6333/healthz > /dev/null; do
 done
 echo "Qdrant 준비 됨"
 
+# 볼륨 먼저 만들기(한 번만)
+docker volume create ollama-data
+
+# 컨테이너 실행
+docker run -d \
+  --name ollama \
+  --restart unless-stopped \
+  --network common \
+  -p 11434:11434 \
+  -v ollama-data:/root/.ollama \
+  --entrypoint /bin/sh \
+  --health-cmd 'curl -f http://localhost:11434/api/version || exit 1' \
+  --health-interval 10s \
+  --health-timeout 5s \
+  --health-retries 10 \
+  ollama/ollama:latest \
+  -c 'ollama serve & sleep 5 && ollama pull daynice/kure-v1:567m && wait'
+
 echo "${var.github_access_token_1}" | docker login ghcr.io -u ${var.github_access_token_1_owner} --password-stdin
 
 END_OF_FILE
