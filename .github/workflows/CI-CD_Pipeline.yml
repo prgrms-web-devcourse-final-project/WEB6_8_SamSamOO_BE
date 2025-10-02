@@ -77,12 +77,11 @@ jobs:
           echo "Qdrant is ready!"
 
       # ✅ application-test.yml에서 사용하는 모든 환경변수를 .env 파일에 생성
+
       - name: Create test .env file
         working-directory: backend
         run: |
-          set -euo pipefail
-          install -d -m 700 .
-          echo "${{ secrets.ENV_BASE64 }}" | base64 -d > .env
+          echo "${{ secrets.ENV_BASE64 }}" | tr -d '\r\n' | base64 --decode > .env
           chmod 600 .env
           test -s .env || { echo ".env is empty"; exit 1; }
 
