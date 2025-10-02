@@ -417,3 +417,19 @@ resource "aws_instance" "ec2_1" {
 ${local.ec2_user_data_base}
 EOF
 }
+
+# Elastic IP 생성
+resource "aws_eip" "eip_1" {
+  domain = "vpc"
+
+  tags = {
+    Name = "${var.prefix}-eip-1"
+  }
+
+}
+
+# Elastic IP와 EC2 인스턴스 연결
+resource "aws_eip_association" "eip_assoc" {
+  instance_id   = aws_instance.ec2_1.id
+  allocation_id = aws_eip.eip_1.id
+}
