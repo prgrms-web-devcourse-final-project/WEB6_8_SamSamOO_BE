@@ -1,6 +1,7 @@
 package com.ai.lawyer.global.config;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -34,6 +35,7 @@ public class DataDBConfig {
 
     @Bean
     @Primary
+    @ConfigurationProperties(prefix = "spring.datasource")
     public DataSource dataDBSource() {
         return DataSourceBuilder.create()
                 .url(url)
@@ -50,7 +52,7 @@ public class DataDBConfig {
         LocalContainerEntityManagerFactoryBean em = new LocalContainerEntityManagerFactoryBean();
 
         em.setDataSource(dataDBSource());
-        em.setPackagesToScan(new String[]{"com.ai.lawyer.domain.*"});
+        em.setPackagesToScan(new String[]{"com.ai.lawyer.domain"});
         em.setJpaVendorAdapter(new HibernateJpaVendorAdapter());
 
         HashMap<String, Object> properties = new HashMap<>();
