@@ -37,6 +37,7 @@ public class ChatBotService {
 
     private final QdrantService qdrantService;
     private final HistoryService historyService;
+    private final KeywordService keywordService;
 
     private final ChatRepository chatRepository;
     private final HistoryRepository historyRepository;
@@ -89,14 +90,6 @@ public class ChatBotService {
                 .map(fullResponse -> ChatResponse(history, fullResponse, similarCaseDocuments, similarLawDocuments)  // 최종적으로 ChatResponse DTO 생성
                 ).flux()
                 .onErrorResume(throwable -> Flux.just(handleError(history)));  // 에러 발생 시 에러 핸들링 -> 재전송 유도
-    }
-
-    // 키워드 추출 메서드
-    public <T> T keywordExtract(String content, String promptTemplate, Class<T> classType) {
-        String prompt = promptTemplate + content;
-        return chatClient.prompt(new Prompt(new UserMessage(prompt)))
-                .call()
-                .entity(classType);
     }
 
     private ChatResponse ChatResponse(History history, String fullResponse, List<Document> cases, List<Document> laws) {
@@ -161,7 +154,7 @@ public class ChatBotService {
     }
 
     private void extractAndUpdateKeywordRanks(String message) {
-        KeywordExtractionDto keywordResponse = keywordExtract(message, keywordExtraction, KeywordExtractionDto.class);
+        KeywordExtractionDto keywordResponse = keywordService.keywordExtract(message, keywordExtraction, KeywordExtractionDto.class);
 
         KeywordRank keywordRank = keywordRankRepository.findByKeyword(keywordResponse.getKeyword());
 
@@ -180,7 +173,7 @@ public class ChatBotService {
 
     private void setHistoryTitle(ChatRequest chatDto, History history, String fullResponse) {
         String targetText = fullResponse.contains("해당 질문은 법률") ? chatDto.getMessage() : fullResponse;
-        TitleExtractionDto titleDto = keywordExtract(targetText, titleExtraction, TitleExtractionDto.class);
+        TitleExtractionDto titleDto = keywordService.keywordExtract(targetText, titleExtraction, TitleExtractionDto.class);
         history.setTitle(titleDto.getTitle());
         historyRepository.save(history);
     }
