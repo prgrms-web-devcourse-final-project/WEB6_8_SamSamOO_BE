@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OAuth2 로그인 테스트</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-kakao {
+            background: #FEE500;
+            color: #000000;
+        }
+
+        .btn-kakao:hover {
+            background: #FDD835;
+        }
+
+        .btn-naver {
+            background: #03C75A;
+            color: white;
+        }
+
+        .btn-naver:hover {
+            background: #02B350;
+        }
+
+        .btn-logout {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-logout:hover {
+            background: #dc2626;
+        }
+
+        .btn-withdraw {
+            background: #8b5cf6;
+            color: white;
+        }
+
+        .btn-withdraw:hover {
+            background: #7c3aed;
+        }
+
+        .btn-docs {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-docs:hover {
+            background: #2563eb;
+        }
+
+        .btn-naver-clear {
+            background: #f59e0b;
+            color: white;
+            font-size: 14px;
+            padding: 12px 24px;
+        }
+
+        .btn-naver-clear:hover {
+            background: #d97706;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f3f4f6;
+            border-radius: 10px;
+            color: #374151;
+            font-size: 14px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .warning-box {
+            margin-top: 15px;
+            padding: 15px;
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #92400e;
+        }
+
+        .warning-box strong {
+            display: block;
+            margin-bottom: 8px;
+            color: #78350f;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .container {
+            animation: slideUp 0.5s ease-out;
+        }
+
+        /* 팝업 로딩 오버레이 */
+        .popup-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 75, 162, 0.95) 100%);
+            backdrop-filter: blur(10px);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .popup-content {
+            background: white;
+            border-radius: 20px;
+            padding: 50px 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 400px;
+            animation: slideUp 0.4s ease-out;
+        }
+
+        .popup-content h2 {
+            font-size: 24px;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .popup-content p {
+            font-size: 16px;
+            color: #6b7280;
+            margin-bottom: 30px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🔐 OAuth2 로그인 테스트</h1>
+
+    <div class="button-group">
+        <button class="btn btn-kakao" onclick="loginWithKakao()">
+            💬 카카오 로그인
+        </button>
+        <button class="btn btn-naver" onclick="loginWithNaver()">
+            N 네이버 로그인
+        </button>
+        <button class="btn btn-logout" onclick="logout()">
+            🚪 로그아웃
+        </button>
+        <button class="btn btn-withdraw" onclick="withdraw()">
+            ⚠️ 회원 탈퇴
+        </button>
+        <a href="/swagger-ui.html" class="btn btn-docs">
+            📚 API 문서
+        </a>
+    </div>
+
+    <div class="warning-box">
+        <strong>⚠️ 네이버 세션 이슈</strong>
+        네이버는 공식 로그아웃 API를 제공하지 않아, 브라우저에 세션이 남아있을 수 있습니다.
+        다른 계정으로 테스트하려면 아래 버튼을 클릭하여 네이버에서 직접 로그아웃하세요.
+    </div>
+
+    <button class="btn btn-naver-clear" onclick="clearNaverSession()">
+        🔄 네이버 세션 초기화
+    </button>
+
+    <div id="status" class="status" style="display: none;"></div>
+</div>
+
+<!-- 팝업 로딩 오버레이 -->
+<div id="popupOverlay" class="popup-overlay">
+    <div class="popup-content">
+        <div class="spinner"></div>
+        <h2 id="overlayTitle">로그인 진행 중</h2>
+        <p id="overlayMessage">잠시만 기다려주세요...</p>
+    </div>
+</div>
+
+<script>
+    let loginWindow = null;
+
+    function showPopupOverlay(title, message) {
+        document.getElementById('overlayTitle').innerText = title;
+        document.getElementById('overlayMessage').innerText = message;
+        document.getElementById('popupOverlay').classList.add('show');
+    }
+
+    function hidePopupOverlay() {
+        document.getElementById('popupOverlay').classList.remove('show');
+    }
+
+    function showStatus(message) {
+        const statusDiv = document.getElementById('status');
+        statusDiv.innerText = message;
+        statusDiv.style.display = 'block';
+    }
+
+    function hideStatus() {
+        document.getElementById('status').style.display = 'none';
+    }
+
+    function loginWithKakao() {
+        showPopupOverlay('💬 카카오 로그인 진행 중', '새 창에서 카카오 로그인을 진행해주세요.');
+
+        const width = 500;
+        const height = 600;
+        const left = (window.screen.width / 2) - (width / 2);
+        const top = (window.screen.height / 2) - (height / 2);
+
+        const features = 'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top + ',scrollbars=yes,resizable=yes';
+
+        loginWindow = window.open('/api/auth/oauth2/kakao', 'KakaoLogin', features);
+
+        checkLoginWindowClosed('카카오');
+    }
+
+    function loginWithNaver() {
+        showPopupOverlay('🅝 네이버 로그인 진행 중', '새 창에서 네이버 로그인을 진행해주세요.');
+
+        const width = 500;
+        const height = 600;
+        const left = (window.screen.width / 2) - (width / 2);
+        const top = (window.screen.height / 2) - (height / 2);
+
+        const features = 'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top + ',scrollbars=yes,resizable=yes';
+
+        loginWindow = window.open('/api/auth/oauth2/naver', 'NaverLogin', features);
+
+        checkLoginWindowClosed('네이버');
+    }
+
+    function checkLoginWindowClosed(provider) {
+        const interval = setInterval(() => {
+            if (loginWindow && loginWindow.closed) {
+                clearInterval(interval);
+                hidePopupOverlay();
+                showPopupOverlay('✅ 로그인 완료', provider + ' 로그인이 완료되었습니다.');
+                setTimeout(() => {
+                    hidePopupOverlay();
+                    window.location.reload();
+                }, 1500);
+            }
+        }, 500);
+    }
+
+    async function logout() {
+        try {
+            showStatus('로그아웃 진행 중...');
+
+            const response = await fetch('/api/auth/logout', {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+
+                // 카카오 OAuth2 로그아웃 URL이 있으면 자동으로 해당 URL로 이동
+                if (data.oauth2LogoutUrl) {
+                    showStatus('카카오 제공자 로그아웃 진행 중...');
+                    setTimeout(() => {
+                        window.location.href = data.oauth2LogoutUrl;
+                    }, 800);
+                } else {
+                    showStatus('로그아웃 성공!');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                }
+            } else {
+                showStatus('로그아웃 실패');
+            }
+        } catch (error) {
+            console.error('로그아웃 에러:', error);
+            showStatus('로그아웃 중 오류 발생: ' + error.message);
+        }
+    }
+
+    async function withdraw() {
+        if (!confirm('정말로 회원 탈퇴를 진행하시겠습니까?\n\n⚠️ 이 작업은 되돌릴 수 없습니다.\n⚠️ 모든 회원 정보가 삭제되며, OAuth2 연동도 해제됩니다.')) {
+            return;
+        }
+
+        try {
+            showStatus('회원 탈퇴 진행 중...');
+
+            const response = await fetch('/api/auth/withdraw', {
+                method: 'DELETE',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                showStatus('회원 탈퇴 완료!\n\n' + (data.oauth2Unlinked ? 'OAuth2 연동 해제 완료' : '로컬 회원 삭제 완료'));
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } else {
+                const errorData = await response.json();
+                showStatus('회원 탈퇴 실패: ' + (errorData.message || '알 수 없는 오류'));
+            }
+        } catch (error) {
+            console.error('회원 탈퇴 에러:', error);
+            showStatus('회원 탈퇴 중 오류 발생: ' + error.message);
+        }
+    }
+
+    function clearNaverSession() {
+        const naverLogoutUrl = 'https://nid.naver.com/nidlogin.logout';
+
+        const width = 500;
+        const height = 600;
+        const left = (window.screen.width / 2) - (width / 2);
+        const top = (window.screen.height / 2) - (height / 2);
+
+        const features = 'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top + ',scrollbars=yes,resizable=yes';
+
+        window.open(naverLogoutUrl, 'NaverLogout', features);
+
+        showStatus('네이버 로그아웃 창이 열렸습니다.\n로그아웃 후 창을 닫고 이 페이지를 새로고침하세요.');
+
+        // 10초 후 자동 새로고침 제안
+        setTimeout(() => {
+            if (confirm('네이버 로그아웃을 완료하셨나요?\n\n확인을 누르면 페이지가 새로고침됩니다.')) {
+                window.location.reload();
+            }
+        }, 10000);
+    }
+
+    // 페이지 로드 시 쿠키 정보 표시
+    window.addEventListener('DOMContentLoaded', () => {
+        const cookies = document.cookie;
+        if (cookies) {
+            showStatus('현재 쿠키:\n' + cookies.split('; ').join('\n'));
+        }
+    });
+</script>
+</body>
+</html>

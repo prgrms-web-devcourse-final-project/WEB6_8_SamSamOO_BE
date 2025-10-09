@@ -19,6 +19,7 @@ import java.util.Map;
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private final OAuth2MemberRepository oauth2MemberRepository;
+    private final org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate;
 
     @Override
     @Transactional
@@ -26,7 +27,10 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         OAuth2User oAuth2User = super.loadUser(userRequest);
 
         String registrationId = userRequest.getClientRegistration().getRegistrationId();
-        log.info("OAuth2 로그인 시도: provider={}", registrationId);
+        String accessToken = userRequest.getAccessToken().getTokenValue();
+
+        log.info("OAuth2 로그인 시도: provider={}, accessToken={}",
+                registrationId, accessToken.substring(0, Math.min(10, accessToken.length())) + "...");
 
         OAuth2UserInfo userInfo = getOAuth2UserInfo(registrationId, oAuth2User.getAttributes());
 
@@ -49,7 +53,29 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         oauth2MemberRepository.save(member);
 
+        // OAuth2 provider의 access token을 Redis에 저장 (연동 해제용)
+        saveOAuth2ProviderAccessToken(userInfo.getEmail(), accessToken);
+
+        // Note: JWT 토큰은 OAuth2SuccessHandler에서 생성되어 Redis에 저장됩니다.
+
         return new PrincipalDetails(member, oAuth2User.getAttributes());
+    }
+
+    /**
+     * OAuth2 provider의 access token을 Redis에 저장합니다.
+     * 이 토큰은 소셜 연동 해제(회원 탈퇴) 시 사용됩니다.
+     * @param loginId 회원 loginId (email)
+     * @param accessToken OAuth2 provider access token
+     */
+    private void saveOAuth2ProviderAccessToken(String loginId, String accessToken) {
+        try {
+            String key = "oauth2_provider_token:" + loginId;
+            // 7일 TTL 설정 (refresh token과 동일한 기간)
+            redisTemplate.opsForValue().set(key, accessToken, java.time.Duration.ofDays(7));
+            log.info("OAuth2 provider access token 저장 완료: loginId={}", loginId);
+        } catch (Exception e) {
+            log.error("OAuth2 provider access token 저장 실패: loginId={}, error={}", loginId, e.getMessage());
+        }
     }
 
     private OAuth2UserInfo getOAuth2UserInfo(String registrationId, Map<String, Object> attributes) {

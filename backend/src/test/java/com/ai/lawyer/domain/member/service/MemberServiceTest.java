@@ -293,14 +293,14 @@ class MemberServiceTest {
     @DisplayName("회원탈퇴 성공")
     void withdraw_Success() {
         // given
-        Long memberId = 1L;
-        given(memberRepository.findById(memberId)).willReturn(Optional.of(member));
+        String loginId = "test@example.com";
+        given(memberRepository.findByLoginId(loginId)).willReturn(Optional.of(member));
 
         // when
-        memberService.withdraw(memberId);
+        memberService.deleteMember(loginId);
 
         // then
-        verify(memberRepository).findById(memberId);
+        verify(memberRepository).findByLoginId(loginId);
         verify(memberRepository).delete(member);
     }
 
@@ -308,15 +308,14 @@ class MemberServiceTest {
     @DisplayName("회원탈퇴 실패 - 존재하지 않는 회원")
     void withdraw_Fail_MemberNotFound() {
         // given
-        Long memberId = 999L;
-        given(memberRepository.findById(memberId)).willReturn(Optional.empty());
+        String loginId = "nonexistent@example.com";
+        given(memberRepository.findByLoginId(loginId)).willReturn(Optional.empty());
 
-        // when and then
-        assertThatThrownBy(() -> memberService.withdraw(memberId))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("존재하지 않는 회원입니다.");
+        // when
+        memberService.deleteMember(loginId);  // 존재하지 않아도 예외 발생하지 않음 (로그만 출력)
 
-        verify(memberRepository).findById(memberId);
+        // then
+        verify(memberRepository).findByLoginId(loginId);
         verify(memberRepository, never()).delete(any());
     }
 

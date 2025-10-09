@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
@@ -36,8 +37,8 @@ public class LawService {
     private final JoRepository joRepository;
     private final HangRepository hangRepository;
     private final HoRepository hoRepository;
-    private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final WebClient webClient = WebClient.builder().build();
 
     // 상수 정의
     private static final String BASE_URL = "http://www.law.go.kr/DRF";
@@ -149,7 +150,11 @@ public class LawService {
                 .build()
                 .toUriString();
 
-        return restTemplate.getForObject(url, String.class);
+        return webClient.get()
+                .uri(url)
+                .retrieve()
+                .bodyToMono(String.class)
+                .block();
     }
 
     /**
@@ -167,7 +172,11 @@ public class LawService {
                 .build()
                 .toUriString();
 
-        return restTemplate.getForObject(url, String.class);
+        return webClient.get()
+                .uri(url)
+                .retrieve()
+                .bodyToMono(String.class)
+                .block();
     }
 
     /**

@@ -51,6 +51,14 @@ class PostControllerTest {
     private com.ai.lawyer.global.jwt.CookieUtil cookieUtil;
     @MockitoBean
     private org.springframework.data.jpa.mapping.JpaMetamodelMappingContext jpaMappingContext;
+    @MockitoBean
+    private org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate;
+    @MockitoBean
+    private com.ai.lawyer.global.oauth.CustomOAuth2UserService customOAuth2UserService;
+    @MockitoBean
+    private com.ai.lawyer.global.oauth.OAuth2SuccessHandler oauth2SuccessHandler;
+    @MockitoBean
+    private com.ai.lawyer.global.oauth.OAuth2FailureHandler oauth2FailureHandler;
     @Autowired
     private ObjectMapper objectMapper;
 

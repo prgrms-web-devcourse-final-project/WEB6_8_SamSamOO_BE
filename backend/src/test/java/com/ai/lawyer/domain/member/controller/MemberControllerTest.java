@@ -24,6 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
@@ -47,6 +48,9 @@ class MemberControllerTest {
 
     @Mock
     private HttpServletResponse response;
+
+    @Mock
+    private com.ai.lawyer.global.oauth.OAuth2LogoutService oauth2LogoutService;
 
     @InjectMocks
     private MemberController memberController;
@@ -217,13 +221,17 @@ class MemberControllerTest {
     @DisplayName("로그아웃 성공 - Authentication에서 loginId 추출하여 Redis 삭제")
     void logout_Success() {
         // given
+        given(oauth2LogoutService.logoutFromOAuth2Provider(eq("test@example.com"))).willReturn(false);
+        given(oauth2LogoutService.getOAuth2LogoutUrl(eq("test@example.com"))).willReturn(null);
         doNothing().when(memberService).logout(eq("test@example.com"), eq(response));
 
         // when
-        ResponseEntity<Void> result = memberController.logout(authentication, response);
+        ResponseEntity<LogoutResponse> result = memberController.logout(authentication, response);
 
         // then
         assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
+        verify(oauth2LogoutService).logoutFromOAuth2Provider(eq("test@example.com"));
+        verify(oauth2LogoutService).getOAuth2LogoutUrl(eq("test@example.com"));
         verify(memberService).logout(eq("test@example.com"), eq(response));
     }
 
@@ -231,89 +239,86 @@ class MemberControllerTest {
     @DisplayName("로그아웃 성공 - 인증되지 않은 상태에서도 쿠키 클리어")
     void logout_Success_Unauthenticated() {
         // given
+        given(oauth2LogoutService.getOAuth2LogoutUrl(null)).willReturn(null);
         doNothing().when(memberService).logout(eq(""), eq(response));
 
         // when
-        ResponseEntity<Void> result = memberController.logout(null, response);
+        ResponseEntity<LogoutResponse> result = memberController.logout(null, response);
 
         // then
         assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
+        verify(oauth2LogoutService).getOAuth2LogoutUrl(null);
         verify(memberService).logout(eq(""), eq(response));
     }
 
     @Test
-    @DisplayName("토큰 재발급 성공 - Authentication 기반")
-    void refreshToken_Success() {
+    @DisplayName("토큰 재발급 성공 - 쿠키에서 리프레시 토큰 추출")
+    void refreshToken_Success() throws Exception {
         // given
-        Long memberId = 1L;
-        Authentication testAuth = new UsernamePasswordAuthenticationToken(
-                memberId,
-                null,
-                List.of(new SimpleGrantedAuthority("ROLE_USER"))
-        );
-        given(memberService.getMemberById(memberId)).willReturn(memberResponse);
+        String refreshTokenValue = "validRefreshToken";
+        jakarta.servlet.http.Cookie refreshCookie = new jakarta.servlet.http.Cookie("refreshToken", refreshTokenValue);
+
+        given(memberService.refreshToken(eq(refreshTokenValue), any(HttpServletResponse.class))).willReturn(memberResponse);
 
         // when
-        ResponseEntity<MemberResponse> result = memberController.refreshToken(testAuth);
+        mockMvc.perform(post("/api/auth/refresh")
+                        .cookie(refreshCookie)
+                        .with(csrf()))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.memberId").value(1L))
+                .andExpect(jsonPath("$.loginId").value("test@example.com"));
 
         // then
-        assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(result.getBody()).isEqualTo(memberResponse);
-        verify(memberService).getMemberById(memberId);
+        verify(memberService).refreshToken(eq(refreshTokenValue), any(HttpServletResponse.class));
     }
 
     @Test
-    @DisplayName("토큰 재발급 실패 - 인증 정보 없음")
-    void refreshToken_Fail_NoAuthentication() {
-        // given - authentication이 null인 경우
+    @DisplayName("토큰 재발급 실패 - 리프레시 토큰 없음")
+    void refreshToken_Fail_NoRefreshToken() throws Exception {
+        // given - 쿠키 없이 요청
 
         // when & then
-        assertThatThrownBy(() -> memberController.refreshToken(null))
-                .isInstanceOf(MemberAuthenticationException.class)
-                .hasMessage("인증이 필요합니다.");
-    }
+        mockMvc.perform(post("/api/auth/refresh")
+                        .with(csrf()))
+                .andDo(print())
+                .andExpect(status().isUnauthorized());
 
-    @Test
-    @DisplayName("토큰 재발급 실패 - Principal 없음")
-    void refreshToken_Fail_NoPrincipal() {
-        // given
-        Authentication testAuth = new UsernamePasswordAuthenticationToken(
-                null,
-                null,
-                List.of(new SimpleGrantedAuthority("ROLE_USER"))
-        );
-
-        // when & then
-        assertThatThrownBy(() -> memberController.refreshToken(testAuth))
-                .isInstanceOf(MemberAuthenticationException.class)
-                .hasMessage("인증이 필요합니다.");
+        verify(memberService, never()).refreshToken(anyString(), any());
     }
 
     @Test
     @DisplayName("회원탈퇴 성공")
     void withdraw_Success() {
-        // given - 현재 Controller는 직접 memberId를 사용
-        doNothing().when(memberService).withdraw(1L);
+        // given
+        given(oauth2LogoutService.unlinkFromOAuth2Provider(eq("test@example.com"))).willReturn(false);
         doNothing().when(memberService).logout(eq("test@example.com"), eq(response));
+        doNothing().when(memberService).deleteMember(eq("test@example.com"));
 
         // when
-        ResponseEntity<Void> result = memberController.withdraw(authentication, response);
+        ResponseEntity<Map<String, Object>> result = memberController.withdraw(authentication, response);
 
         // then
         assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
-        verify(memberService).withdraw(1L);
+        verify(oauth2LogoutService).unlinkFromOAuth2Provider(eq("test@example.com"));
         verify(memberService).logout(eq("test@example.com"), eq(response));
+        verify(memberService).deleteMember(eq("test@example.com"));
     }
 
     @Test
     @DisplayName("회원탈퇴 실패 - 인증되지 않은 사용자")
     void withdraw_Fail_Unauthenticated() {
-        // when & then
-        assertThatThrownBy(() -> memberController.withdraw(null, response))
-                .isInstanceOf(MemberAuthenticationException.class)
-                .hasMessage("인증이 필요합니다.");
+        // when
+        ResponseEntity<Map<String, Object>> result = memberController.withdraw(null, response);
 
-        verify(memberService, never()).withdraw(anyLong());
+        // then
+        assertThat(result.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(result.getBody()).isNotNull();
+        assertThat(result.getBody().get("success")).isEqualTo(false);
+        assertThat(result.getBody().get("message")).isEqualTo("인증이 필요합니다.");
+
+        verify(oauth2LogoutService, never()).unlinkFromOAuth2Provider(anyString());
+        verify(memberService, never()).deleteMember(anyString());
         verify(memberService, never()).logout(anyString(), any());
     }
 
@@ -321,16 +326,19 @@ class MemberControllerTest {
     @DisplayName("회원탈퇴 실패 - 존재하지 않는 회원")
     void withdraw_Fail_MemberNotFound() {
         // given
+        given(oauth2LogoutService.unlinkFromOAuth2Provider(eq("test@example.com"))).willReturn(false);
+        doNothing().when(memberService).logout(eq("test@example.com"), eq(response));
         doThrow(new IllegalArgumentException("존재하지 않는 회원입니다."))
-                .when(memberService).withdraw(1L);
+                .when(memberService).deleteMember(eq("test@example.com"));
 
         // when & then
         assertThatThrownBy(() -> memberController.withdraw(authentication, response))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("존재하지 않는 회원입니다.");
 
-        verify(memberService).withdraw(1L);
-        verify(memberService, never()).logout(anyString(), any());
+        verify(oauth2LogoutService).unlinkFromOAuth2Provider(eq("test@example.com"));
+        verify(memberService).logout(eq("test@example.com"), eq(response));
+        verify(memberService).deleteMember(eq("test@example.com"));
     }
 
     @Test
@@ -699,4 +707,5 @@ class MemberControllerTest {
 
         verify(memberService).verifyAuthCode("test@example.com", "123456");
     }
+
 }

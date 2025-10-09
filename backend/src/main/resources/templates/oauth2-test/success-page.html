@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{{TITLE}}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            padding: 50px;
+            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            max-width: 500px;
+            width: 100%;
+        }
+        .success { color: #10b981; }
+        .error { color: #ef4444; }
+        .details {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f3f4f6;
+            border-radius: 10px;
+            color: #374151;
+            font-size: 14px;
+        }
+        .button-group {
+            margin-top: 30px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s;
+            display: inline-block;
+        }
+        .btn-logout {
+            background: #ef4444;
+            color: white;
+        }
+        .btn-logout:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        }
+        .btn-docs {
+            background: #3b82f6;
+            color: white;
+        }
+        .btn-docs:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+        .btn-kakao {
+            background: #FEE500;
+            color: #000000;
+        }
+        .btn-kakao:hover {
+            background: #FDD835;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(254, 229, 0, 0.4);
+        }
+        .btn-naver {
+            background: #03C75A;
+            color: white;
+        }
+        .btn-naver:hover {
+            background: #02B350;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(3, 199, 90, 0.4);
+        }
+        h1 { margin-bottom: 10px; }
+        p { color: #6b7280; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="{{CLASS}}">{{TITLE}}</h1>
+        <p>{{MESSAGE}}</p>
+        {{DETAILS}}
+        <div class="button-group">
+            <button class="btn btn-logout" onclick="logout()">로그아웃</button>
+            <a href="/swagger-ui.html" class="btn btn-docs">API 문서</a>
+            <a href="/api/auth/oauth2/test-page" class="btn btn-kakao">테스트 페이지</a>
+            <button class="btn btn-naver" onclick="closeWindow()">창 닫기</button>
+        </div>
+    </div>
+    <script>
+        // 팝업 창인지 확인하고 자동으로 닫기 제안
+        window.addEventListener('DOMContentLoaded', () => {
+            if (window.opener && !window.opener.closed) {
+                // 팝업 창에서 열린 경우
+                const autoClose = confirm('로그인에 성공했습니다!\n\n이 창을 닫으시겠습니까?\n(메인 창에서 로그인 상태가 갱신됩니다)');
+                if (autoClose) {
+                    window.close();
+                }
+            }
+        });
+
+        function closeWindow() {
+            if (window.opener) {
+                window.close();
+            } else {
+                alert('이 창은 닫을 수 없습니다. 브라우저의 닫기 버튼을 사용하세요.');
+            }
+        }
+
+        async function logout() {
+            try {
+                const response = await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+
+                    // 카카오 OAuth2 로그아웃 URL이 있으면 자동으로 해당 URL로 이동
+                    if (data.oauth2LogoutUrl) {
+                        window.location.href = data.oauth2LogoutUrl;
+                    } else {
+                        // 일반 로그인 또는 네이버 로그인
+                        // 팝업 창이면 닫고, 일반 창이면 테스트 페이지로 이동
+                        if (window.opener) {
+                            window.close();
+                        } else {
+                            window.location.href = '/api/auth/oauth2/test-page';
+                        }
+                    }
+                } else {
+                    alert('로그아웃 실패');
+                }
+            } catch (error) {
+                console.error('로그아웃 에러:', error);
+                alert('로그아웃 중 오류가 발생했습니다.');
+            }
+        }
+    </script>
+</body>
+</html>

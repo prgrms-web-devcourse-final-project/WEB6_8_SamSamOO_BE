@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -57,30 +58,30 @@ class CookieUtilTest {
         log.info("쿠키 설정 완료");
 
         // then
-        log.info("검증: 2개의 쿠키(액세스, 리프레시)가 추가되었는지 확인");
-        ArgumentCaptor<Cookie> cookieCaptor = ArgumentCaptor.forClass(Cookie.class);
-        verify(response, times(2)).addCookie(cookieCaptor.capture());
+        log.info("검증: 2개의 Set-Cookie 헤더가 추가되었는지 확인");
+        ArgumentCaptor<String> headerCaptor = ArgumentCaptor.forClass(String.class);
+        verify(response, times(2)).addHeader(eq("Set-Cookie"), headerCaptor.capture());
 
-        var cookies = cookieCaptor.getAllValues();
-        assertThat(cookies).hasSize(2);
+        var setCookieHeaders = headerCaptor.getAllValues();
+        assertThat(setCookieHeaders).hasSize(2);
 
         // 액세스 토큰 쿠키 검증
-        Cookie accessCookie = cookies.getFirst();
-        assertThat(accessCookie.getName()).isEqualTo(ACCESS_TOKEN_NAME);
-        assertThat(accessCookie.getValue()).isEqualTo(ACCESS_TOKEN);
-        assertThat(accessCookie.isHttpOnly()).isTrue();
-        assertThat(accessCookie.getPath()).isEqualTo("/");
-        assertThat(accessCookie.getMaxAge()).isEqualTo(5 * 60); // 5분
-        log.info("액세스 토큰 쿠키 검증 완료: name={}, maxAge={}", accessCookie.getName(), accessCookie.getMaxAge());
+        String accessCookieHeader = setCookieHeaders.getFirst();
+        assertThat(accessCookieHeader).contains(ACCESS_TOKEN_NAME + "=" + ACCESS_TOKEN);
+        assertThat(accessCookieHeader).contains("HttpOnly");
+        assertThat(accessCookieHeader).contains("Path=/");
+        assertThat(accessCookieHeader).contains("Max-Age=300"); // 5분 = 300초
+        assertThat(accessCookieHeader).contains("SameSite=None");
+        log.info("액세스 토큰 쿠키 검증 완료: {}", accessCookieHeader);
 
         // 리프레시 토큰 쿠키 검증
-        Cookie refreshCookie = cookies.get(1);
-        assertThat(refreshCookie.getName()).isEqualTo(REFRESH_TOKEN_NAME);
-        assertThat(refreshCookie.getValue()).isEqualTo(REFRESH_TOKEN);
-        assertThat(refreshCookie.isHttpOnly()).isTrue();
-        assertThat(refreshCookie.getPath()).isEqualTo("/");
-        assertThat(refreshCookie.getMaxAge()).isEqualTo(7 * 24 * 60 * 60); // 7일
-        log.info("리프레시 토큰 쿠키 검증 완료: name={}, maxAge={}", refreshCookie.getName(), refreshCookie.getMaxAge());
+        String refreshCookieHeader = setCookieHeaders.get(1);
+        assertThat(refreshCookieHeader).contains(REFRESH_TOKEN_NAME + "=" + REFRESH_TOKEN);
+        assertThat(refreshCookieHeader).contains("HttpOnly");
+        assertThat(refreshCookieHeader).contains("Path=/");
+        assertThat(refreshCookieHeader).contains("Max-Age=604800"); // 7일 = 604800초
+        assertThat(refreshCookieHeader).contains("SameSite=None");
+        log.info("리프레시 토큰 쿠키 검증 완료: {}", refreshCookieHeader);
 
         log.info("=== 토큰 쿠키 설정 테스트 완료 ===");
     }
@@ -95,14 +96,14 @@ class CookieUtilTest {
         cookieUtil.setAccessTokenCookie(response, ACCESS_TOKEN);
 
         // then
-        ArgumentCaptor<Cookie> cookieCaptor = ArgumentCaptor.forClass(Cookie.class);
-        verify(response).addCookie(cookieCaptor.capture());
+        ArgumentCaptor<String> headerCaptor = ArgumentCaptor.forClass(String.class);
+        verify(response).addHeader(eq("Set-Cookie"), headerCaptor.capture());
 
-        Cookie cookie = cookieCaptor.getValue();
-        assertThat(cookie.getName()).isEqualTo(ACCESS_TOKEN_NAME);
-        assertThat(cookie.getValue()).isEqualTo(ACCESS_TOKEN);
-        assertThat(cookie.isHttpOnly()).isTrue();
-        assertThat(cookie.getMaxAge()).isEqualTo(5 * 60);
+        String cookieHeader = headerCaptor.getValue();
+        assertThat(cookieHeader).contains(ACCESS_TOKEN_NAME + "=" + ACCESS_TOKEN);
+        assertThat(cookieHeader).contains("HttpOnly");
+        assertThat(cookieHeader).contains("Max-Age=300");
+        assertThat(cookieHeader).contains("SameSite=None");
         log.info("=== 액세스 토큰 단독 쿠키 설정 테스트 완료 ===");
     }
 
@@ -116,14 +117,14 @@ class CookieUtilTest {
         cookieUtil.setRefreshTokenCookie(response, REFRESH_TOKEN);
 
         // then
-        ArgumentCaptor<Cookie> cookieCaptor = ArgumentCaptor.forClass(Cookie.class);
-        verify(response).addCookie(cookieCaptor.capture());
+        ArgumentCaptor<String> headerCaptor = ArgumentCaptor.forClass(String.class);
+        verify(response).addHeader(eq("Set-Cookie"), headerCaptor.capture());
 
-        Cookie cookie = cookieCaptor.getValue();
-        assertThat(cookie.getName()).isEqualTo(REFRESH_TOKEN_NAME);
-        assertThat(cookie.getValue()).isEqualTo(REFRESH_TOKEN);
-        assertThat(cookie.isHttpOnly()).isTrue();
-        assertThat(cookie.getMaxAge()).isEqualTo(7 * 24 * 60 * 60);
+        String cookieHeader = headerCaptor.getValue();
+        assertThat(cookieHeader).contains(REFRESH_TOKEN_NAME + "=" + REFRESH_TOKEN);
+        assertThat(cookieHeader).contains("HttpOnly");
+        assertThat(cookieHeader).contains("Max-Age=604800");
+        assertThat(cookieHeader).contains("SameSite=None");
         log.info("=== 리프레시 토큰 단독 쿠키 설정 테스트 완료 ===");
     }
 
@@ -232,30 +233,28 @@ class CookieUtilTest {
         log.info("쿠키 클리어 완료");
 
         // then
-        log.info("검증: 2개의 쿠키(액세스, 리프레시)가 삭제용으로 추가되었는지 확인");
-        ArgumentCaptor<Cookie> cookieCaptor = ArgumentCaptor.forClass(Cookie.class);
-        verify(response, times(2)).addCookie(cookieCaptor.capture());
+        log.info("검증: 2개의 Set-Cookie 헤더가 삭제용으로 추가되었는지 확인");
+        ArgumentCaptor<String> headerCaptor = ArgumentCaptor.forClass(String.class);
+        verify(response, times(2)).addHeader(eq("Set-Cookie"), headerCaptor.capture());
 
-        var cookies = cookieCaptor.getAllValues();
-        assertThat(cookies).hasSize(2);
+        var setCookieHeaders = headerCaptor.getAllValues();
+        assertThat(setCookieHeaders).hasSize(2);
 
         // 액세스 토큰 클리어 검증
-        Cookie accessClearCookie = cookies.getFirst();
-        assertThat(accessClearCookie.getName()).isEqualTo(ACCESS_TOKEN_NAME);
-        assertThat(accessClearCookie.getValue()).isNull();
-        assertThat(accessClearCookie.getMaxAge()).isEqualTo(0);
-        assertThat(accessClearCookie.isHttpOnly()).isTrue();
-        assertThat(accessClearCookie.getPath()).isEqualTo("/");
-        log.info("액세스 토큰 쿠키 클리어 검증 완료: maxAge={}", accessClearCookie.getMaxAge());
+        String accessClearHeader = setCookieHeaders.getFirst();
+        assertThat(accessClearHeader).contains(ACCESS_TOKEN_NAME + "=");
+        assertThat(accessClearHeader).contains("Max-Age=0");
+        assertThat(accessClearHeader).contains("HttpOnly");
+        assertThat(accessClearHeader).contains("Path=/");
+        log.info("액세스 토큰 쿠키 클리어 검증 완료: {}", accessClearHeader);
 
         // 리프레시 토큰 클리어 검증
-        Cookie refreshClearCookie = cookies.get(1);
-        assertThat(refreshClearCookie.getName()).isEqualTo(REFRESH_TOKEN_NAME);
-        assertThat(refreshClearCookie.getValue()).isNull();
-        assertThat(refreshClearCookie.getMaxAge()).isEqualTo(0);
-        assertThat(refreshClearCookie.isHttpOnly()).isTrue();
-        assertThat(refreshClearCookie.getPath()).isEqualTo("/");
-        log.info("리프레시 토큰 쿠키 클리어 검증 완료: maxAge={}", refreshClearCookie.getMaxAge());
+        String refreshClearHeader = setCookieHeaders.get(1);
+        assertThat(refreshClearHeader).contains(REFRESH_TOKEN_NAME + "=");
+        assertThat(refreshClearHeader).contains("Max-Age=0");
+        assertThat(refreshClearHeader).contains("HttpOnly");
+        assertThat(refreshClearHeader).contains("Path=/");
+        log.info("리프레시 토큰 쿠키 클리어 검증 완료: {}", refreshClearHeader);
 
         log.info("=== 토큰 쿠키 클리어 테스트 완료 ===");
     }
@@ -271,12 +270,12 @@ class CookieUtilTest {
         cookieUtil.setTokenCookies(response, ACCESS_TOKEN, REFRESH_TOKEN);
 
         // then
-        ArgumentCaptor<Cookie> cookieCaptor = ArgumentCaptor.forClass(Cookie.class);
-        verify(response, times(2)).addCookie(cookieCaptor.capture());
+        ArgumentCaptor<String> headerCaptor = ArgumentCaptor.forClass(String.class);
+        verify(response, times(2)).addHeader(eq("Set-Cookie"), headerCaptor.capture());
 
-        cookieCaptor.getAllValues().forEach(cookie -> {
-            assertThat(cookie.isHttpOnly()).isTrue();
-            log.info("쿠키 {}: HttpOnly=true (보안 설정 확인)", cookie.getName());
+        headerCaptor.getAllValues().forEach(header -> {
+            assertThat(header).contains("HttpOnly");
+            log.info("Set-Cookie 헤더: HttpOnly 포함 확인 - {}", header);
         });
 
         log.info("=== HttpOnly 속성 보안 테스트 완료 ===");
@@ -293,12 +292,12 @@ class CookieUtilTest {
         cookieUtil.setTokenCookies(response, ACCESS_TOKEN, REFRESH_TOKEN);
 
         // then
-        ArgumentCaptor<Cookie> cookieCaptor = ArgumentCaptor.forClass(Cookie.class);
-        verify(response, times(2)).addCookie(cookieCaptor.capture());
+        ArgumentCaptor<String> headerCaptor = ArgumentCaptor.forClass(String.class);
+        verify(response, times(2)).addHeader(eq("Set-Cookie"), headerCaptor.capture());
 
-        cookieCaptor.getAllValues().forEach(cookie -> {
-            assertThat(cookie.getPath()).isEqualTo("/");
-            log.info("쿠키 {}: Path=/ (모든 경로 접근 가능)", cookie.getName());
+        headerCaptor.getAllValues().forEach(header -> {
+            assertThat(header).contains("Path=/");
+            log.info("Set-Cookie 헤더: Path=/ 포함 확인 - {}", header);
         });
 
         log.info("=== Path 속성 테스트 완료 ===");
@@ -316,18 +315,18 @@ class CookieUtilTest {
         cookieUtil.setTokenCookies(response, ACCESS_TOKEN, REFRESH_TOKEN);
 
         // then
-        ArgumentCaptor<Cookie> cookieCaptor = ArgumentCaptor.forClass(Cookie.class);
-        verify(response, times(2)).addCookie(cookieCaptor.capture());
+        ArgumentCaptor<String> headerCaptor = ArgumentCaptor.forClass(String.class);
+        verify(response, times(2)).addHeader(eq("Set-Cookie"), headerCaptor.capture());
 
-        var cookies = cookieCaptor.getAllValues();
+        var setCookieHeaders = headerCaptor.getAllValues();
 
-        Cookie accessCookie = cookies.getFirst();
-        assertThat(accessCookie.getMaxAge()).isEqualTo(5 * 60);
-        log.info("액세스 토큰 만료 시간: {}초 (5분)", accessCookie.getMaxAge());
+        String accessHeader = setCookieHeaders.getFirst();
+        assertThat(accessHeader).contains("Max-Age=300");
+        log.info("액세스 토큰 만료 시간: 300초 (5분)");
 
-        Cookie refreshCookie = cookies.get(1);
-        assertThat(refreshCookie.getMaxAge()).isEqualTo(7 * 24 * 60 * 60);
-        log.info("리프레시 토큰 만료 시간: {}초 (7일)", refreshCookie.getMaxAge());
+        String refreshHeader = setCookieHeaders.get(1);
+        assertThat(refreshHeader).contains("Max-Age=604800");
+        log.info("리프레시 토큰 만료 시간: 604800초 (7일)");
 
         log.info("=== 토큰 만료 시간 테스트 완료 ===");
     }

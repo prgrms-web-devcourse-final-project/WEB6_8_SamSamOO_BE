@@ -52,9 +52,10 @@ class OAuth2SuccessHandlerTest {
 
     @BeforeEach
     void setUp() {
-        // Redirect URL 설정
-        ReflectionTestUtils.setField(oauth2SuccessHandler, "redirectUrl",
-            "http://localhost:8080/api/auth/oauth2/callback/success");
+        // Redirect URL 설정 (환경변수에서 주입되는 값)
+        ReflectionTestUtils.setField(oauth2SuccessHandler, "frontendRedirectUrl",
+            "http://localhost:3000/oauth/success");
+        ReflectionTestUtils.setField(oauth2SuccessHandler, "activeProfile", "dev");
 
         // 카카오 회원 생성
         kakaoMember = OAuth2Member.builder()
@@ -169,7 +170,7 @@ class OAuth2SuccessHandlerTest {
         oauth2SuccessHandler.onAuthenticationSuccess(request, response, authentication);
 
         // then
-        log.info("리다이렉트 URL 검증: http://localhost:8080/api/auth/oauth2/callback/success");
+        log.info("리다이렉트 URL 검증: http://localhost:3000/oauth/success");
         // 실제 리다이렉트는 내부에서 sendRedirect로 처리되므로,
         // 토큰 생성 및 쿠키 설정이 정상적으로 완료되었는지만 확인
         verify(cookieUtil).setTokenCookies(response, accessToken, refreshToken);

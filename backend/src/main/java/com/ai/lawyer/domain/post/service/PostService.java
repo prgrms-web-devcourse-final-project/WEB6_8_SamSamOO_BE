@@ -33,4 +33,6 @@ public interface PostService {
 
     // ===== 페이징 관련 =====
     Page<PostDto> getPostsPaged(Pageable pageable);
+    Page<PostDto> getOngoingPostsPaged(Pageable pageable);
+    Page<PostDto> getClosedPostsPaged(Pageable pageable);
 }

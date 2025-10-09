@@ -10,14 +10,14 @@ import java.util.List;
 @Getter
 @Setter
 @NoArgsConstructor
-public class PostPageDTO {
+public class PostPageDto {
     private List<PostDto> content;
     private int page;
     private int size;
     private int totalPages;
     private long totalElements;
 
-    public PostPageDTO(Page<PostDto> page) {
+    public PostPageDto(Page<PostDto> page) {
         this.content = page.getContent();
         this.page = page.getNumber();
         this.size = page.getSize();

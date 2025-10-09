@@ -149,8 +149,8 @@ public class PollController {
         return ResponseEntity.ok(new ApiResponse<>(200, message, polls));
     }
 
-    @Operation(summary = "index(순번)로 투표하기 - Swagger 편의용")
-    @PostMapping("/{pollId}/vote-by-index")
+    @Operation(summary = "index(순번)로 투표하기")
+    @PostMapping("/{pollId}/voting")
     public ResponseEntity<ApiResponse<PollVoteDto>> voteByIndex(@PathVariable Long pollId, @RequestParam int index) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         Long memberId = Long.parseLong(authentication.getName());

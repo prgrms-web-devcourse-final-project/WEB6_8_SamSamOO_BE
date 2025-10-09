@@ -152,13 +152,6 @@ public class MemberService {
         return MemberResponse.from(member);
     }
 
-    @Transactional
-    public void withdraw(Long memberId) {
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new IllegalArgumentException(ERR_MEMBER_NOT_FOUND));
-
-        memberRepository.delete(member);
-    }
 
     public MemberResponse getMemberById(Long memberId) {
         // Member 또는 OAuth2Member 조회
@@ -173,6 +166,44 @@ public class MemberService {
         }
 
         return MemberResponse.from(member);
+    }
+
+    public String getLoginIdByMemberId(Long memberId) {
+        // Member 또는 OAuth2Member 조회
+        com.ai.lawyer.domain.member.entity.MemberAdapter member = memberRepository.findById(memberId).orElse(null);
+
+        if (member == null && oauth2MemberRepository != null) {
+            member = oauth2MemberRepository.findById(memberId).orElse(null);
+        }
+
+        if (member == null) {
+            log.warn("회원을 찾을 수 없습니다: memberId={}", memberId);
+            return null;
+        }
+
+        return member.getLoginId();
+    }
+
+    @Transactional
+    public void deleteMember(String loginId) {
+        // Member 또는 OAuth2Member 삭제
+        java.util.Optional<Member> regularMember = memberRepository.findByLoginId(loginId);
+        if (regularMember.isPresent()) {
+            memberRepository.delete(regularMember.get());
+            log.info("일반 회원 삭제 완료: loginId={}", loginId);
+            return;
+        }
+
+        if (oauth2MemberRepository != null) {
+            java.util.Optional<OAuth2Member> oauth2Member = oauth2MemberRepository.findByLoginId(loginId);
+            if (oauth2Member.isPresent()) {
+                oauth2MemberRepository.delete(oauth2Member.get());
+                log.info("OAuth2 회원 삭제 완료: loginId={}", loginId);
+                return;
+            }
+        }
+
+        log.warn("삭제할 회원을 찾을 수 없습니다: loginId={}", loginId);
     }
 
     public void sendCodeToEmailByLoginId(String loginId) {

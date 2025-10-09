@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.LocalDate;
@@ -31,7 +32,7 @@ public class PrecedentService {
 
     private final PrecedentRepository precedentRepository;
     private final EntityManager entityManager;
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final WebClient webClient = WebClient.builder().build();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // 상수 정의
@@ -78,7 +79,11 @@ public class PrecedentService {
 
             do {
                 String url = buildSearchUrl(query, page);
-                String json = restTemplate.getForObject(url, String.class);
+                String json = webClient.get()
+                        .uri(url)
+                        .retrieve()
+                        .bodyToMono(String.class)
+                        .block();
                 JsonNode root = objectMapper.readTree(json);
                 JsonNode precSearch = root.path("PrecSearch");
 
@@ -114,7 +119,11 @@ public class PrecedentService {
         for (String precedentId : precedentIds) {
             try {
                 String url = buildDetailUrl(precedentId);
-                String json = restTemplate.getForObject(url, String.class);
+                String json = webClient.get()
+                        .uri(url)
+                        .retrieve()
+                        .bodyToMono(String.class)
+                        .block();
 
                 Precedent precedent = parseJsonToPrecedent(json);
                 if (precedent != null) {

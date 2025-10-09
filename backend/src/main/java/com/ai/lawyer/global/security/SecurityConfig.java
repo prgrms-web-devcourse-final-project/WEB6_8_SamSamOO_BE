@@ -4,6 +4,7 @@ import com.ai.lawyer.global.jwt.JwtAuthenticationFilter;
 import com.ai.lawyer.global.oauth.CustomOAuth2UserService;
 import com.ai.lawyer.global.oauth.OAuth2FailureHandler;
 import com.ai.lawyer.global.oauth.OAuth2SuccessHandler;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,10 +21,17 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.List;
+import java.util.Arrays;
 
+/**
+ * Spring Security 설정
+ * - JWT 기반 인증
+ * - OAuth2 소셜 로그인 (카카오, 네이버)
+ * - CORS 설정
+ */
 @Configuration
 @EnableWebSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -34,67 +42,76 @@ public class SecurityConfig {
     @Value("${custom.cors.allowed-origins:http://localhost:3000}")
     private String allowedOrigins;
 
-    public SecurityConfig(
-            JwtAuthenticationFilter jwtAuthenticationFilter,
-            @org.springframework.beans.factory.annotation.Autowired(required = false) CustomOAuth2UserService customOAuth2UserService,
-            @org.springframework.beans.factory.annotation.Autowired(required = false) OAuth2SuccessHandler oAuth2SuccessHandler,
-            @org.springframework.beans.factory.annotation.Autowired(required = false) OAuth2FailureHandler oAuth2FailureHandler) {
-        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-        this.customOAuth2UserService = customOAuth2UserService;
-        this.oAuth2SuccessHandler = oAuth2SuccessHandler;
-        this.oAuth2FailureHandler = oAuth2FailureHandler;
-    }
+    // 인증 없이 접근 가능한 공개 엔드포인트
+    private static final String[] PUBLIC_ENDPOINTS = {
+            "/api/auth/**",           // 회원 인증 (로그인, 회원가입, OAuth2 등)
+            "/api/public/**",         // 공개 API
+            "/oauth2/**",             // OAuth2 인증 시작
+            "/login/oauth2/**",       // OAuth2 콜백
+            "/v3/api-docs/**",        // Swagger API 문서
+            "/swagger-ui/**",         // Swagger UI
+            "/swagger-ui.html",       // Swagger UI HTML
+            "/api/posts/**",          // 게시글 (공개)
+            "/api/precedent/**",      // 판례 (공개)
+            "/api/law/**",            // 법령 (공개)
+            "/api/law-word/**",       // 법률 용어 (공개)
+            "/api/chat/**",           // 챗봇 (공개)
+            "/h2-console/**"          // H2 콘솔 (개발용)
+    };
+
+    // CORS 허용 메서드
+    private static final String[] ALLOWED_METHODS = {
+            "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"
+    };
+
+    // CORS 허용 헤더
+    private static final String[] ALLOWED_HEADERS = {
+            "Authorization", "Content-Type", "Accept", "X-Requested-With"
+    };
+
+    // 인증 실패 시 반환할 JSON 메시지
+    private static final String UNAUTHORIZED_JSON =
+            "{\"error\":\"Unauthorized\",\"message\":\"인증이 필요합니다.\"}";
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
+        return http
+                // 기본 보안 설정
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
+
+                // 세션 정책: JWT 기반 인증이므로 세션 사용 안 함 (STATELESS)
                 .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
-                .headers(headers -> headers
-                        .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
-                )
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+                // H2 콘솔을 위한 frameOptions 설정
+                .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin))
+
+                // 접근 권한 설정
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(
-                                "/api/auth/login",
-                                "/api/auth/signup",
-                                "/api/auth/refresh",
-                                "/api/auth/sendEmail",
-                                "/api/auth/verifyEmail",
-                                "/api/auth/passwordReset",
-                                "/api/auth/oauth2/**",
-                                "/api/public/**",
-                                "/oauth2/**",
-                                "/login/oauth2/**").permitAll()
-                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers("/api/posts/**").permitAll()
-                        .requestMatchers("/api/precedent/**").permitAll()
-                        .requestMatchers("/api/law/**").permitAll()
-                        .requestMatchers("/api/law-word/**").permitAll()
-                        .requestMatchers("/h2-console/**").permitAll()
-                        .requestMatchers("/api/chat/**").permitAll()
-                        .anyRequest().authenticated()
-                );
+                        .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+                        .anyRequest().authenticated())
 
-        // OAuth2 로그인 설정 (빈이 있을 때만)
-        if (customOAuth2UserService != null && oAuth2SuccessHandler != null && oAuth2FailureHandler != null) {
-            http.oauth2Login(oauth2 -> oauth2
-                    .userInfoEndpoint(userInfo -> userInfo
-                            .userService(customOAuth2UserService)
-                    )
-                    .successHandler(oAuth2SuccessHandler)
-                    .failureHandler(oAuth2FailureHandler)
-            );
-        }
+                // OAuth2 로그인 설정
+                .oauth2Login(oauth2 -> oauth2
+                        .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
+                        .successHandler(oAuth2SuccessHandler)
+                        .failureHandler(oAuth2FailureHandler))
 
-        // JWT 필터 추가
-        http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                // 인증 실패 시 JSON 응답 (HTML 로그인 페이지 대신)
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(401);
+                            response.setContentType("application/json;charset=UTF-8");
+                            response.getWriter().write(UNAUTHORIZED_JSON);
+                        }))
 
-        return http.build();
+                // JWT 필터 추가 (UsernamePasswordAuthenticationFilter 이전)
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+
+                .build();
     }
 
     @Bean
@@ -105,9 +122,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of(allowedOrigins.split(",")));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization","Content-Type","Accept","X-Requested-With"));
+        configuration.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
+        configuration.setAllowedMethods(Arrays.asList(ALLOWED_METHODS));
+        configuration.setAllowedHeaders(Arrays.asList(ALLOWED_HEADERS));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

@@ -1,5 +1,7 @@
 package com.ai.lawyer.domain.chatbot.service;
 
+import com.ai.lawyer.domain.chatbot.dto.ChatDto.ChatLawDto;
+import com.ai.lawyer.domain.chatbot.dto.ChatDto.ChatPrecedentDto;
 import com.ai.lawyer.domain.chatbot.dto.ChatDto.ChatRequest;
 import com.ai.lawyer.domain.chatbot.dto.ChatDto.ChatResponse;
 import com.ai.lawyer.domain.chatbot.dto.ExtractionDto.KeywordExtractionDto;
@@ -37,6 +39,7 @@ public class ChatBotService {
 
     private final QdrantService qdrantService;
     private final HistoryService historyService;
+    private final KeywordService keywordService;
 
     private final ChatRepository chatRepository;
     private final HistoryRepository historyRepository;
@@ -91,21 +94,26 @@ public class ChatBotService {
                 .onErrorResume(throwable -> Flux.just(handleError(history)));  // 에러 발생 시 에러 핸들링 -> 재전송 유도
     }
 
-    // 키워드 추출 메서드
-    public <T> T keywordExtract(String content, String promptTemplate, Class<T> classType) {
-        String prompt = promptTemplate + content;
-        return chatClient.prompt(new Prompt(new UserMessage(prompt)))
-                .call()
-                .entity(classType);
-    }
-
     private ChatResponse ChatResponse(History history, String fullResponse, List<Document> cases, List<Document> laws) {
+
+        ChatPrecedentDto precedentDto = null;
+        if (cases != null && !cases.isEmpty()) {
+            Document firstCase = cases.get(0);
+            precedentDto = ChatPrecedentDto.from(firstCase);
+        }
+
+        ChatLawDto lawDto = null;
+        if (laws != null && !laws.isEmpty()) {
+            Document firstLaw = laws.get(0);
+            lawDto = ChatLawDto.from(firstLaw);
+        }
+
         return ChatResponse.builder()
                 .roomId(history.getHistoryId())
                 .title(history.getTitle())
                 .message(fullResponse)
-                .similarCases(cases)
-                .similarLaws(laws)
+                .precedent(precedentDto)
+                .law(lawDto)
                 .build();
     }
 
@@ -161,7 +169,7 @@ public class ChatBotService {
     }
 
     private void extractAndUpdateKeywordRanks(String message) {
-        KeywordExtractionDto keywordResponse = keywordExtract(message, keywordExtraction, KeywordExtractionDto.class);
+        KeywordExtractionDto keywordResponse = keywordService.keywordExtract(message, keywordExtraction, KeywordExtractionDto.class);
 
         KeywordRank keywordRank = keywordRankRepository.findByKeyword(keywordResponse.getKeyword());
 
@@ -180,7 +188,7 @@ public class ChatBotService {
 
     private void setHistoryTitle(ChatRequest chatDto, History history, String fullResponse) {
         String targetText = fullResponse.contains("해당 질문은 법률") ? chatDto.getMessage() : fullResponse;
-        TitleExtractionDto titleDto = keywordExtract(targetText, titleExtraction, TitleExtractionDto.class);
+        TitleExtractionDto titleDto = keywordService.keywordExtract(targetText, titleExtraction, TitleExtractionDto.class);
         history.setTitle(titleDto.getTitle());
         historyRepository.save(history);
     }

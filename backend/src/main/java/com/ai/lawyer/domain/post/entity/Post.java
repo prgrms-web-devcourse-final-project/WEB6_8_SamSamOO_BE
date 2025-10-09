@@ -22,7 +22,7 @@ public class Post {
     private Long postId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "member_id", nullable = false, foreignKey = @ForeignKey(name = "FK_POST_MEMBER"))
+    @JoinColumn(name = "member_id", nullable = true, foreignKey = @ForeignKey(name = "FK_POST_MEMBER"))
     private Member member;
 
     @Column(name = "post_name", length = 100, nullable = false)

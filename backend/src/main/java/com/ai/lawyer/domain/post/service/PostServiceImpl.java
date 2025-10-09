@@ -21,6 +21,7 @@ import com.ai.lawyer.domain.poll.repository.PollVoteRepository;
 import com.ai.lawyer.domain.poll.service.PollService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -252,6 +253,24 @@ public class PostServiceImpl implements PostService {
     @Override
     public Page<PostDto> getPostsPaged(Pageable pageable) {
         return postRepository.findAll(pageable).map(this::convertToDto);
+    }
+
+    @Override
+    public Page<PostDto> getOngoingPostsPaged(Pageable pageable) {
+        Page<PostDto> allPosts = postRepository.findAll(pageable).map(this::convertToDto);
+        List<PostDto> ongoing = allPosts.stream()
+            .filter(dto -> dto.getPoll() != null && dto.getPoll().getStatus() == PollDto.PollStatus.ONGOING)
+            .collect(Collectors.toList());
+        return new PageImpl<>(ongoing, pageable, ongoing.size());
+    }
+
+    @Override
+    public Page<PostDto> getClosedPostsPaged(Pageable pageable) {
+        Page<PostDto> allPosts = postRepository.findAll(pageable).map(this::convertToDto);
+        List<PostDto> closed = allPosts.stream()
+            .filter(dto -> dto.getPoll() != null && dto.getPoll().getStatus() == PollDto.PollStatus.CLOSED)
+            .collect(Collectors.toList());
+        return new PageImpl<>(closed, pageable, closed.size());
     }
 
     private PostDto convertToDto(Post entity) {

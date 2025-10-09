@@ -2,17 +2,12 @@ package com.ai.lawyer.domain.post.controller;
 
 import com.ai.lawyer.domain.post.dto.*;
 import com.ai.lawyer.domain.post.service.PostService;
-import com.ai.lawyer.domain.member.entity.Member;
 import com.ai.lawyer.domain.member.repositories.MemberRepository;
 import com.ai.lawyer.global.jwt.TokenProvider;
 import com.ai.lawyer.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
-import lombok.AllArgsConstructor;
-import lombok.Data;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -66,7 +61,7 @@ public class PostController {
     }
 
     @Operation(summary = "게시글 간편 전체 조회")
-    @GetMapping("/simple")
+    @GetMapping("/simplePost")
     public ResponseEntity<ApiResponse<List<PostSimpleDto>>> getAllSimplePosts() {
         List<PostSimpleDto> posts = postService.getAllSimplePosts();
         return ResponseEntity.ok(new ApiResponse<>(200, "게시글 간편 전체 조회 성공", posts));
@@ -153,7 +148,7 @@ public class PostController {
      }
 
     @Operation(summary = "게시글+투표 동시 등록")
-    @PostMapping("/with-poll")
+    @PostMapping("/createPost")
     public ResponseEntity<ApiResponse<PostDetailDto>> createPostWithPoll(@RequestBody PostWithPollCreateDto dto) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         Object principal = authentication.getPrincipal();
@@ -171,7 +166,7 @@ public class PostController {
 
     @Operation(summary = "게시글 페이징 조회")
     @GetMapping("/paged")
-    public ResponseEntity<ApiResponse<PostPageDTO>> getPostsPaged(
+    public ResponseEntity<ApiResponse<PostPageDto>> getPostsPaged(
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "10") int size
     ) {
@@ -180,7 +175,37 @@ public class PostController {
         if (posts == null) {
             posts = new org.springframework.data.domain.PageImpl<>(java.util.Collections.emptyList(), pageable, 0);
         }
-        PostPageDTO response = new PostPageDTO(posts);
+        PostPageDto response = new PostPageDto(posts);
         return ResponseEntity.ok(new ApiResponse<>(200, "페이징 게시글 조회 성공", response));
+    }
+
+    @Operation(summary = "진행중 투표 게시글 페이징 조회")
+    @GetMapping("/ongoingPaged")
+    public ResponseEntity<ApiResponse<PostPageDto>> getOngoingPostsPaged(
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "10") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<PostDto> posts = postService.getOngoingPostsPaged(pageable);
+        if (posts == null) {
+            posts = new org.springframework.data.domain.PageImpl<>(java.util.Collections.emptyList(), pageable, 0);
+        }
+        PostPageDto response = new PostPageDto(posts);
+        return ResponseEntity.ok(new ApiResponse<>(200, "진행중 투표 게시글 페이징 조회 성공", response));
+    }
+
+    @Operation(summary = "마감 투표 게시글 페이징 조회")
+    @GetMapping("/closedPaged")
+    public ResponseEntity<ApiResponse<PostPageDto>> getClosedPostsPaged(
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "10") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<PostDto> posts = postService.getClosedPostsPaged(pageable);
+        if (posts == null) {
+            posts = new org.springframework.data.domain.PageImpl<>(java.util.Collections.emptyList(), pageable, 0);
+        }
+        PostPageDto response = new PostPageDto(posts);
+        return ResponseEntity.ok(new ApiResponse<>(200, "마감된 투표 게시글 페이징 조회 성공", response));
     }
 }

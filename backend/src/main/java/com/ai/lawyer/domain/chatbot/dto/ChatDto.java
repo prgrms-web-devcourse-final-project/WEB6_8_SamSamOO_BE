@@ -8,8 +8,6 @@ import lombok.*;
 import org.springframework.ai.document.Document;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Schema(description = "채팅 관련 DTO")
 public class ChatDto {
@@ -42,11 +40,10 @@ public class ChatDto {
         @Schema(description = "AI 챗봇의 응답 메시지", example = "네, 관련 법령과 판례를 바탕으로 답변해 드리겠습니다.")
         private String message;
 
-        @Schema(description = "응답 생성에 참고한 유사 판례 정보 목록")
-        private List<Document> similarCases;
+        private ChatPrecedentDto precedent;
 
-        @Schema(description = "응답 생성에 참고한 유사 법령 정보 목록")
-        private List<Document> similarLaws;
+        private ChatLawDto law;
+
     }
 
     @Getter
@@ -73,6 +70,14 @@ public class ChatDto {
                     .caseName(cp.getCaseName())
                     .build();
         }
+
+        public static ChatPrecedentDto from(Document doc) {
+            return ChatPrecedentDto.builder()
+                    .precedentContent(doc.getText())
+                    .caseNumber(doc.getMetadata().get("caseNumber").toString())
+                    .caseName(doc.getMetadata().get("caseName").toString())
+                    .build();
+        }
     }
 
     @Data
@@ -93,6 +98,13 @@ public class ChatDto {
                     .lawName(cl.getLawName())
                     .build();
         }
+
+        public static ChatLawDto from(Document doc) {
+            return ChatLawDto.builder()
+                    .content(doc.getText())
+                    .lawName(doc.getMetadata().get("lawName").toString())
+                    .build();
+        }
     }
 
     @Getter
@@ -109,31 +121,31 @@ public class ChatDto {
         @Schema(description = "메시지 내용", example = "안녕하세요~~")
         private String message;
 
-        private List<ChatPrecedentDto> precedents;
+        private ChatPrecedentDto precedent;
 
-        private List<ChatLawDto> laws;
+        private ChatLawDto law;
 
         @Schema(description = "생성 시간")
         private LocalDateTime createdAt;
 
         public static ChatHistoryDto from(Chat chat) {
 
-            List<ChatPrecedentDto> precedentDtos = new ArrayList<>();
-            for (ChatPrecedent cp : chat.getChatPrecedents()) {
-                precedentDtos.add(ChatPrecedentDto.from(cp));
+            ChatPrecedentDto precedentDto = null;
+            if (chat.getChatPrecedents() != null && !chat.getChatPrecedents().isEmpty()) {
+                precedentDto = ChatPrecedentDto.from(chat.getChatPrecedents().get(0));
             }
 
-            List<ChatLawDto> lawDtos = new ArrayList<>();
-            for (ChatLaw cl : chat.getChatLaws()) {
-                lawDtos.add(ChatLawDto.from(cl));
+            ChatLawDto lawDto = null;
+            if (chat.getChatLaws() != null && !chat.getChatLaws().isEmpty()) {
+                lawDto = ChatLawDto.from(chat.getChatLaws().get(0));
             }
 
             return ChatHistoryDto.builder()
                     .type(chat.getType().toString())
                     .message(chat.getMessage())
                     .createdAt(chat.getCreatedAt())
-                    .precedents(precedentDtos)
-                    .laws(lawDtos)
+                    .precedent(precedentDto)
+                    .law(lawDto)
                     .build();
         }
     }

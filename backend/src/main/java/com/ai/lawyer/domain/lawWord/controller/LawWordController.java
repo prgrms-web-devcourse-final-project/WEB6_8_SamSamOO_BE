@@ -19,15 +19,25 @@ public class LawWordController {
 
     private final LawWordService lawWordService;
 
-    @GetMapping("/{word}")
-    @Operation(summary = "법령 용어 검색", description = "법령 용어에 대한 정의를 반환합니다. \n" +
-            "예시: /api/law-word/선박")
-    public ResponseEntity<?> getPrecedent(@PathVariable String  word) {
+    @GetMapping("/v1/{word}")
+    @Operation(summary = "법령 용어 검색 version 1", description = "법령 용어에 대한 정의를 반환합니다. \n" +
+            "예시: /api/law-word/승소")
+    public ResponseEntity<?> getPrecedentV1(@PathVariable String  word) {
         try {
             return ResponseEntity.ok(lawWordService.findDefinition(word));
         }catch (Exception e){
             return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }
 
+    @GetMapping("/v2/{word}")
+    @Operation(summary = "법령 용어 검색 version 2", description = "법령 용어에 대한 정의를 반환합니다. \n" +
+            "예시: /api/law-word/승소")
+    public ResponseEntity<?> getPrecedentV2(@PathVariable String  word) {
+        try {
+            return ResponseEntity.ok(lawWordService.findDefinitionV2(word));
+        }catch (Exception e){
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 }
