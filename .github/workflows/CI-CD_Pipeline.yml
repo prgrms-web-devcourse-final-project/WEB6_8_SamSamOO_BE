@@ -274,7 +274,11 @@ jobs:
           comment: Deploy
           command: |
             set -Eeuo pipefail
-
+            # prod.env 복원
+              install -d -m 700 /home/ec2-user/configs
+              printf "%s" "${{ secrets.PROD_ENV_BASE64 }}" | base64 -d > /home/ec2-user/configs/prod.env
+              chmod 600 /home/ec2-user/configs/prod.env
+              test -s /home/ec2-user/configs/prod.env || { echo "prod.env empty"; exit 1; }
             # ---------------------------------------------------------
             # 0) 실행 로그(라인 타임스탬프 부착)
             # ---------------------------------------------------------
