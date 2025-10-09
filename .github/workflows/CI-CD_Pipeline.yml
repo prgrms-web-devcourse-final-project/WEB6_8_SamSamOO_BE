@@ -296,6 +296,9 @@ jobs:
             PORT_IN="${{ env.CONTAINER_PORT }}"
             NET="${{ env.DOCKER_NETWORK }}"
 
+            echo "GHCR login"
+            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u "${{ github.repository_owner }}" --password-stdin
+            
             echo "🔹 Use image: ${IMAGE}"
             docker pull "${IMAGE}"
 
