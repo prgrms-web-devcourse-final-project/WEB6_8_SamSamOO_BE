@@ -382,7 +382,7 @@ jobs:
             # ---------------------------------------------------------
             # 6) 업스트림 전환 (forward_host/forward_port만 업데이트)
             # ---------------------------------------------------------
-            NEW_CFG=$(jq -n --arg host "${GREEN}" --argjson port ${PORT_IN} '{forward_host:$host, forward_port:$port}')
+            NEW_CFG=$(jq -n --arg host "${GREEN}" --argjson port ${PORT_IN} '{forward_host:$host, forward_port:$port, forward_scheme:"http"}')
             curl -s -X PUT "http://127.0.0.1:81/api/nginx/proxy-hosts/${PROXY_ID}" \
               -H "Authorization: Bearer ${TOKEN}" \
               -H "Content-Type: application/json" \
