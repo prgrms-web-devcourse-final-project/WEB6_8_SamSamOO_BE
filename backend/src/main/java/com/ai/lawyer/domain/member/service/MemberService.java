@@ -263,6 +263,10 @@ public class MemberService {
         return tokenProvider.getLoginIdFromToken(token);
     }
 
+    public Long extractMemberIdFromToken(String token) {
+        return tokenProvider.getMemberIdFromToken(token);
+    }
+
     @Transactional
     public MemberResponse oauth2LoginTest(OAuth2LoginTestRequest request, HttpServletResponse response) {
         if (oauth2MemberRepository == null) {

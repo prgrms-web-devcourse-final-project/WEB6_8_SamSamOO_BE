@@ -22,6 +22,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     private final TokenProvider tokenProvider;
     private final CookieUtil cookieUtil;
+    private final OAuth2TestPageUtil oauth2TestPageUtil;
 
     @Value("${custom.oauth2.redirect-url}")
     private String frontendRedirectUrl;
@@ -29,7 +30,6 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     @Value("${spring.profiles.active:dev}")
     private String activeProfile;
 
-    private static final String BACKEND_SUCCESS_PAGE = "/api/auth/oauth2/success-page";
     private static final int HEALTH_CHECK_TIMEOUT = 2000; // 2초
 
     @Override
@@ -63,16 +63,24 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                 member.getMemberId(), member.getLoginId(), accessToken, refreshToken
             ));
         } else {
-            // 개발 환경에서 프론트엔드 헬스체크
-            String targetUrl = frontendRedirectUrl;
-
+            // 프론트엔드 모드: 프론트엔드로 리다이렉트 또는 백엔드 성공 페이지 표시
             if (isDevelopmentEnvironment() && !isFrontendAvailable()) {
-                log.warn("프론트엔드 서버({}})가 응답하지 않습니다. 백엔드 성공 페이지로 폴백합니다.", frontendRedirectUrl);
-                targetUrl = request.getContextPath() + BACKEND_SUCCESS_PAGE;
-            }
+                // 프론트엔드 서버가 없으면 백엔드 성공 페이지 HTML 직접 반환
+                log.warn("프론트엔드 서버({})가 응답하지 않습니다. 백엔드 성공 페이지를 반환합니다.", frontendRedirectUrl);
+                response.setContentType("text/html;charset=UTF-8");
+                response.setStatus(HttpServletResponse.SC_OK);
 
-            log.info("OAuth2 로그인 완료, 리다이렉트: {}", targetUrl);
-            getRedirectStrategy().sendRedirect(request, response, targetUrl);
+                String htmlContent = oauth2TestPageUtil.getSuccessPageHtml(
+                    "OAuth2 로그인 성공",
+                    "로그인에 성공했습니다!",
+                    String.format("회원 ID: %d<br>이메일: %s", member.getMemberId(), member.getLoginId())
+                );
+                response.getWriter().write(htmlContent);
+            } else {
+                // 프론트엔드 서버로 리다이렉트
+                log.info("OAuth2 로그인 완료, 프론트엔드로 리다이렉트: {}", frontendRedirectUrl);
+                getRedirectStrategy().sendRedirect(request, response, frontendRedirectUrl);
+            }
         }
     }
 
