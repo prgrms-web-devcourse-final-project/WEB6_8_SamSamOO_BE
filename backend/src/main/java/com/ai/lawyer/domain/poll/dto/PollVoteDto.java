@@ -15,5 +15,5 @@ public class PollVoteDto {
     private Long pollItemsId;
     private Long memberId;
     private Long voteCount;
+    private String message;
 }
-

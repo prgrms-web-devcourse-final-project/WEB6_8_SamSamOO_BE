@@ -1,6 +1,7 @@
 package com.ai.lawyer.domain.post.controller;
 
 import com.ai.lawyer.domain.post.dto.PostRequestDto;
+import com.ai.lawyer.domain.post.dto.PostUpdateDto;
 import com.ai.lawyer.domain.post.service.PostService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -92,7 +93,7 @@ class PostControllerTest {
     @DisplayName("게시글 전체 조회")
     void t2() throws Exception {
         List<com.ai.lawyer.domain.post.dto.PostDetailDto> posts = java.util.Collections.emptyList();
-        Mockito.when(postService.getAllPosts()).thenReturn(posts);
+        Mockito.when(postService.getAllPosts(Mockito.anyLong())).thenReturn(posts);
 
         mockMvc.perform(get("/api/posts")
                         .cookie(new Cookie("accessToken", "valid-access-token")))
@@ -105,7 +106,7 @@ class PostControllerTest {
     void t3() throws Exception {
         com.ai.lawyer.domain.post.dto.PostDto postDto = com.ai.lawyer.domain.post.dto.PostDto.builder().postId(1L).postName("테스트 제목").build();
         com.ai.lawyer.domain.post.dto.PostDetailDto postDetailDto = com.ai.lawyer.domain.post.dto.PostDetailDto.builder().post(postDto).build();
-        Mockito.when(postService.getPostById(Mockito.anyLong())).thenReturn(postDetailDto);
+        Mockito.when(postService.getPostDetailById(Mockito.anyLong(), Mockito.anyLong())).thenReturn(postDetailDto);
 
         mockMvc.perform(get("/api/posts/1")
                         .cookie(new Cookie("accessToken", "valid-access-token")))
@@ -119,7 +120,7 @@ class PostControllerTest {
         List<com.ai.lawyer.domain.post.dto.PostDto> postDtoList = List.of(com.ai.lawyer.domain.post.dto.PostDto.builder().postId(1L).postName("테스트 제목").build());
         com.ai.lawyer.domain.post.dto.PostDetailDto postDetailDto = com.ai.lawyer.domain.post.dto.PostDetailDto.builder().post(postDtoList.getFirst()).build();
         Mockito.when(postService.getPostsByMemberId(Mockito.anyLong())).thenReturn(postDtoList);
-        Mockito.when(postService.getPostDetailById(Mockito.anyLong())).thenReturn(postDetailDto);
+        Mockito.when(postService.getPostDetailById(Mockito.anyLong(), Mockito.anyLong())).thenReturn(postDetailDto);
 
         mockMvc.perform(get("/api/posts/member/1")
                         .cookie(new Cookie("accessToken", "valid-access-token")))
@@ -130,10 +131,14 @@ class PostControllerTest {
     @Test
     @DisplayName("게시글 수정")
     void t5() throws Exception {
-        com.ai.lawyer.domain.post.dto.PostDto postDto = com.ai.lawyer.domain.post.dto.PostDto.builder().postId(1L).postName("수정 제목").build();
+        com.ai.lawyer.domain.post.dto.PostDto postDto = com.ai.lawyer.domain.post.dto.PostDto.builder()
+            .postId(1L)
+            .postName("수정 제목")
+            .memberId(1L)
+            .build();
         com.ai.lawyer.domain.post.dto.PostDetailDto postDetailDto = com.ai.lawyer.domain.post.dto.PostDetailDto.builder().post(postDto).build();
         Mockito.doNothing().when(postService).patchUpdatePost(Mockito.anyLong(), Mockito.any());
-        Mockito.when(postService.getPostDetailById(Mockito.anyLong())).thenReturn(postDetailDto);
+        Mockito.when(postService.getPostDetailById(Mockito.eq(1L), Mockito.anyLong())).thenReturn(postDetailDto);
         com.ai.lawyer.domain.post.dto.PostUpdateDto updateDto = com.ai.lawyer.domain.post.dto.PostUpdateDto.builder().postName("수정 제목").build();
 
         mockMvc.perform(put("/api/posts/1")
@@ -147,6 +152,13 @@ class PostControllerTest {
     @Test
     @DisplayName("게시글 삭제")
     void t6() throws Exception {
+        com.ai.lawyer.domain.post.dto.PostDto postDto = com.ai.lawyer.domain.post.dto.PostDto.builder()
+            .postId(1L)
+            .postName("삭제 제목")
+            .memberId(1L)
+            .build();
+        com.ai.lawyer.domain.post.dto.PostDetailDto postDetailDto = com.ai.lawyer.domain.post.dto.PostDetailDto.builder().post(postDto).build();
+        Mockito.when(postService.getPostDetailById(Mockito.eq(1L), Mockito.anyLong())).thenReturn(postDetailDto);
         Mockito.doNothing().when(postService).deletePost(Mockito.anyLong());
 
         mockMvc.perform(delete("/api/posts/1")
@@ -162,7 +174,7 @@ class PostControllerTest {
         );
         org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
         org.springframework.data.domain.PageImpl<com.ai.lawyer.domain.post.dto.PostDto> page = new org.springframework.data.domain.PageImpl<>(postList, pageable, 1);
-        Mockito.when(postService.getPostsPaged(Mockito.any(org.springframework.data.domain.Pageable.class))).thenReturn(page);
+        Mockito.when(postService.getPostsPaged(Mockito.any(org.springframework.data.domain.Pageable.class), Mockito.anyLong())).thenReturn(page);
 
         mockMvc.perform(get("/api/posts/paged")
                 .param("page", "0")

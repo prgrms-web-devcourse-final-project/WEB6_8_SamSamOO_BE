@@ -1,18 +1,17 @@
 package com.ai.lawyer.domain.poll.controller;
 
-import com.ai.lawyer.domain.poll.dto.PollCreateDto;
-import com.ai.lawyer.domain.poll.dto.PollDto;
-import com.ai.lawyer.domain.poll.dto.PollStaticsResponseDto;
-import com.ai.lawyer.domain.poll.dto.PollVoteDto;
+import com.ai.lawyer.domain.poll.dto.*;
 import com.ai.lawyer.domain.poll.entity.PollVote;
 import com.ai.lawyer.domain.poll.entity.PollOptions;
 import com.ai.lawyer.domain.poll.service.PollService;
 import com.ai.lawyer.domain.post.dto.PostDetailDto;
 import com.ai.lawyer.domain.post.service.PostService;
 import com.ai.lawyer.global.response.ApiResponse;
+import com.ai.lawyer.global.util.AuthUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -26,6 +25,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/polls")
 @RequiredArgsConstructor
+@Slf4j
 public class PollController {
 
     private final PollService pollService;
@@ -34,15 +34,10 @@ public class PollController {
     @Operation(summary = "투표 단일 조회")
     @GetMapping("/{pollId}")
     public ResponseEntity<ApiResponse<PollDto>> getPoll(@PathVariable Long pollId) {
-        PollDto poll = pollService.getPoll(pollId);
+        Long memberId = AuthUtil.getCurrentMemberId();
+        log.info("PollController getPoll: memberId={}", memberId);
+        PollDto poll = pollService.getPoll(pollId, memberId);
         return ResponseEntity.ok(new ApiResponse<>(200, "투표 단일 조회 성공", poll));
-    }
-
-    @Operation(summary = "투표 옵션 목록 조회")
-    @GetMapping("/{pollId}/options")
-    public ResponseEntity<ApiResponse<List<PollOptions>>> getPollOptions(@PathVariable Long pollId) {
-        List<PollOptions> options = pollService.getPollOptions(pollId);
-        return ResponseEntity.ok(new ApiResponse<>(200, "투표 옵션 목록 조회 성공", options));
     }
 
     @Operation(summary = "투표하기")
@@ -68,9 +63,22 @@ public class PollController {
         return ResponseEntity.ok(new ApiResponse<>(200, "투표가 종료되었습니다.", null));
     }
 
+    @Operation(summary = "투표 수정")
+    @PutMapping("/{pollId}")
+    public ResponseEntity<ApiResponse<PollDto>> updatePoll(@PathVariable Long pollId, @RequestBody PollUpdateDto pollUpdateDto) {
+        Long currentMemberId = AuthUtil.getCurrentMemberId();
+        PollDto updated = pollService.updatePoll(pollId, pollUpdateDto, currentMemberId);
+        return ResponseEntity.ok(new ApiResponse<>(200, "투표가 수정되었습니다.", updated));
+    }
+
     @Operation(summary = "투표 삭제")
     @DeleteMapping("/{pollId}")
     public ResponseEntity<ApiResponse<Void>> deletePoll(@PathVariable Long pollId) {
+        Long currentMemberId = AuthUtil.getCurrentMemberId();
+        PollDto poll = pollService.getPoll(pollId, currentMemberId);
+        if (!poll.getPostId().equals(currentMemberId)) {
+            return ResponseEntity.status(403).body(new ApiResponse<>(403, "본인만 투표를 삭제할 수 있습니다.", null));
+        }
         pollService.deletePoll(pollId);
         return ResponseEntity.ok(new ApiResponse<>(200, "투표가 삭제되었습니다.", null));
     }
@@ -78,14 +86,16 @@ public class PollController {
     @Operation(summary = "진행중인 투표 Top 1 조회")
     @GetMapping("/top/ongoing")
     public ResponseEntity<ApiResponse<PollDto>> getTopOngoingPoll() {
-        PollDto poll = pollService.getTopPollByStatus(PollDto.PollStatus.ONGOING);
+        Long memberId = AuthUtil.getCurrentMemberId();
+        PollDto poll = pollService.getTopPollByStatus(PollDto.PollStatus.ONGOING, memberId);
         return ResponseEntity.ok(new ApiResponse<>(200, "진행중인 투표 Top 1 조회 성공", poll));
     }
 
     @Operation(summary = "종료된 투표 Top 1 조회")
     @GetMapping("/top/closed")
     public ResponseEntity<ApiResponse<PollDto>> getTopClosedPoll() {
-        PollDto poll = pollService.getTopPollByStatus(PollDto.PollStatus.CLOSED);
+        Long memberId = AuthUtil.getCurrentMemberId();
+        PollDto poll = pollService.getTopPollByStatus(PollDto.PollStatus.CLOSED, memberId);
         return ResponseEntity.ok(new ApiResponse<>(200, "종료된 투표 Top 1 조회 성공", poll));
     }
 
@@ -112,42 +122,37 @@ public class PollController {
         return ResponseEntity.ok(new ApiResponse<>(201, "투표가 생성되었습니다.", created));
     }
 
-    @Operation(summary = "투표 수정")
-    @PutMapping("/{pollId}")
-    public ResponseEntity<ApiResponse<PollDto>> updatePoll(@PathVariable Long pollId, @RequestBody com.ai.lawyer.domain.poll.dto.PollUpdateDto pollUpdateDto) {
-        PollDto updated = pollService.updatePoll(pollId, pollUpdateDto);
-        return ResponseEntity.ok(new ApiResponse<>(200, "투표가 수정되었습니다.", updated));
-    }
-
     @Operation(summary = "진행중인 투표 전체 목록 조회")
     @GetMapping("/ongoing")
     public ResponseEntity<ApiResponse<List<PollDto>>> getOngoingPolls() {
-        List<PollDto> polls = pollService.getPollsByStatus(PollDto.PollStatus.ONGOING);
+        Long memberId = AuthUtil.getCurrentMemberId();
+        List<PollDto> polls = pollService.getPollsByStatus(PollDto.PollStatus.ONGOING, memberId);
         return ResponseEntity.ok(new ApiResponse<>(200, "진행중인 투표 전체 목록 조회 성공", polls));
     }
 
     @Operation(summary = "종료된 투표 전체 목록 조회")
     @GetMapping("/closed")
     public ResponseEntity<ApiResponse<List<PollDto>>> getClosedPolls() {
-        List<PollDto> polls = pollService.getPollsByStatus(PollDto.PollStatus.CLOSED);
+        Long memberId = AuthUtil.getCurrentMemberId();
+        List<PollDto> polls = pollService.getPollsByStatus(PollDto.PollStatus.CLOSED, memberId);
         return ResponseEntity.ok(new ApiResponse<>(200, "종료된 투표 전체 목록 조회 성공", polls));
     }
 
-    @Operation(summary = "종료된 투표 Top N 조회")
-    @GetMapping("/top/closed-list") //검색조건 : pi/polls/top/closed-list?size=3
-    public ResponseEntity<ApiResponse<List<PollDto>>> getTopClosedPolls(@RequestParam(defaultValue = "3") int size) {
-        List<PollDto> polls = pollService.getTopNPollsByStatus(PollDto.PollStatus.CLOSED, size);
-        String message = String.format("종료된 투표 Top %d 조회 성공", size);
-        return ResponseEntity.ok(new ApiResponse<>(200, message, polls));
-    }
-
-    @Operation(summary = "진행중인 투표 Top N 조회")
-    @GetMapping("/top/ongoing-list") //검색조건 : api/polls/top/ongoing-list?size=3
-    public ResponseEntity<ApiResponse<List<PollDto>>> getTopOngoingPolls(@RequestParam(defaultValue = "3") int size) {
-        List<PollDto> polls = pollService.getTopNPollsByStatus(PollDto.PollStatus.ONGOING, size);
-        String message = String.format("진행중인 투표 Top %d 조회 성공", size);
-        return ResponseEntity.ok(new ApiResponse<>(200, message, polls));
-    }
+//    @Operation(summary = "종료된 투표 Top N 조회")
+//    @GetMapping("/top/closed-list") //검색조건 : pi/polls/top/closed-list?size=3
+//    public ResponseEntity<ApiResponse<List<PollDto>>> getTopClosedPolls(@RequestParam(defaultValue = "3") int size) {
+//        List<PollDto> polls = pollService.getTopNPollsByStatus(PollDto.PollStatus.CLOSED, size);
+//        String message = String.format("종료된 투표 Top %d 조회 성공", size);
+//        return ResponseEntity.ok(new ApiResponse<>(200, message, polls));
+//    }
+//
+//    @Operation(summary = "진행중인 투표 Top N 조회")
+//    @GetMapping("/top/ongoing-list") //검색조건 : api/polls/top/ongoing-list?size=3
+//    public ResponseEntity<ApiResponse<List<PollDto>>> getTopOngoingPolls(@RequestParam(defaultValue = "3") int size) {
+//        List<PollDto> polls = pollService.getTopNPollsByStatus(PollDto.PollStatus.ONGOING, size);
+//        String message = String.format("진행중인 투표 Top %d 조회 성공", size);
+//        return ResponseEntity.ok(new ApiResponse<>(200, message, polls));
+//    }
 
     @Operation(summary = "index(순번)로 투표하기")
     @PostMapping("/{pollId}/voting")

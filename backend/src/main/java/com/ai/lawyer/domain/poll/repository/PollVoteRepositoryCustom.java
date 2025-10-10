@@ -14,4 +14,3 @@ public interface PollVoteRepositoryCustom {
     List<Object[]> getOptionAgeStatics(Long pollId);
     List<Object[]> getOptionGenderStatics(Long pollId);
 }
-

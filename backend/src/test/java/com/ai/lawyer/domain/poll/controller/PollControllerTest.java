@@ -69,7 +69,7 @@ class PollControllerTest {
     @Test
     @DisplayName("투표 단일 조회")
     void t1() throws Exception {
-        Mockito.when(pollService.getPoll(Mockito.anyLong())).thenReturn(null);
+        Mockito.when(pollService.getPoll(Mockito.anyLong(), Mockito.anyLong())).thenReturn(null);
 
         mockMvc.perform(get("/api/polls/1")
                 .cookie(new Cookie("accessToken", "valid-access-token")))
@@ -77,18 +77,8 @@ class PollControllerTest {
     }
 
     @Test
-    @DisplayName("투표 옵션 목록 조회")
-    void t2() throws Exception {
-        Mockito.when(pollService.getPollOptions(Mockito.anyLong())).thenReturn(java.util.Collections.emptyList());
-
-        mockMvc.perform(get("/api/polls/1/options")
-                .cookie(new Cookie("accessToken", "valid-access-token")))
-                .andExpect(status().isOk());
-    }
-
-    @Test
     @DisplayName("투표하기")
-    void t3() throws Exception {
+    void t2() throws Exception {
         Mockito.when(pollService.vote(Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong())).thenReturn(null);
 
         mockMvc.perform(
@@ -100,7 +90,7 @@ class PollControllerTest {
 
     @Test
     @DisplayName("투표 통계 조회")
-    void t4() throws Exception {
+    void t3() throws Exception {
         Mockito.when(pollService.getPollStatics(Mockito.anyLong())).thenReturn(new PollStaticsResponseDto());
 
         mockMvc.perform(get("/api/polls/1/statics")
@@ -110,7 +100,7 @@ class PollControllerTest {
 
     @Test
     @DisplayName("투표 종료")
-    void t5() throws Exception {
+    void t4() throws Exception {
         Mockito.doNothing().when(pollService).closePoll(Mockito.anyLong());
 
         mockMvc.perform(
@@ -121,7 +111,9 @@ class PollControllerTest {
 
     @Test
     @DisplayName("투표 삭제")
-    void t6() throws Exception {
+    void t5() throws Exception {
+        PollDto pollDto = PollDto.builder().pollId(1L).postId(1L).build();
+        Mockito.when(pollService.getPoll(Mockito.eq(1L), Mockito.anyLong())).thenReturn(pollDto);
         Mockito.doNothing().when(pollService).deletePoll(Mockito.anyLong());
 
         mockMvc.perform(
@@ -132,8 +124,8 @@ class PollControllerTest {
 
     @Test
     @DisplayName("진행중인 투표 Top 1 조회")
-    void t7() throws Exception {
-        Mockito.when(pollService.getTopPollByStatus(Mockito.any())).thenReturn(null);
+    void t6() throws Exception {
+        Mockito.when(pollService.getTopPollByStatus(Mockito.any(), Mockito.anyLong())).thenReturn(null);
 
         mockMvc.perform(get("/api/polls/top/ongoing")
                 .cookie(new Cookie("accessToken", "valid-access-token")))
@@ -142,8 +134,8 @@ class PollControllerTest {
 
     @Test
     @DisplayName("종료된 투표 Top 1 조회")
-    void t8() throws Exception {
-        Mockito.when(pollService.getTopPollByStatus(Mockito.any())).thenReturn(null);
+    void t7() throws Exception {
+        Mockito.when(pollService.getTopPollByStatus(Mockito.any(), Mockito.anyLong())).thenReturn(null);
 
         mockMvc.perform(get("/api/polls/top/closed")
                 .cookie(new Cookie("accessToken", "valid-access-token")))
@@ -152,7 +144,7 @@ class PollControllerTest {
 
     @Test
     @DisplayName("투표 생성")
-    void t9() throws Exception {
+    void t8() throws Exception {
         Mockito.when(pollService.createPoll(Mockito.any(), Mockito.anyLong())).thenReturn(null);
 
         mockMvc.perform(
@@ -165,9 +157,9 @@ class PollControllerTest {
 
     @Test
     @DisplayName("투표 단일 조회")
-    void t10() throws Exception {
+    void t9() throws Exception {
         PollDto responseDto = PollDto.builder().pollId(1L).voteTitle("테스트 투표").build();
-        Mockito.when(pollService.getPoll(Mockito.anyLong())).thenReturn(responseDto);
+        Mockito.when(pollService.getPoll(Mockito.anyLong(), Mockito.anyLong())).thenReturn(responseDto);
 
         mockMvc.perform(get("/api/polls/1")
                 .cookie(new Cookie("accessToken", "valid-access-token")))
@@ -178,7 +170,7 @@ class PollControllerTest {
 
     @Test
     @DisplayName("투표하기")
-    void t11() throws Exception {
+    void t10() throws Exception {
         PollVoteDto responseDto = PollVoteDto.builder().pollId(1L).memberId(1L).build();
         Mockito.when(pollService.vote(Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong())).thenReturn(responseDto);
 

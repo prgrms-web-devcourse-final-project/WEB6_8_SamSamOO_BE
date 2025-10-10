@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -41,7 +42,12 @@ public class PostServiceImpl implements PostService {
     private final PollVoteRepository pollVoteRepository;
     private final PollService pollService;
 
-    public PostServiceImpl(PostRepository postRepository, MemberRepository memberRepository, PollRepository pollRepository, PollOptionsRepository pollOptionsRepository, PollVoteRepository pollVoteRepository, PollService pollService) {
+    public PostServiceImpl(PostRepository postRepository,
+                           MemberRepository memberRepository,
+                           PollRepository pollRepository,
+                           PollOptionsRepository pollOptionsRepository,
+                           PollVoteRepository pollVoteRepository,
+                           PollService pollService) {
         this.postRepository = postRepository;
         this.memberRepository = memberRepository;
         this.pollRepository = pollRepository;
@@ -66,19 +72,23 @@ public class PostServiceImpl implements PostService {
             .createdAt(LocalDateTime.now())
             .build();
         Post saved = postRepository.save(post);
-        return convertToDto(saved);
+        return convertToDto(saved, memberId);
+    }
+
+    public PostDetailDto getPostDetailById(Long postId, Long memberId) {
+        Post post = postRepository.findById(postId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "게시글을 찾을 수 없습니다."));
+        PostDto postDto = convertToDto(post, memberId);
+        return PostDetailDto.builder()
+            .post(postDto)
+            .build();
     }
 
     @Override
     public PostDetailDto getPostById(Long postId) {
-        return getPostDetailById(postId);
-    }
-
-    @Override
-    public PostDetailDto getPostDetailById(Long postId) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "게시글을 찾을 수 없습니다."));
-        PostDto postDto = convertToDto(post);
+        PostDto postDto = convertToDto(post, post.getMember().getMemberId());
         return PostDetailDto.builder()
                 .post(postDto)
                 .build();
@@ -93,7 +103,7 @@ public class PostServiceImpl implements PostService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "해당 회원의 게시글이 없습니다.");
         }
         return posts.stream()
-                .map(this::convertToDto)
+                .map(post -> convertToDto(post, memberId))
                 .collect(Collectors.toList());
     }
 
@@ -115,7 +125,7 @@ public class PostServiceImpl implements PostService {
             if (post.getPoll() == null) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "이 게시글에는 투표가 없어 투표 수정이 불가능합니다.");
             }
-            pollService.updatePoll(post.getPoll().getPollId(), postUpdateDto.getPoll());
+            pollService.updatePoll(post.getPoll().getPollId(), postUpdateDto.getPoll(), post.getMember().getMemberId());
         }
 
         if (postUpdateDto.getPostName() != null) post.setPostName(postUpdateDto.getPostName());
@@ -124,7 +134,7 @@ public class PostServiceImpl implements PostService {
         post.setCreatedAt(java.time.LocalDateTime.now()); // 수정 시 생성일 갱신
 
         Post updated = postRepository.save(post);
-        return convertToDto(updated);
+        return convertToDto(updated, post.getMember().getMemberId());
     }
 
     @Override
@@ -136,11 +146,12 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public List<PostDetailDto> getAllPosts() {
-        List<Post> posts = postRepository.findAll();
-        return posts.stream()
-                .map(post -> getPostDetailById(post.getPostId()))
-                .collect(Collectors.toList());
+    public List<PostDetailDto> getAllPosts(Long memberId) {
+        return postRepository.findAll().stream()
+            .map(post -> PostDetailDto.builder()
+                .post(convertToDto(post, memberId))
+                .build())
+            .collect(Collectors.toList());
     }
 
     public PostDto getMyPostById(Long postId, Long requesterMemberId) {
@@ -149,7 +160,7 @@ public class PostServiceImpl implements PostService {
         if (!post.getMember().getMemberId().equals(requesterMemberId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "본인 게시글만 조회할 수 있습니다.");
         }
-        return convertToDto(post);
+        return convertToDto(post, requesterMemberId);
     }
 
     public List<PostDto> getMyPosts(Long requesterMemberId) {
@@ -158,7 +169,7 @@ public class PostServiceImpl implements PostService {
         List<Post> posts = postRepository.findByMember(member);
         // 본인 게시글이 없으면 빈 리스트 반환
         return posts.stream()
-                .map(this::convertToDto)
+                .map(post -> convertToDto(post, requesterMemberId))
                 .collect(Collectors.toList());
     }
 
@@ -226,38 +237,38 @@ public class PostServiceImpl implements PostService {
         }
         savedPost.setPoll(savedPoll);
         postRepository.save(savedPost);
-        return getPostDetailById(savedPost.getPostId());
+        return getPostDetailById(savedPost.getPostId(), memberId);
     }
 
     @Override
     public List<PostSimpleDto> getAllSimplePosts() {
         List<Post> posts = postRepository.findAll();
         return posts.stream()
-            .map(post -> {
-                PostSimpleDto.PollInfo pollInfo = null;
-                if (post.getPoll() != null) {
-                    pollInfo = PostSimpleDto.PollInfo.builder()
-                        .pollId(post.getPoll().getPollId())
-                        .pollStatus(post.getPoll().getStatus().name())
-                        .build();
-                }
-                return PostSimpleDto.builder()
-                    .postId(post.getPostId())
-                    .memberId(post.getMember().getMemberId())
-                    .poll(pollInfo)
-                    .build();
-            })
-            .collect(Collectors.toList());
+                .map(post -> {
+                    PostSimpleDto.PollInfo pollInfo = null;
+                    if (post.getPoll() != null) {
+                        pollInfo = PostSimpleDto.PollInfo.builder()
+                                .pollId(post.getPoll().getPollId())
+                                .pollStatus(post.getPoll().getStatus().name())
+                                .build();
+                    }
+                    return PostSimpleDto.builder()
+                            .postId(post.getPostId())
+                            .memberId(post.getMember().getMemberId())
+                            .poll(pollInfo)
+                            .build();
+                })
+                .collect(Collectors.toList());
     }
 
     @Override
-    public Page<PostDto> getPostsPaged(Pageable pageable) {
-        return postRepository.findAll(pageable).map(this::convertToDto);
+    public Page<PostDto> getPostsPaged(Pageable pageable, Long memberId) {
+        return postRepository.findAll(pageable).map(post -> convertToDto(post, memberId));
     }
 
     @Override
-    public Page<PostDto> getOngoingPostsPaged(Pageable pageable) {
-        Page<PostDto> allPosts = postRepository.findAll(pageable).map(this::convertToDto);
+    public Page<PostDto> getOngoingPostsPaged(Pageable pageable, Long memberId) {
+        Page<PostDto> allPosts = postRepository.findAll(pageable).map(post -> convertToDto(post, memberId));
         List<PostDto> ongoing = allPosts.stream()
             .filter(dto -> dto.getPoll() != null && dto.getPoll().getStatus() == PollDto.PollStatus.ONGOING)
             .collect(Collectors.toList());
@@ -265,30 +276,49 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public Page<PostDto> getClosedPostsPaged(Pageable pageable) {
-        Page<PostDto> allPosts = postRepository.findAll(pageable).map(this::convertToDto);
+    public Page<PostDto> getClosedPostsPaged(Pageable pageable, Long memberId) {
+        Page<PostDto> allPosts = postRepository.findAll(pageable).map(post -> convertToDto(post, memberId));
         List<PostDto> closed = allPosts.stream()
             .filter(dto -> dto.getPoll() != null && dto.getPoll().getStatus() == PollDto.PollStatus.CLOSED)
             .collect(Collectors.toList());
         return new PageImpl<>(closed, pageable, closed.size());
     }
 
-    private PostDto convertToDto(Post entity) {
-        Long memberId = null;
+    @Override
+    public List<PostDto> getTopNPollsByStatus(PollDto.PollStatus status, int n, Long memberId) {
+        return postRepository.findAll().stream()
+            .map(post -> convertToDto(post, memberId))
+            .filter(dto -> dto.getPoll() != null && dto.getPoll().getStatus() == status)
+            .sorted(Comparator.comparing((PostDto dto) -> dto.getPoll().getTotalVoteCount() == null ? 0 : dto.getPoll().getTotalVoteCount()).reversed())
+            .limit(n)
+            .collect(Collectors.toList());
+    }
+
+    @Override
+    public PostDto getTopPollByStatus(PollDto.PollStatus status, Long memberId) {
+        return postRepository.findAll().stream()
+            .map(post -> convertToDto(post, memberId))
+            .filter(dto -> dto.getPoll() != null && dto.getPoll().getStatus() == status)
+            .max(Comparator.comparing((PostDto dto) -> dto.getPoll().getTotalVoteCount() == null ? 0 : dto.getPoll().getTotalVoteCount()))
+            .orElse(null);
+    }
+
+    private PostDto convertToDto(Post entity, Long memberId) {
+        Long postMemberId = null;
         if (entity.getMember() != null) {
-            memberId = entity.getMember().getMemberId();
+            postMemberId = entity.getMember().getMemberId();
         }
         PollDto pollDto = null;
         if (entity.getPoll() != null) {
             if (entity.getPoll().getStatus() == Poll.PollStatus.CLOSED) {
-                pollDto = pollService.getPollWithStatistics(entity.getPoll().getPollId());
+                pollDto = pollService.getPollWithStatistics(entity.getPoll().getPollId(), memberId);
             } else {
-                pollDto = pollService.getPoll(entity.getPoll().getPollId());
+                pollDto = pollService.getPoll(entity.getPoll().getPollId(), memberId);
             }
         }
         return PostDto.builder()
                 .postId(entity.getPostId())
-                .memberId(memberId)
+                .memberId(postMemberId)
                 .postName(entity.getPostName())
                 .postContent(entity.getPostContent())
                 .category(entity.getCategory())

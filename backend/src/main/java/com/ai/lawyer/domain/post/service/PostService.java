@@ -7,6 +7,7 @@ import com.ai.lawyer.domain.post.dto.PostRequestDto;
 import com.ai.lawyer.domain.post.dto.PostUpdateDto;
 import com.ai.lawyer.domain.post.dto.PostWithPollCreateDto;
 import com.ai.lawyer.domain.post.dto.PostSimpleDto;
+import com.ai.lawyer.domain.poll.dto.PollDto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -15,8 +16,8 @@ import java.util.List;
 public interface PostService {
     // ===== 조회 관련 =====
     PostDetailDto getPostById(Long postId);
-    PostDetailDto getPostDetailById(Long postId);
-    List<PostDetailDto> getAllPosts();
+    PostDetailDto getPostDetailById(Long postId, Long memberId);
+    List<PostDetailDto> getAllPosts(Long memberId);
     List<PostSimpleDto> getAllSimplePosts();
     List<PostDto> getPostsByMemberId(Long memberId);
 
@@ -32,7 +33,11 @@ public interface PostService {
     List<PostDto> getMyPosts(Long requesterMemberId);
 
     // ===== 페이징 관련 =====
-    Page<PostDto> getPostsPaged(Pageable pageable);
-    Page<PostDto> getOngoingPostsPaged(Pageable pageable);
-    Page<PostDto> getClosedPostsPaged(Pageable pageable);
+    Page<PostDto> getPostsPaged(Pageable pageable, Long memberId);
+    Page<PostDto> getOngoingPostsPaged(Pageable pageable, Long memberId);
+    Page<PostDto> getClosedPostsPaged(Pageable pageable, Long memberId);
+
+    // ===== 투표 Top 관련 =====
+    List<PostDto> getTopNPollsByStatus(PollDto.PollStatus status, int n, Long memberId);
+    PostDto getTopPollByStatus(PollDto.PollStatus status, Long memberId);
 }

@@ -29,8 +29,8 @@ class PollServiceTest {
     @DisplayName("투표 단일 조회")
     void t1() {
         PollDto expected = new PollDto();
-        Mockito.when(pollService.getPoll(Mockito.anyLong())).thenReturn(expected);
-        PollDto result = pollService.getPoll(1L);
+        Mockito.when(pollService.getPoll(Mockito.anyLong(), Mockito.anyLong())).thenReturn(expected);
+        PollDto result = pollService.getPoll(1L, 1L);
         assertThat(result).isEqualTo(expected);
     }
 
@@ -81,8 +81,8 @@ class PollServiceTest {
     @DisplayName("상태별 Top 투표 조회")
     void t7() {
         PollDto expected = new PollDto();
-        Mockito.when(pollService.getTopPollByStatus(Mockito.any())).thenReturn(expected);
-        PollDto result = pollService.getTopPollByStatus(PollDto.PollStatus.ONGOING);
+        Mockito.when(pollService.getTopPollByStatus(Mockito.any(), Mockito.anyLong())).thenReturn(expected);
+        PollDto result = pollService.getTopPollByStatus(PollDto.PollStatus.ONGOING, 1L);
         assertThat(result).isEqualTo(expected);
     }
 
@@ -107,8 +107,8 @@ class PollServiceTest {
     void t10() {
         PollDto expected = new PollDto();
         PollUpdateDto updateDto = new PollUpdateDto();
-        Mockito.when(pollService.updatePoll(Mockito.anyLong(), Mockito.any())).thenReturn(expected);
-        PollDto result = pollService.updatePoll(1L, updateDto);
+        Mockito.when(pollService.updatePoll(Mockito.anyLong(), Mockito.any(), Mockito.anyLong())).thenReturn(expected);
+        PollDto result = pollService.updatePoll(1L, updateDto, 1L);
         assertThat(result).isEqualTo(expected);
     }
 
@@ -116,8 +116,8 @@ class PollServiceTest {
     @DisplayName("통계 포함 투표 조회")
     void t11() {
         PollDto expected = new PollDto();
-        Mockito.when(pollService.getPollWithStatistics(Mockito.anyLong())).thenReturn(expected);
-        PollDto result = pollService.getPollWithStatistics(1L);
+        Mockito.when(pollService.getPollWithStatistics(Mockito.anyLong(), Mockito.isNull())).thenReturn(expected);
+        PollDto result = pollService.getPollWithStatistics(1L, null);
         assertThat(result).isEqualTo(expected);
     }
 
@@ -144,8 +144,8 @@ class PollServiceTest {
     @DisplayName("상태별 투표 목록 조회")
     void t14() {
         java.util.List expected = java.util.Collections.emptyList();
-        Mockito.when(pollService.getPollsByStatus(Mockito.any())).thenReturn(expected);
-        java.util.List result = pollService.getPollsByStatus(PollDto.PollStatus.ONGOING);
+        Mockito.when(pollService.getPollsByStatus(Mockito.any(), Mockito.anyLong())).thenReturn(expected);
+        java.util.List result = pollService.getPollsByStatus(PollDto.PollStatus.ONGOING, 1L);
         assertThat(result).isEqualTo(expected);
     }
 
@@ -153,8 +153,8 @@ class PollServiceTest {
     @DisplayName("상태별 Top N 투표 목록 조회")
     void t15() {
         java.util.List expected = java.util.Collections.emptyList();
-        Mockito.when(pollService.getTopNPollsByStatus(Mockito.any(), Mockito.anyInt())).thenReturn(expected);
-        java.util.List result = pollService.getTopNPollsByStatus(PollDto.PollStatus.ONGOING, 3);
+        Mockito.when(pollService.getTopNPollsByStatus(Mockito.any(), Mockito.anyInt(), Mockito.anyLong())).thenReturn(expected);
+        java.util.List result = pollService.getTopNPollsByStatus(PollDto.PollStatus.ONGOING, 3, 1L);
         assertThat(result).isEqualTo(expected);
     }
 

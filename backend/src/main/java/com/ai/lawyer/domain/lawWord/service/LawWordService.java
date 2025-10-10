@@ -75,7 +75,7 @@ public class LawWordService {
 
     private String fetchAndSaveDefinitionV2(String word) {
         try {
-            String url = buildKoreanDictApiUrl(word);
+            String url = buildApiUrlV2(word);
 
             // WebClient 호출 (동기 방식)
             String json = webClient.get()
@@ -84,7 +84,7 @@ public class LawWordService {
                     .bodyToMono(String.class)
                     .block();
 
-            String combinedDefinitions = extractTop3DefinitionsFromJson(json);
+            String combinedDefinitions = extractTop3DefinitionsFromJson(json, word);
             saveDefinition(word, combinedDefinitions);
 
             return combinedDefinitions;
@@ -105,7 +105,7 @@ public class LawWordService {
         return API_BASE_URL + "?OC=" + API_OC + "&target=lstrm&type=JSON&query=" + word;
     }
 
-    private String buildKoreanDictApiUrl(String word) {
+    private String buildApiUrlV2(String word) {
         return UriComponentsBuilder.fromHttpUrl(KOREAN_DICT_API_BASE_URL)
                 .queryParam("key", API_KEY)
                 .queryParam("req_type", "json")
@@ -114,9 +114,9 @@ public class LawWordService {
                 .queryParam("sort", "dict")
                 .queryParam("start", "1")
                 .queryParam("num", "10")
-                .queryParam("advanced", "y")
-                .queryParam("type4", "all")
-                .queryParam("cat", "23")
+//                .queryParam("advanced", "y")
+//                .queryParam("type4", "all")
+//                .queryParam("cat", "23")
                 .build()
                 .toUriString();
     }
@@ -136,39 +136,72 @@ public class LawWordService {
         }
     }
 
-    private String extractTop3DefinitionsFromJson(String json) throws JsonProcessingException {
+    private String extractTop3DefinitionsFromJson(String json, String requestedWord) throws JsonProcessingException {
         JsonNode rootNode = objectMapper.readTree(json);
+        JsonNode channelNode = rootNode.path("channel");
 
-        // channel > item 배열에서 아이템들 추출
-        JsonNode itemsNode = rootNode.path("channel").path("item");
-
-        if (!itemsNode.isArray() || itemsNode.size() == 0) {
-            throw new RuntimeException("검색 결과가 없습니다.");
+        // 1. total이 0이면 '찾을수 없는 단어입니다' 리턴
+        int total = channelNode.path("total").asInt(0);
+        if (total == 0) {
+            return "찾을수 없는 단어입니다";
         }
 
-        List<String> definitions = new ArrayList<>();
+        JsonNode itemsNode = channelNode.path("item");
+        if (!itemsNode.isArray() || itemsNode.size() == 0) {
+            return "찾을수 없는 단어입니다";
+        }
 
-        // 최대 3개의 definition 추출
-        for (int i = 0; i < Math.min(itemsNode.size(), 3); i++) {
-            JsonNode item = itemsNode.get(i);
+        // 2. 클라이언트가 요청한 단어와 정확히 일치하는 item만 필터링
+        List<JsonNode> matchingItems = new ArrayList<>();
+        for (JsonNode item : itemsNode) {
+            String itemWord = item.path("word").asText();
+            if (requestedWord.equals(itemWord)) {
+                matchingItems.add(item);
+            }
+        }
+
+        if (matchingItems.isEmpty()) {
+            return "찾을수 없는 단어입니다";
+        }
+
+        // 3. 법률 카테고리 우선순위 적용
+        List<String> definitions = extractDefinitionsWithPriority(matchingItems);
+
+        if (definitions.isEmpty()) {
+            return "찾을수 없는 단어입니다";
+        }
+
+        // 같은 word면 개수 제한 없이 모든 definition 반환
+        return String.join("\n", definitions);
+    }
+
+    private List<String> extractDefinitionsWithPriority(List<JsonNode> matchingItems) {
+        List<String> legalDefinitions = new ArrayList<>();  // 법률 카테고리
+        List<String> allDefinitions = new ArrayList<>();     // 모든 카테고리
+
+        for (JsonNode item : matchingItems) {
             JsonNode senseNode = item.path("sense");
 
-            if (senseNode.isArray() && senseNode.size() > 0) {
-                JsonNode firstSense = senseNode.get(0);
-                String definition = firstSense.path("definition").asText();
+            if (senseNode.isArray()) {
+                for (JsonNode sense : senseNode) {
+                    String definition = sense.path("definition").asText();
+                    String cat = sense.path("cat").asText("");
 
-                if (definition != null && !definition.trim().isEmpty()) {
-                    definitions.add(definition.trim());
+                    if (definition != null && !definition.trim().isEmpty()) {
+                        String cleanDefinition = definition.trim();
+                        allDefinitions.add(cleanDefinition);
+
+                        // cat이 "법률"인 경우 별도로 수집
+                        if ("법률".equals(cat)) {
+                            legalDefinitions.add(cleanDefinition);
+                        }
+                    }
                 }
             }
         }
 
-        if (definitions.isEmpty()) {
-            throw new RuntimeException("검색 결과에서 정의를 찾을 수 없습니다.");
-        }
-
-        // 줄바꿈으로 연결하여 하나의 문자열로 만들기
-        return String.join("\n", definitions);
+        // 법률 카테고리가 있으면 법률만, 없으면 모든 카테고리 반환
+        return legalDefinitions.isEmpty() ? allDefinitions : legalDefinitions;
     }
 
     private void saveDefinition(String word, String definition) {

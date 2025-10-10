@@ -60,8 +60,8 @@ class PostServiceTest {
     @DisplayName("게시글 상세 조회")
     void t4() {
         PostDetailDto expected = new PostDetailDto();
-        Mockito.when(postService.getPostDetailById(Mockito.anyLong())).thenReturn(expected);
-        PostDetailDto result = postService.getPostDetailById(1L);
+        Mockito.when(postService.getPostDetailById(Mockito.anyLong(), Mockito.anyLong())).thenReturn(expected);
+        PostDetailDto result = postService.getPostDetailById(1L, 1L);
         assertThat(result).isEqualTo(expected);
     }
 
@@ -96,8 +96,8 @@ class PostServiceTest {
     @DisplayName("전체 게시글 목록 조회")
     void t8() {
         java.util.List expected = java.util.Collections.emptyList();
-        Mockito.when(postService.getAllPosts()).thenReturn(expected);
-        java.util.List result = postService.getAllPosts();
+        Mockito.when(postService.getAllPosts(Mockito.anyLong())).thenReturn(expected);
+        java.util.List result = postService.getAllPosts(1L);
         assertThat(result).isEqualTo(expected);
     }
 
@@ -134,9 +134,8 @@ class PostServiceTest {
         java.util.List<PostDto> postList = java.util.List.of(new PostDto());
         org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
         org.springframework.data.domain.PageImpl<PostDto> page = new org.springframework.data.domain.PageImpl<>(postList, pageable, 1);
-        Mockito.when(postService.getPostsPaged(pageable)).thenReturn(page);
-
-        var result = postService.getPostsPaged(pageable);
+        Mockito.when(postService.getPostsPaged(Mockito.eq(pageable), Mockito.eq(1L))).thenReturn(page);
+        var result = postService.getPostsPaged(pageable, 1L);
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getTotalElements()).isEqualTo(1);
         assertThat(result.getTotalPages()).isEqualTo(1);
