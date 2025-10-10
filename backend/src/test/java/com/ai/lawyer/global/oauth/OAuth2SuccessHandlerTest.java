@@ -34,6 +34,9 @@ class OAuth2SuccessHandlerTest {
     private CookieUtil cookieUtil;
 
     @Mock
+    private OAuth2TestPageUtil oauth2TestPageUtil;
+
+    @Mock
     private HttpServletRequest request;
 
     @Mock
@@ -51,11 +54,15 @@ class OAuth2SuccessHandlerTest {
     private PrincipalDetails naverPrincipalDetails;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
         // Redirect URL 설정 (환경변수에서 주입되는 값)
         ReflectionTestUtils.setField(oauth2SuccessHandler, "frontendRedirectUrl",
             "http://localhost:3000/oauth/success");
         ReflectionTestUtils.setField(oauth2SuccessHandler, "activeProfile", "dev");
+
+        // Mock response.getWriter() - HTML 응답 시 필요
+        java.io.PrintWriter mockWriter = org.mockito.Mockito.mock(java.io.PrintWriter.class);
+        given(response.getWriter()).willReturn(mockWriter);
 
         // 카카오 회원 생성
         kakaoMember = OAuth2Member.builder()

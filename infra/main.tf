@@ -215,6 +215,37 @@ resource "aws_iam_role_policy_attachment" "ec2_ssm" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
+# EC2가 자기 자신에 SendCommand 할 수 있게 허용
+resource "aws_iam_role_policy" "ec2_allow_ssm_send_command_self" {
+  name = "${var.prefix}-allow-ssm-send-command"
+  role = aws_iam_role.ec2_role_1.name
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid    = "SendCommandToThisInstance",
+        Effect = "Allow",
+        Action = ["ssm:SendCommand"],
+        Resource = [
+          aws_instance.ec2_1.arn,                                        # 타겟: 이 인스턴스
+          "arn:aws:ssm:${var.region}::document/AWS-RunShellScript"       # 사용할 SSM 문서
+        ]
+      },
+      {
+        Sid    = "ReadCommandResults",
+        Effect = "Allow",
+        Action = [
+          "ssm:GetCommandInvocation",
+          "ssm:ListCommands",
+          "ssm:ListCommandInvocations"
+        ],
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 # IAM 인스턴스 프로파일 생성
 resource "aws_iam_instance_profile" "instance_profile_1" {
   name = "${var.prefix}-instance-profile-1"
@@ -436,18 +467,18 @@ ${local.ec2_user_data_base}
 EOF
 }
 
-# # Elastic IP 생성
-# resource "aws_eip" "eip_1" {
-#   domain = "vpc"
-#
-#   tags = {
-#     Name = "${var.prefix}-eip-1"
-#   }
-#
-# }
-#
-# # Elastic IP와 EC2 인스턴스 연결
-# resource "aws_eip_association" "eip_assoc" {
-#   instance_id   = aws_instance.ec2_1.id
-#   allocation_id = aws_eip.eip_1.id
-# }
+# Elastic IP 생성
+resource "aws_eip" "eip_1" {
+  domain = "vpc"
+
+  tags = {
+    Name = "${var.prefix}-eip-1"
+  }
+
+}
+
+# Elastic IP와 EC2 인스턴스 연결
+resource "aws_eip_association" "eip_assoc" {
+  instance_id   = aws_instance.ec2_1.id
+  allocation_id = aws_eip.eip_1.id
+}

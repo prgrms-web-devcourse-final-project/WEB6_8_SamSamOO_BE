@@ -71,7 +71,7 @@ class CookieUtilTest {
         assertThat(accessCookieHeader).contains("HttpOnly");
         assertThat(accessCookieHeader).contains("Path=/");
         assertThat(accessCookieHeader).contains("Max-Age=300"); // 5분 = 300초
-        assertThat(accessCookieHeader).contains("SameSite=None");
+        assertThat(accessCookieHeader).contains("SameSite=Lax");
         log.info("액세스 토큰 쿠키 검증 완료: {}", accessCookieHeader);
 
         // 리프레시 토큰 쿠키 검증
@@ -80,7 +80,7 @@ class CookieUtilTest {
         assertThat(refreshCookieHeader).contains("HttpOnly");
         assertThat(refreshCookieHeader).contains("Path=/");
         assertThat(refreshCookieHeader).contains("Max-Age=604800"); // 7일 = 604800초
-        assertThat(refreshCookieHeader).contains("SameSite=None");
+        assertThat(refreshCookieHeader).contains("SameSite=Lax");
         log.info("리프레시 토큰 쿠키 검증 완료: {}", refreshCookieHeader);
 
         log.info("=== 토큰 쿠키 설정 테스트 완료 ===");
@@ -103,7 +103,7 @@ class CookieUtilTest {
         assertThat(cookieHeader).contains(ACCESS_TOKEN_NAME + "=" + ACCESS_TOKEN);
         assertThat(cookieHeader).contains("HttpOnly");
         assertThat(cookieHeader).contains("Max-Age=300");
-        assertThat(cookieHeader).contains("SameSite=None");
+        assertThat(cookieHeader).contains("SameSite=Lax");
         log.info("=== 액세스 토큰 단독 쿠키 설정 테스트 완료 ===");
     }
 
@@ -124,7 +124,7 @@ class CookieUtilTest {
         assertThat(cookieHeader).contains(REFRESH_TOKEN_NAME + "=" + REFRESH_TOKEN);
         assertThat(cookieHeader).contains("HttpOnly");
         assertThat(cookieHeader).contains("Max-Age=604800");
-        assertThat(cookieHeader).contains("SameSite=None");
+        assertThat(cookieHeader).contains("SameSite=Lax");
         log.info("=== 리프레시 토큰 단독 쿠키 설정 테스트 완료 ===");
     }
 

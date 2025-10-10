@@ -107,26 +107,46 @@ public class MemberController {
 
     @GetMapping("/oauth2/success-page")
     @Operation(summary = "15. OAuth2 로그인 성공 페이지 (백엔드 테스트용)", description = "프론트엔드 없이 백엔드에서 OAuth2 로그인 결과를 확인할 수 있는 페이지입니다.")
-    public ResponseEntity<String> oauth2SuccessPage(Authentication authentication) {
-        if (authentication == null || authentication.getPrincipal() == null) {
-            return ResponseEntity.ok(buildHtmlResponse(
-                "OAuth2 로그인 실패",
-                "인증 정보가 없습니다.",
-                null
-            ));
-        }
-
-        Object principal = authentication.getPrincipal();
+    public ResponseEntity<String> oauth2SuccessPage(Authentication authentication, HttpServletRequest request) {
         String loginId = null;
         Long memberId = null;
 
-        if (principal instanceof Long) {
-            memberId = (Long) principal;
-            loginId = (String) authentication.getDetails();
-        } else if (principal instanceof PrincipalDetails principalDetails) {
-            com.ai.lawyer.domain.member.entity.MemberAdapter member = principalDetails.getMember();
-            loginId = member.getLoginId();
-            memberId = member.getMemberId();
+        // 1. Authentication 객체에서 인증 정보 추출 시도 (OAuth2 직접 로그인)
+        if (authentication != null && authentication.getPrincipal() != null) {
+            Object principal = authentication.getPrincipal();
+
+            if (principal instanceof Long) {
+                memberId = (Long) principal;
+                loginId = (String) authentication.getDetails();
+            } else if (principal instanceof PrincipalDetails principalDetails) {
+                com.ai.lawyer.domain.member.entity.MemberAdapter member = principalDetails.getMember();
+                loginId = member.getLoginId();
+                memberId = member.getMemberId();
+            }
+        }
+
+        // 2. 쿠키에서 JWT 토큰 추출 시도 (리다이렉트 후)
+        if (loginId == null || memberId == null) {
+            String accessToken = extractAccessTokenFromRequest(request);
+            if (accessToken != null) {
+                try {
+                    loginId = memberService.extractLoginIdFromToken(accessToken);
+                    memberId = memberService.extractMemberIdFromToken(accessToken);
+                    log.info("쿠키에서 인증 정보 추출 성공: loginId={}, memberId={}", loginId, memberId);
+                } catch (Exception e) {
+                    log.warn("쿠키에서 인증 정보 추출 실패: {}", e.getMessage());
+                }
+            }
+        }
+
+        // 3. 인증 정보 확인
+        if (loginId == null || memberId == null) {
+            log.warn("OAuth2 성공 페이지 접근 실패: 인증 정보 없음");
+            return ResponseEntity.ok(buildHtmlResponse(
+                "OAuth2 로그인 실패",
+                "인증 정보가 없습니다.",
+                "쿠키에 토큰이 없거나 유효하지 않습니다."
+            ));
         }
 
         return ResponseEntity.ok(buildHtmlResponse(

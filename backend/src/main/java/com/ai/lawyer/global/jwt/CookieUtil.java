@@ -23,9 +23,9 @@ public class CookieUtil {
 
     // 쿠키 보안 설정 상수
     private static final boolean HTTP_ONLY = true;
-    private static final boolean SECURE_IN_PRODUCTION = true; // 운영환경에서는 true로 변경 (HTTPS)
+    private static final boolean SECURE_IN_PRODUCTION = false; // 개발환경에서는 false (HTTP), 운영환경에서는 true로 변경 (HTTPS)
     private static final String COOKIE_PATH = "/";
-    private static final String SAME_SITE = "None"; // None, Lax, Strict 중 선택
+    private static final String SAME_SITE = "Lax"; // Lax: 같은 사이트 요청에서 쿠키 전송 허용
     private static final int COOKIE_EXPIRE_IMMEDIATELY = 0;
 
     public void setTokenCookies(HttpServletResponse response, String accessToken, String refreshToken) {
