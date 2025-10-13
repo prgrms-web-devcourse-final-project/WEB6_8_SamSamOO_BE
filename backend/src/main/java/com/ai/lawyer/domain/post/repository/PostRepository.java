@@ -29,4 +29,6 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Page<Post> findByPoll_Status(PollStatus status, Pageable pageable);
     Page<Post> findByPoll_StatusAndPoll_PollIdIn(PollStatus status, List<Long> pollIds, Pageable pageable);
     Page<Post> findByPoll_PollIdIn(List<Long> pollIds, Pageable pageable);
+    boolean existsByPostName(String postName);
+    List<Post> findByPostName(String postName);
 }

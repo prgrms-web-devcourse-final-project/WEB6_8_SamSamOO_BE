@@ -15,8 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.List;
-import java.util.ArrayList;
+import java.util.*;
 import com.ai.lawyer.domain.poll.dto.PollCreateDto;
 import com.ai.lawyer.domain.poll.dto.PollForPostDto;
 import com.ai.lawyer.domain.poll.dto.PollOptionCreateDto;
@@ -227,11 +226,13 @@ public class PollServiceImpl implements PollService {
                     .genderCounts(genderGroupMap.getOrDefault(opt.getPollItemsId(), java.util.Collections.emptyList()))
                     .build());
         }
+        Long totalVoteCount = pollVoteRepository.countByPollId(pollId);
         return PollStaticsResponseDto.builder()
                 .postId(postId)
                 .pollId(pollId)
                 .optionAgeStatics(optionAgeStatics)
                 .optionGenderStatics(optionGenderStatics)
+                .totalVoteCount(totalVoteCount)
                 .build();
     }
 
@@ -450,7 +451,7 @@ public class PollServiceImpl implements PollService {
             Long voteCount = pollVoteRepository.countByPollOptionId(option.getPollItemsId());
             boolean voted = false;
             if (memberId != null) {
-                voted = pollVoteRepository.findByMember_MemberIdAndPollOptions_PollItemsId(memberId, option.getPollItemsId()).isPresent();
+                voted = !pollVoteRepository.findByMember_MemberIdAndPollOptions_PollItemsId(memberId, option.getPollItemsId()).isEmpty();
             }
             List<PollStaticsDto> statics = null;
             if (withStatistics && poll.getStatus() == Poll.PollStatus.CLOSED) {
@@ -485,6 +486,7 @@ public class PollServiceImpl implements PollService {
                 .createdAt(poll.getCreatedAt())
                 .closedAt(poll.getClosedAt())
                 .expectedCloseAt(expectedCloseAt)
+                .pollOptions(optionDtos)
                 .totalVoteCount(totalVoteCount)
                 .build();
     }
@@ -553,5 +555,11 @@ public class PollServiceImpl implements PollService {
     @Override
     public void validatePollCreate(PollCreateDto dto) {
         validatePollCommon(dto.getVoteTitle(), dto.getPollOptions(), dto.getReservedCloseAt());
+    }
+
+    @Override
+    public void cancelVote(Long pollId, Long memberId) {
+        pollVoteRepository.findByMember_MemberIdAndPoll_PollId(memberId, pollId)
+                .ifPresent(pollVoteRepository::delete);
     }
 }

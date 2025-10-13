@@ -164,6 +164,15 @@ public class PollController {
         return ResponseEntity.ok(new ApiResponse<>(200, "투표가 성공적으로 완료되었습니다.", result));
     }
 
+    @Operation(summary = "투표 취소하기")
+    @DeleteMapping("/vote")
+    public ResponseEntity<ApiResponse<Void>> cancelVote(@RequestParam Long pollId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Long memberId = Long.parseLong(authentication.getName());
+        pollService.cancelVote(pollId, memberId);
+        return ResponseEntity.ok(new ApiResponse<>(200, "투표가 취소되었습니다.", null));
+    }
+
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ApiResponse<Void>> handleResponseStatusException(ResponseStatusException ex) {
         int code = ex.getStatusCode().value();

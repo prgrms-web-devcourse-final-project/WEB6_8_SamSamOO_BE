@@ -29,6 +29,9 @@ public interface PollService {
     // ===== 투표 관련 =====
     PollVoteDto vote(Long pollId, Long pollItemsId, Long memberId);
 
+    // ===== 투표 취소 관련 =====
+    void cancelVote(Long pollId, Long memberId);
+
     // ===== 생성/수정/삭제 관련 =====
     PollDto createPoll(PollCreateDto request, Long memberId);
     PollDto updatePoll(Long pollId, PollUpdateDto pollUpdateDto, Long memberId);

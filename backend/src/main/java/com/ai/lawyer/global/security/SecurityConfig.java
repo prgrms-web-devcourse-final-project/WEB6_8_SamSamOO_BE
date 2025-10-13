@@ -52,6 +52,7 @@ public class SecurityConfig {
             "/swagger-ui/**",         // Swagger UI
             "/swagger-ui.html",       // Swagger UI HTML
             "/api/posts/**",          // 게시글 (공개)
+            "/api/polls/{pollId}/statics", // 투표 통계 (공개)
             "/api/precedent/**",      // 판례 (공개)
             "/api/law/**",            // 법령 (공개)
             "/api/law-word/**",       // 법률 용어 (공개)
