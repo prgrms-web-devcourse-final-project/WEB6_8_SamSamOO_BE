@@ -1,9 +1,12 @@
-package com.ai.lawyer.domain.chatbot.service;
+package com.ai.lawyer.domain.kafka.consumer;
 
 import com.ai.lawyer.domain.chatbot.dto.ExtractionDto.KeywordExtractionDto;
 import com.ai.lawyer.domain.chatbot.dto.ExtractionDto.TitleExtractionDto;
 import com.ai.lawyer.domain.chatbot.entity.*;
 import com.ai.lawyer.domain.chatbot.repository.*;
+import com.ai.lawyer.domain.chatbot.service.KeywordService;
+import com.ai.lawyer.domain.kafka.dto.ChatPostProcessEvent;
+import com.ai.lawyer.domain.kafka.dto.DocumentDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -11,20 +14,18 @@ import org.springframework.ai.chat.memory.ChatMemoryRepository;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.MessageType;
-import org.springframework.ai.document.Document;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
-// 더이상 사용 안함
-// 테스트 용도로 남겨둠
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class AsyncPostChatProcessingService {
+public class ChatPostProcessingConsumer {
 
     private final KeywordService keywordService;
     private final HistoryRepository historyRepository;
@@ -36,38 +37,38 @@ public class AsyncPostChatProcessingService {
 
     @Value("${custom.ai.title-extraction}")
     private String titleExtraction;
-    @Value("{$custom.ai.keyword-extraction}")
+    @Value("${custom.ai.keyword-extraction}")
     private String keywordExtraction;
 
-    //@Async
+    @KafkaListener(topics = "chat-post-processing", groupId = "chat-processing-group")
     @Transactional
-    public void processHandlerTasks(Long historyId, String userMessage, String fullResponse, List<Document> similarCaseDocuments, List<Document> similarLawDocuments) {
+    public void consume(ChatPostProcessEvent event) {
         try {
-            History history = historyRepository.findById(historyId)
-                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 채팅방입니다. historyId: " + historyId));
+            History history = historyRepository.findById(event.getHistoryId())
+                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 채팅방입니다. historyId: " + event.getHistoryId()));
 
-            // 1. 메시지 기억 저장
+            // 1. 메시지 기억 저장 (Assistant 응답)
             ChatMemory chatMemory = MessageWindowChatMemory.builder()
                     .maxMessages(10)
                     .chatMemoryRepository(chatMemoryRepository)
                     .build();
 
-            chatMemory.add(String.valueOf(history.getHistoryId()), new AssistantMessage(fullResponse));
+            chatMemory.add(String.valueOf(history.getHistoryId()), new AssistantMessage(event.getChatResponse()));
             chatMemoryRepository.saveAll(String.valueOf(history.getHistoryId()), chatMemory.get(String.valueOf(history.getHistoryId())));
 
             // 2. 채팅방 제목 설정 / 및 필터
-            setHistoryTitle(userMessage, history, fullResponse);
+            setHistoryTitle(event.getUserMessage(), history, event.getChatResponse());
 
             // 3. 채팅 기록 저장
-            saveChatWithDocuments(history, MessageType.USER, userMessage, similarCaseDocuments, similarLawDocuments);
-            saveChatWithDocuments(history, MessageType.ASSISTANT, fullResponse, similarCaseDocuments, similarLawDocuments);
+            saveChatWithDocuments(history, MessageType.USER, event.getUserMessage(), event.getSimilarCaseDocuments(), event.getSimilarLawDocuments());
+            saveChatWithDocuments(history, MessageType.ASSISTANT, event.getChatResponse(), event.getSimilarCaseDocuments(), event.getSimilarLawDocuments());
 
             // 4. 키워드 추출 및 랭킹 업데이트
-            if (!fullResponse.contains("해당 질문은 법률")) {
-                extractAndUpdateKeywordRanks(userMessage);
+            if (!event.getChatResponse().contains("해당 질문은 법률")) {
+                extractAndUpdateKeywordRanks(event.getUserMessage());
             }
         } catch (Exception e) {
-            log.error("에러 발생: {}", historyId, e);
+            log.error("Kafka 이벤트 처리 중 에러 발생 (historyId: {}): ", event.getHistoryId(), e);
         }
     }
 
@@ -97,7 +98,7 @@ public class AsyncPostChatProcessingService {
         keywordRankRepository.save(keywordRank);
     }
 
-    private void saveChatWithDocuments(History history, MessageType type, String message, List<Document> similarCaseDocuments, List<Document> similarLawDocuments) {
+    private void saveChatWithDocuments(History history, MessageType type, String message, List<DocumentDto> similarCaseDocuments, List<DocumentDto> similarLawDocuments) {
         Chat chat = chatRepository.save(Chat.builder()
                 .historyId(history)
                 .type(type)

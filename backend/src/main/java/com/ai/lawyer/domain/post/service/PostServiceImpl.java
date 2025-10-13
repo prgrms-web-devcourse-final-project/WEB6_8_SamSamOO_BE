@@ -142,7 +142,6 @@ public class PostServiceImpl implements PostService {
     public void deletePost(Long postId) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "삭제할 게시글을 찾을 수 없습니다."));
-        // Poll도 명시적으로 삭제 (JPA cascade/orphanRemoval이 있으면 생략 가능)
         postRepository.delete(post);
     }
 
@@ -165,8 +164,17 @@ public class PostServiceImpl implements PostService {
         return convertToDto(post, requesterMemberId);
     }
 
+    public List<PostDto> getMyPosts(Long requesterMemberId) {
+        Member member = AuthUtil.getMemberOrThrow(requesterMemberId);
+        List<Post> posts = postRepository.findByMember(member);
+        return posts.stream()
+                .sorted(Comparator.comparing(Post::getUpdatedAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
+                .map(post -> convertToDto(post, requesterMemberId))
+                .collect(Collectors.toList());
+    }
+
     @Override
-    public Page<PostDto> getMyPosts(Pageable pageable, Long requesterMemberId) {
+    public Page<PostDto> getMyPostspaged(Pageable pageable, Long requesterMemberId) {
         Member member = AuthUtil.getMemberOrThrow(requesterMemberId);
         Page<Post> posts = postRepository.findByMember(member, pageable);
         return posts.map(post -> convertToDto(post, requesterMemberId));

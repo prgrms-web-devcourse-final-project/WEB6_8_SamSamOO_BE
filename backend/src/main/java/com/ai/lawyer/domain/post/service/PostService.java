@@ -30,7 +30,8 @@ public interface PostService {
 
     // ===== 본인 게시글 관련 =====
     PostDto getMyPostById(Long postId, Long requesterMemberId);
-    Page<PostDto> getMyPosts(Pageable pageable, Long requesterMemberId);
+    List<PostDto> getMyPosts(Long requesterMemberId);
+    Page<PostDto> getMyPostspaged(Pageable pageable, Long requesterMemberId);
 
     // ===== 페이징 관련 =====
     Page<PostDto> getPostsPaged(Pageable pageable, Long memberId);

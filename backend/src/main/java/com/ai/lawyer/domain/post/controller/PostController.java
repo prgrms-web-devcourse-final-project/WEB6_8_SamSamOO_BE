@@ -131,13 +131,21 @@ public class PostController {
 
     @Operation(summary = "본인 게시글 전체 조회")
     @GetMapping("/my")
+    public ResponseEntity<ApiResponse<List<PostDto>>> getMyPosts() {
+        Long memberId = AuthUtil.getAuthenticatedMemberId();
+        List<PostDto> posts = postService.getMyPosts(memberId);
+        return ResponseEntity.ok(new ApiResponse<>(200, "본인 게시글 전체 조회 성공", posts));
+    }
+
+    @Operation(summary = "본인 게시글 전체 패이징 조회")
+    @GetMapping("/mypaged")
     public ResponseEntity<ApiResponse<Page<PostDto>>> getMyPosts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
         Pageable pageable = PageRequest.of(page, size, org.springframework.data.domain.Sort.by("updatedAt").descending());
         Long memberId = AuthUtil.getAuthenticatedMemberId();
-        Page<PostDto> response = postService.getMyPosts(pageable, memberId);
+        Page<PostDto> response = postService.getMyPostspaged(pageable, memberId);
         return ResponseEntity.ok(new ApiResponse<>(200, "본인 게시글 전체 조회 성공", response));
     }
 

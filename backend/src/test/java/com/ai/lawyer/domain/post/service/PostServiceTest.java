@@ -116,8 +116,8 @@ class PostServiceTest {
         java.util.List<PostDto> postList = java.util.List.of(new PostDto());
         org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
         org.springframework.data.domain.PageImpl<PostDto> page = new org.springframework.data.domain.PageImpl<>(postList, pageable, 1);
-        Mockito.when(postService.getMyPosts(Mockito.eq(pageable), Mockito.eq(1L))).thenReturn(page);
-        var result = postService.getMyPosts(pageable, 1L);
+        Mockito.when(postService.getMyPostspaged(Mockito.eq(pageable), Mockito.eq(1L))).thenReturn(page);
+        var result = postService.getMyPostspaged(pageable, 1L);
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getTotalElements()).isEqualTo(1);
         assertThat(result.getTotalPages()).isEqualTo(1);

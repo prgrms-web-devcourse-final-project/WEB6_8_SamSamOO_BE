@@ -6,6 +6,8 @@ import com.ai.lawyer.domain.chatbot.dto.ChatDto.ChatRequest;
 import com.ai.lawyer.domain.chatbot.dto.ChatDto.ChatResponse;
 import com.ai.lawyer.domain.chatbot.entity.History;
 import com.ai.lawyer.domain.chatbot.repository.HistoryRepository;
+import com.ai.lawyer.domain.kafka.dto.ChatPostProcessEvent;
+import com.ai.lawyer.domain.kafka.dto.DocumentDto;
 import com.ai.lawyer.domain.member.entity.Member;
 import com.ai.lawyer.domain.member.repositories.MemberRepository;
 import com.ai.lawyer.global.qdrant.service.QdrantService;
@@ -22,6 +24,7 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.document.Document;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
@@ -39,18 +42,21 @@ public class ChatBotService {
     private final ChatClient chatClient;
     private final QdrantService qdrantService;
     private final HistoryService historyService;
-
-    private final AsyncPostChatProcessingService asyncPostChatProcessingService;
-
     private final MemberRepository memberRepository;
     private final HistoryRepository historyRepository;
     private final ChatMemoryRepository chatMemoryRepository;
 
+    // KafkaTemplate 주입
+    private final KafkaTemplate<String, ChatPostProcessEvent> kafkaTemplate;
+
     @Value("${custom.ai.system-message}")
     private String systemMessageTemplate;
 
+    // Kafka 토픽 이름 -> 추후 application.yml로 이동 고려
+    private static final String POST_PROCESSING_TOPIC = "chat-post-processing";
+
     // 핵심 로직
-    // 멤버 조회 -> 벡터 검색 -> 프롬프트 생성 -> LLM 호출 (스트림) -> (비동기 후처리) -> 응답 반환
+    // 멤버 조회 -> 벡터 검색 -> 프롬프트 생성 -> LLM 호출 (스트림) -> Kafka 이벤트 발행 -> 응답 반환
     @Transactional
     public Flux<ChatResponse> sendMessage(Long memberId, ChatRequest chatRequestDto, Long roomId) {
 
@@ -79,10 +85,31 @@ public class ChatBotService {
                 .content()
                 .collectList()
                 .map(fullResponseList -> String.join("", fullResponseList))
-                .doOnNext(fullResponse -> asyncPostChatProcessingService.processHandlerTasks(history.getHistoryId(), chatRequestDto.getMessage(), fullResponse, similarCaseDocuments, similarLawDocuments)) // 비동기 후처리
+                .doOnNext(fullResponse -> {
+
+                    // Document를 DTO로 변환
+                    List<DocumentDto> caseDtos = similarCaseDocuments.stream().map(DocumentDto::from).collect(Collectors.toList());
+                    List<DocumentDto> lawDtos = similarLawDocuments.stream().map(DocumentDto::from).collect(Collectors.toList());
+
+                    // Kafka로 보낼 이벤트 객체
+                    ChatPostProcessEvent event = new ChatPostProcessEvent(
+                            history.getHistoryId(),
+                            chatRequestDto.getMessage(),
+                            fullResponse,
+                            caseDtos,
+                            lawDtos
+                    );
+                    
+                    // Kafka 이벤트 발행
+                    kafkaTemplate.send(POST_PROCESSING_TOPIC, event);
+
+                })
                 .map(fullResponse -> createChatResponse(history, fullResponse, similarCaseDocuments, similarLawDocuments))
                 .flux()
-                .onErrorResume(throwable -> Flux.just(handleError(history)));
+                .onErrorResume(throwable -> {
+                    log.error("스트리밍 처리 중 에러 발생 (historyId: {})", history.getHistoryId(), throwable);
+                    return Flux.just(handleError(history));
+                });
     }
 
     private ChatResponse createChatResponse(History history, String fullResponse, List<Document> cases, List<Document> laws) {
@@ -111,7 +138,7 @@ public class ChatBotService {
                 .maxMessages(10)
                 .chatMemoryRepository(chatMemoryRepository)
                 .build();
-        // 사용자 메시지를 메모리에 추가 -> ai 답변은 비동기 후처리에서 추가
+        // 사용자 메시지를 메모리에 추가 -> ai 답변은 Consumer에서 추가
         chatMemory.add(String.valueOf(history.getHistoryId()), new UserMessage(chatRequestDto.getMessage()));
         return chatMemory;
     }
