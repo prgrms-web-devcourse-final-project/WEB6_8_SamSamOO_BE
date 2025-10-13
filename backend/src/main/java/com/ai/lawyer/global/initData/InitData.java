@@ -42,6 +42,7 @@ public class InitData implements CommandLineRunner {
             Optional<Member> opt = memberRepository.findByLoginId(loginId);
             if (opt.isEmpty()) {
                 log.info("InitData: target account not found [{}]. 아무 작업도 수행하지 않습니다.", loginId);
+                continue;
             }
 
             Member member = opt.get();
@@ -49,6 +50,7 @@ public class InitData implements CommandLineRunner {
 
             if (isBcryptHash(stored)) {
                 log.info("InitData: {} 계정의 비밀번호는 이미 bcrypt 해시입니다. 변경 없음.", loginId);
+                continue;
             }
 
             // 여기서 stored는 평문으로 추정됨 -> 절대 로그에 찍지 않음
