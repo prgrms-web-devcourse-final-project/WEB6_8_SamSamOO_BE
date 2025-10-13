@@ -13,7 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 import java.util.regex.Pattern;
-
+import java.util.List;
 @Component
 public class InitData implements CommandLineRunner {
     private static final Logger log = LoggerFactory.getLogger(InitData.class);
