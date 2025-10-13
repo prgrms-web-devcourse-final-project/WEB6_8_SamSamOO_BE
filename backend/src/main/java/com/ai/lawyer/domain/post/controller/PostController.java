@@ -36,16 +36,7 @@ public class PostController {
     @Operation(summary = "게시글 등록")
     @PostMapping
     public ResponseEntity<ApiResponse<PostDto>> createPost(@RequestBody PostRequestDto postRequestDto) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Object principal = authentication.getPrincipal();
-        Long memberId;
-        if (principal instanceof org.springframework.security.core.userdetails.User user) {
-            memberId = Long.valueOf(user.getUsername());
-        } else if (principal instanceof Long) {
-            memberId = (Long) principal;
-        } else {
-            throw new IllegalArgumentException("올바른 회원 ID가 아닙니다");
-        }
+        Long memberId = AuthUtil.getAuthenticatedMemberId();
         PostDto created = postService.createPost(postRequestDto, memberId);
         return ResponseEntity.ok(new ApiResponse<>(201, "게시글이 등록되었습니다.", created));
     }
@@ -91,43 +82,31 @@ public class PostController {
     @Operation(summary = "게시글 수정")
     @PutMapping("/{postId}")
     public ResponseEntity<ApiResponse<PostDetailDto>> updatePost(@PathVariable Long postId, @RequestBody PostUpdateDto postUpdateDto) {
-        Long currentMemberId = AuthUtil.getCurrentMemberId();
-        String currentRole = AuthUtil.getCurrentMemberRole();
-        PostDetailDto postDetail = postService.getPostDetailById(postId, currentMemberId);
+        PostDetailDto postDetail = postService.getPostDetailById(postId, AuthUtil.getAuthenticatedMemberId());
         Long postOwnerId = postDetail.getPost().getMemberId();
-        if (!postOwnerId.equals(currentMemberId) && !"ADMIN".equals(currentRole)) {
-            return ResponseEntity.status(403).body(new ApiResponse<>(403, "본인 또는 관리자만 수정 가능합니다.", null));
-        }
+        AuthUtil.validateOwnerOrAdmin(postOwnerId);
         postService.updatePost(postId, postUpdateDto);
-        PostDetailDto updated = postService.getPostDetailById(postId, currentMemberId);
+        PostDetailDto updated = postService.getPostDetailById(postId, AuthUtil.getAuthenticatedMemberId());
         return ResponseEntity.ok(new ApiResponse<>(200, "게시글이 수정되었습니다.", updated));
     }
 
     @Operation(summary = "게시글 부분 수정(PATCH)")
     @PatchMapping("/{postId}")
     public ResponseEntity<ApiResponse<PostDetailDto>> patchUpdatePost(@PathVariable Long postId, @RequestBody PostUpdateDto postUpdateDto) {
-        Long currentMemberId = AuthUtil.getCurrentMemberId();
-        String currentRole = AuthUtil.getCurrentMemberRole();
-        PostDetailDto postDetail = postService.getPostDetailById(postId, currentMemberId);
+        PostDetailDto postDetail = postService.getPostDetailById(postId, AuthUtil.getAuthenticatedMemberId());
         Long postOwnerId = postDetail.getPost().getMemberId();
-        if (!postOwnerId.equals(currentMemberId) && !"ADMIN".equals(currentRole)) {
-            return ResponseEntity.status(403).body(new ApiResponse<>(403, "본인 또는 관리자만 수정 가능합니다.", null));
-        }
+        AuthUtil.validateOwnerOrAdmin(postOwnerId);
         postService.patchUpdatePost(postId, postUpdateDto);
-        PostDetailDto updated = postService.getPostDetailById(postId, currentMemberId);
+        PostDetailDto updated = postService.getPostDetailById(postId, AuthUtil.getAuthenticatedMemberId());
         return ResponseEntity.ok(new ApiResponse<>(200, "게시글이 수정되었습니다.", updated));
     }
 
     @Operation(summary = "게시글 삭제")
     @DeleteMapping("/{postId}")
     public ResponseEntity<ApiResponse<Void>> deletePost(@PathVariable Long postId) {
-        Long currentMemberId = AuthUtil.getCurrentMemberId();
-        String currentRole = AuthUtil.getCurrentMemberRole();
-        PostDetailDto postDetail = postService.getPostDetailById(postId, currentMemberId);
+        PostDetailDto postDetail = postService.getPostDetailById(postId, AuthUtil.getAuthenticatedMemberId());
         Long postOwnerId = postDetail.getPost().getMemberId();
-        if (!postOwnerId.equals(currentMemberId) && !"ADMIN".equals(currentRole)) {
-            return ResponseEntity.status(403).body(new ApiResponse<>(403, "본인 또는 관리자만 삭제 가능합니다.", null));
-        }
+        AuthUtil.validateOwnerOrAdmin(postOwnerId);
         postService.deletePost(postId);
         return ResponseEntity.ok(new ApiResponse<>(200, "게시글이 삭제되었습니다.", null));
     }
@@ -142,16 +121,7 @@ public class PostController {
      @Operation(summary = "본인 게시글 단일 조회")
      @GetMapping("/my/{postId}")
      public ResponseEntity<ApiResponse<PostDto>> getMyPostById(@PathVariable Long postId) {
-         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-         Object principal = authentication.getPrincipal();
-         Long memberId;
-         if (principal instanceof org.springframework.security.core.userdetails.User user) {
-             memberId = Long.valueOf(user.getUsername());
-         } else if (principal instanceof Long) {
-             memberId = (Long) principal;
-         } else {
-             throw new IllegalArgumentException("올바른 회원 ID가 아닙니다");
-         }
+         Long memberId = AuthUtil.getAuthenticatedMemberId();
          PostDto postDto = postService.getMyPostById(postId, memberId);
          return ResponseEntity.ok(new ApiResponse<>(200, "본인 게시글 단일 조회 성공", postDto));
      }
@@ -159,16 +129,7 @@ public class PostController {
      @Operation(summary = "본인 게시글 전체 조회")
      @GetMapping("/my")
      public ResponseEntity<ApiResponse<List<PostDto>>> getMyPosts() {
-         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-         Object principal = authentication.getPrincipal();
-         Long memberId;
-         if (principal instanceof org.springframework.security.core.userdetails.User user) {
-             memberId = Long.valueOf(user.getUsername());
-         } else if (principal instanceof Long) {
-             memberId = (Long) principal;
-         } else {
-             throw new IllegalArgumentException("올바른 회원 ID가 아닙니다");
-         }
+         Long memberId = AuthUtil.getAuthenticatedMemberId();
          List<PostDto> posts = postService.getMyPosts(memberId);
          return ResponseEntity.ok(new ApiResponse<>(200, "본인 게시글 전체 조회 성공", posts));
      }
@@ -176,16 +137,7 @@ public class PostController {
     @Operation(summary = "게시글+투표 동시 등록")
     @PostMapping("/createPost")
     public ResponseEntity<ApiResponse<PostDetailDto>> createPostWithPoll(@RequestBody PostWithPollCreateDto dto) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Object principal = authentication.getPrincipal();
-        Long memberId;
-        if (principal instanceof org.springframework.security.core.userdetails.User user) {
-            memberId = Long.valueOf(user.getUsername());
-        } else if (principal instanceof Long) {
-            memberId = (Long) principal;
-        } else {
-            throw new ResponseStatusException(org.springframework.http.HttpStatus.UNAUTHORIZED, "인증 정보가 올바르지 않습니다.");
-        }
+        Long memberId = AuthUtil.getAuthenticatedMemberId();
         PostDetailDto result = postService.createPostWithPoll(dto, memberId);
         return ResponseEntity.ok(new ApiResponse<>(200, "게시글+투표 등록 완료", result));
     }
@@ -270,5 +222,44 @@ public class PostController {
         Long memberId = AuthUtil.getCurrentMemberId();
         PostDto post = postService.getTopPollByStatus(PollDto.PollStatus.CLOSED, memberId);
         return ResponseEntity.ok(new ApiResponse<>(200, "마감된 투표 Top 1 조회 성공", post));
+    }
+
+    @Operation(summary = "내가 참여한 진행중 투표 게시글 페이징 조회")
+    @GetMapping("/my/ongoingPaged")
+    public ResponseEntity<ApiResponse<PostPageDto>> getMyOngoingPostsPaged(
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "10") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Long memberId = AuthUtil.getAuthenticatedMemberId();
+        Page<PostDto> posts = postService.getMyOngoingPostsPaged(pageable, memberId);
+        PostPageDto response = new PostPageDto(posts);
+        return ResponseEntity.ok(new ApiResponse<>(200, "내가 참여한 진행중 투표 게시글 페이징 조회 성공", response));
+    }
+
+    @Operation(summary = "내가 참여한 마감 투표 게시글 페이징 조회")
+    @GetMapping("/my/closedPaged")
+    public ResponseEntity<ApiResponse<PostPageDto>> getMyClosedPostsPaged(
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "10") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Long memberId = AuthUtil.getAuthenticatedMemberId();
+        Page<PostDto> posts = postService.getMyClosedPostsPaged(pageable, memberId);
+        PostPageDto response = new PostPageDto(posts);
+        return ResponseEntity.ok(new ApiResponse<>(200, "내가 참여한 마감 투표 게시글 페이징 조회 성공", response));
+    }
+
+    @Operation(summary = "내가 참여한 모든 투표 게시글 페이징 조회")
+    @GetMapping("/my/votedPaged")
+    public ResponseEntity<ApiResponse<PostPageDto>> getMyVotedPostsPaged(
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "10") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Long memberId = AuthUtil.getAuthenticatedMemberId();
+        Page<PostDto> posts = postService.getMyVotedPostsPaged(pageable, memberId);
+        PostPageDto response = new PostPageDto(posts);
+        return ResponseEntity.ok(new ApiResponse<>(200, "내가 참여한 모든 투표 게시글 페이징 조회 성공", response));
     }
 }

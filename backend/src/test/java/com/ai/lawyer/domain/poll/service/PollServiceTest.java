@@ -72,9 +72,9 @@ class PollServiceTest {
     @Test
     @DisplayName("투표 삭제")
     void t6() {
-        Mockito.doNothing().when(pollService).deletePoll(Mockito.anyLong());
-        pollService.deletePoll(1L);
-        Mockito.verify(pollService).deletePoll(1L);
+        Mockito.doNothing().when(pollService).deletePoll(Mockito.anyLong(), Mockito.anyLong());
+        pollService.deletePoll(1L, 1L);
+        Mockito.verify(pollService).deletePoll(1L, 1L);
     }
 
     @Test

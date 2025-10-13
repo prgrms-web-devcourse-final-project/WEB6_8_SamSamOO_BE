@@ -187,4 +187,81 @@ class PostControllerTest {
             .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result.totalPages").value(1))
             .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result.totalElements").value(1));
     }
+
+    @Test
+    @DisplayName("게시글 간편 전체 조회")
+    void t8() throws Exception {
+        List<com.ai.lawyer.domain.post.dto.PostSimpleDto> posts = java.util.Collections.emptyList();
+        Mockito.when(postService.getAllSimplePosts()).thenReturn(posts);
+        mockMvc.perform(get("/api/posts/simplePost")
+                .cookie(new Cookie("accessToken", "valid-access-token")))
+            .andExpect(status().isOk())
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result").isArray());
+    }
+
+    @Test
+    @DisplayName("본인 게시글 단일 조회")
+    void t9() throws Exception {
+        com.ai.lawyer.domain.post.dto.PostDto postDto = com.ai.lawyer.domain.post.dto.PostDto.builder().postId(1L).postName("테스트 제목").build();
+        Mockito.when(postService.getMyPostById(Mockito.eq(1L), Mockito.anyLong())).thenReturn(postDto);
+        mockMvc.perform(get("/api/posts/my/1")
+                .cookie(new Cookie("accessToken", "valid-access-token")))
+            .andExpect(status().isOk())
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result.postId").value(1L));
+    }
+
+    @Test
+    @DisplayName("본인 게시글 전체 조회")
+    void t10() throws Exception {
+        List<com.ai.lawyer.domain.post.dto.PostDto> posts = java.util.Collections.emptyList();
+        Mockito.when(postService.getMyPosts(Mockito.anyLong())).thenReturn(posts);
+        mockMvc.perform(get("/api/posts/my")
+                .cookie(new Cookie("accessToken", "valid-access-token")))
+            .andExpect(status().isOk())
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result").isArray());
+    }
+
+    @Test
+    @DisplayName("게시글+투표 동시 등록")
+    void t11() throws Exception {
+        com.ai.lawyer.domain.post.dto.PostDetailDto result = com.ai.lawyer.domain.post.dto.PostDetailDto.builder().post(
+            com.ai.lawyer.domain.post.dto.PostDto.builder().postId(1L).postName("테스트 제목").build()
+        ).build();
+        com.ai.lawyer.domain.post.dto.PostWithPollCreateDto dto = com.ai.lawyer.domain.post.dto.PostWithPollCreateDto.builder().build();
+        Mockito.when(postService.createPostWithPoll(Mockito.any(), Mockito.anyLong())).thenReturn(result);
+        mockMvc.perform(post("/api/posts/createPost")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(dto))
+                .cookie(new Cookie("accessToken", "valid-access-token")))
+            .andExpect(status().isOk())
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result.post.postId").value(1L));
+    }
+
+    @Test
+    @DisplayName("진행중 투표 게시글 페이징 조회")
+    void t12() throws Exception {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        org.springframework.data.domain.PageImpl<com.ai.lawyer.domain.post.dto.PostDto> page = new org.springframework.data.domain.PageImpl<>(java.util.List.of(), pageable, 0);
+        Mockito.when(postService.getOngoingPostsPaged(Mockito.any(), Mockito.anyLong())).thenReturn(page);
+        mockMvc.perform(get("/api/posts/ongoingPaged")
+                .param("page", "0")
+                .param("size", "10")
+                .cookie(new Cookie("accessToken", "valid-access-token")))
+            .andExpect(status().isOk())
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result.content").isArray());
+    }
+
+    @Test
+    @DisplayName("마감 투표 게시글 페이징 조회")
+    void t13() throws Exception {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        org.springframework.data.domain.PageImpl<com.ai.lawyer.domain.post.dto.PostDto> page = new org.springframework.data.domain.PageImpl<>(java.util.List.of(), pageable, 0);
+        Mockito.when(postService.getClosedPostsPaged(Mockito.any(), Mockito.anyLong())).thenReturn(page);
+        mockMvc.perform(get("/api/posts/closedPaged")
+                .param("page", "0")
+                .param("size", "10")
+                .cookie(new Cookie("accessToken", "valid-access-token")))
+            .andExpect(status().isOk())
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result.content").isArray());
+    }
 }

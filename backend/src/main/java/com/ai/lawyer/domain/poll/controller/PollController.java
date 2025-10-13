@@ -75,11 +75,7 @@ public class PollController {
     @DeleteMapping("/{pollId}")
     public ResponseEntity<ApiResponse<Void>> deletePoll(@PathVariable Long pollId) {
         Long currentMemberId = AuthUtil.getCurrentMemberId();
-        PollDto poll = pollService.getPoll(pollId, currentMemberId);
-        if (!poll.getPostId().equals(currentMemberId)) {
-            return ResponseEntity.status(403).body(new ApiResponse<>(403, "본인만 투표를 삭제할 수 있습니다.", null));
-        }
-        pollService.deletePoll(pollId);
+        pollService.deletePoll(pollId, currentMemberId);
         return ResponseEntity.ok(new ApiResponse<>(200, "투표가 삭제되었습니다.", null));
     }
 

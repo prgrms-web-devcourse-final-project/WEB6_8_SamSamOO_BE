@@ -36,6 +36,9 @@ public interface PostService {
     Page<PostDto> getPostsPaged(Pageable pageable, Long memberId);
     Page<PostDto> getOngoingPostsPaged(Pageable pageable, Long memberId);
     Page<PostDto> getClosedPostsPaged(Pageable pageable, Long memberId);
+    Page<PostDto> getMyOngoingPostsPaged(Pageable pageable, Long memberId);
+    Page<PostDto> getMyClosedPostsPaged(Pageable pageable, Long memberId);
+    Page<PostDto> getMyVotedPostsPaged(Pageable pageable, Long memberId);
 
     // ===== 투표 Top 관련 =====
     List<PostDto> getTopNPollsByStatus(PollDto.PollStatus status, int n, Long memberId);

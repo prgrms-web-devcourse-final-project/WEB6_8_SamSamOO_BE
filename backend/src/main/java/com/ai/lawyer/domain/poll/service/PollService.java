@@ -34,7 +34,7 @@ public interface PollService {
     PollDto updatePoll(Long pollId, PollUpdateDto pollUpdateDto, Long memberId);
     void patchUpdatePoll(Long pollId, PollUpdateDto pollUpdateDto);
     void closePoll(Long pollId);
-    void deletePoll(Long pollId);
+     void deletePoll(Long pollId, Long memberId);
 
     // ===== 검증 관련 =====
     void validatePollCreate(PollCreateDto dto);

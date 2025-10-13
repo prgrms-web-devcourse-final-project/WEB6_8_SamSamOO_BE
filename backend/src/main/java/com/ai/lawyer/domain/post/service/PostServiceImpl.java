@@ -2,6 +2,7 @@ package com.ai.lawyer.domain.post.service;
 
 import com.ai.lawyer.domain.member.entity.Member;
 import com.ai.lawyer.domain.member.repositories.MemberRepository;
+import com.ai.lawyer.domain.poll.entity.PollVote;
 import com.ai.lawyer.domain.post.dto.PostDto;
 import com.ai.lawyer.domain.post.dto.PostDetailDto;
 import com.ai.lawyer.domain.post.dto.PostRequestDto;
@@ -19,6 +20,7 @@ import com.ai.lawyer.domain.poll.repository.PollOptionsRepository;
 import com.ai.lawyer.domain.poll.entity.PollOptions;
 import com.ai.lawyer.domain.poll.repository.PollVoteRepository;
 import com.ai.lawyer.domain.poll.service.PollService;
+import com.ai.lawyer.global.util.AuthUtil;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageImpl;
@@ -62,8 +64,7 @@ public class PostServiceImpl implements PostService {
             postRequestDto.getPostContent() == null || postRequestDto.getPostContent().trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "게시글 제목과 내용은 필수입니다.");
         }
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 정보를 찾을 수 없습니다."));
+        Member member = AuthUtil.getMemberOrThrow(memberId);
         Post post = Post.builder()
             .member(member)
             .postName(postRequestDto.getPostName())
@@ -96,8 +97,7 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public List<PostDto> getPostsByMemberId(Long memberId) {
-        Member member = memberRepository.findById(memberId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 정보를 찾을 수 없습니다."));
+        Member member = AuthUtil.getMemberOrThrow(memberId);
         List<Post> posts = postRepository.findByMember(member);
         if (posts.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "해당 회원의 게시글이 없습니다.");
@@ -164,8 +164,7 @@ public class PostServiceImpl implements PostService {
     }
 
     public List<PostDto> getMyPosts(Long requesterMemberId) {
-        Member member = memberRepository.findById(requesterMemberId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 정보를 찾을 수 없습니다."));
+        Member member = AuthUtil.getMemberOrThrow(requesterMemberId);
         List<Post> posts = postRepository.findByMember(member);
         // 본인 게시글이 없으면 빈 리스트 반환
         return posts.stream()
@@ -210,8 +209,7 @@ public class PostServiceImpl implements PostService {
         }
         var pollDto = dto.getPoll();
         pollService.validatePollCreate(pollDto);
-        Member member = memberRepository.findById(memberId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 정보를 찾을 수 없습니다."));
+        Member member = AuthUtil.getMemberOrThrow(memberId);
         Post post = Post.builder()
             .member(member)
             .postName(postDto.getPostName())
@@ -268,20 +266,26 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public Page<PostDto> getOngoingPostsPaged(Pageable pageable, Long memberId) {
-        Page<PostDto> allPosts = postRepository.findAll(pageable).map(post -> convertToDto(post, memberId));
-        List<PostDto> ongoing = allPosts.stream()
-            .filter(dto -> dto.getPoll() != null && dto.getPoll().getStatus() == PollDto.PollStatus.ONGOING)
-            .collect(Collectors.toList());
-        return new PageImpl<>(ongoing, pageable, ongoing.size());
+        List<Post> posts = postRepository.findAll().stream()
+            .filter(p -> p.getPoll() != null && p.getPoll().getStatus() == com.ai.lawyer.domain.poll.entity.Poll.PollStatus.ONGOING)
+            .toList();
+        List<PostDto> postDtos = posts.stream().map(p -> convertToDto(p, memberId)).toList();
+        int start = (int) pageable.getOffset();
+        int end = Math.min((start + pageable.getPageSize()), postDtos.size());
+        List<PostDto> paged = start < end ? postDtos.subList(start, end) : List.of();
+        return new PageImpl<>(paged, pageable, postDtos.size());
     }
 
     @Override
     public Page<PostDto> getClosedPostsPaged(Pageable pageable, Long memberId) {
-        Page<PostDto> allPosts = postRepository.findAll(pageable).map(post -> convertToDto(post, memberId));
-        List<PostDto> closed = allPosts.stream()
-            .filter(dto -> dto.getPoll() != null && dto.getPoll().getStatus() == PollDto.PollStatus.CLOSED)
-            .collect(Collectors.toList());
-        return new PageImpl<>(closed, pageable, closed.size());
+        List<Post> posts = postRepository.findAll().stream()
+            .filter(p -> p.getPoll() != null && p.getPoll().getStatus() == com.ai.lawyer.domain.poll.entity.Poll.PollStatus.CLOSED)
+            .toList();
+        List<PostDto> postDtos = posts.stream().map(p -> convertToDto(p, memberId)).toList();
+        int start = (int) pageable.getOffset();
+        int end = Math.min((start + pageable.getPageSize()), postDtos.size());
+        List<PostDto> paged = start < end ? postDtos.subList(start, end) : List.of();
+        return new PageImpl<>(paged, pageable, postDtos.size());
     }
 
     @Override
@@ -325,5 +329,34 @@ public class PostServiceImpl implements PostService {
                 .createdAt(entity.getCreatedAt())
                 .poll(pollDto)
                 .build();
+    }
+
+    private Page<PostDto> getMyVotedPostsPagedByStatus(Pageable pageable, Long memberId, Poll.PollStatus status) {
+        List<PollVote> votes = pollVoteRepository.findByMember_MemberId(memberId);
+        List<Long> pollIds = votes.stream().map(v -> v.getPoll().getPollId()).distinct().toList();
+        List<Post> posts = postRepository.findAll().stream()
+            .filter(p -> p.getPoll() != null && pollIds.contains(p.getPoll().getPollId())
+                && (status == null || p.getPoll().getStatus() == status))
+            .toList();
+        List<PostDto> postDtos = posts.stream().map(p -> convertToDto(p, memberId)).toList();
+        int start = (int) pageable.getOffset();
+        int end = Math.min((start + pageable.getPageSize()), postDtos.size());
+        List<PostDto> paged = start < end ? postDtos.subList(start, end) : List.of();
+        return new PageImpl<>(paged, pageable, postDtos.size());
+    }
+
+    @Override
+    public Page<PostDto> getMyVotedPostsPaged(Pageable pageable, Long memberId) {
+        return getMyVotedPostsPagedByStatus(pageable, memberId, null);
+    }
+
+    @Override
+    public Page<PostDto> getMyOngoingPostsPaged(Pageable pageable, Long memberId) {
+        return getMyVotedPostsPagedByStatus(pageable, memberId, Poll.PollStatus.ONGOING);
+    }
+
+    @Override
+    public Page<PostDto> getMyClosedPostsPaged(Pageable pageable, Long memberId) {
+        return getMyVotedPostsPagedByStatus(pageable, memberId, Poll.PollStatus.CLOSED);
     }
 }

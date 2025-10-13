@@ -4,11 +4,12 @@ import com.ai.lawyer.domain.poll.entity.*;
 import com.ai.lawyer.domain.poll.repository.*;
 import com.ai.lawyer.domain.poll.dto.PollDto;
 import com.ai.lawyer.domain.member.entity.Member;
-import com.ai.lawyer.domain.member.repositories.MemberRepository;
+import com.ai.lawyer.domain.post.dto.PostDto;
 import com.ai.lawyer.domain.post.entity.Post;
 import com.ai.lawyer.domain.post.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +32,7 @@ import java.time.LocalDateTime;
 import com.ai.lawyer.domain.poll.dto.PollGenderStaticsDto;
 import com.ai.lawyer.domain.poll.dto.PollStaticsResponseDto;
 import com.ai.lawyer.domain.poll.dto.PollAgeStaticsDto;
+import com.ai.lawyer.global.util.AuthUtil;
 
 @Service
 @Transactional
@@ -42,7 +44,6 @@ public class PollServiceImpl implements PollService {
     private final PollOptionsRepository pollOptionsRepository;
     private final PollVoteRepository pollVoteRepository;
     private final PollStaticsRepository pollStaticsRepository;
-    private final MemberRepository memberRepository;
     private final PostRepository postRepository;
 
     @Override
@@ -51,8 +52,7 @@ public class PollServiceImpl implements PollService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "게시글 ID는 필수입니다.");
         }
         validatePollCommon(request.getVoteTitle(), request.getPollOptions(), request.getReservedCloseAt());
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 정보를 찾을 수 없습니다."));
+        Member member = AuthUtil.getMemberOrThrow(memberId);
         Post post = postRepository.findById(request.getPostId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "게시글을 찾을 수 없습니다."));
         if (post.getPoll() != null) {
@@ -117,8 +117,7 @@ public class PollServiceImpl implements PollService {
         }
         PollOptions pollOptions = pollOptionsRepository.findById(pollItemsId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "투표 항목을 찾을 수 없습니다."));
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 정보를 찾을 수 없습니다."));
+        Member member = AuthUtil.getMemberOrThrow(memberId);
         // USER 또는 ADMIN만 투표 가능
         if (!(member.getRole().name().equals("USER") || member.getRole().name().equals("ADMIN"))) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "투표 권한이 없습니다.");
@@ -190,7 +189,7 @@ public class PollServiceImpl implements PollService {
             PollAgeStaticsDto.AgeGroupCountDto dto = PollAgeStaticsDto.AgeGroupCountDto.builder()
                     .option(option)
                     .ageGroup(arr[1] != null ? arr[1].toString() : null)
-                    .voteCount(arr[2] != null ? ((Number)arr[2]).longValue() : 0L)
+                    .voteCount(arr[2] != null ? ((Number) arr[2]).longValue() : 0L)
                     .build();
             ageGroupMap.computeIfAbsent(pollItemsId, k -> new java.util.ArrayList<>()).add(dto);
         }
@@ -214,7 +213,7 @@ public class PollServiceImpl implements PollService {
             PollGenderStaticsDto.GenderCountDto dto = PollGenderStaticsDto.GenderCountDto.builder()
                     .option(option)
                     .gender(arr[1] != null ? arr[1].toString() : null)
-                    .voteCount(arr[2] != null ? ((Number)arr[2]).longValue() : 0L)
+                    .voteCount(arr[2] != null ? ((Number) arr[2]).longValue() : 0L)
                     .build();
             genderGroupMap.computeIfAbsent(pollItemsId, k -> new java.util.ArrayList<>()).add(dto);
         }
@@ -246,10 +245,12 @@ public class PollServiceImpl implements PollService {
     }
 
     @Override
-    public void deletePoll(Long pollId) {
+    public void deletePoll(Long pollId, Long memberId) {
         Poll poll = pollRepository.findById(pollId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "투표를 찾을 수 없습니다."));
-
+        if (poll.getPost() == null || !poll.getPost().getMember().getMemberId().equals(memberId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "본인만 투표를 삭제할 수 있습니다.");
+        }
         // 1. 이 Poll을 참조하는 Post가 있으면 연결 해제
         Post post = postRepository.findAll().stream()
                 .filter(p -> p.getPoll() != null && p.getPoll().getPollId().equals(pollId))
@@ -259,7 +260,6 @@ public class PollServiceImpl implements PollService {
             post.setPoll(null);
             postRepository.save(post);
         }
-
         // 2. Poll 삭제
         pollRepository.deleteById(pollId);
     }
@@ -458,12 +458,12 @@ public class PollServiceImpl implements PollService {
                 statics = staticsRaw.stream()
                         .map(arr -> {
                             String gender = arr[1] != null ? arr[1].toString() : null;
-                            Integer age = arr[2] != null ? ((Number)arr[2]).intValue() : null;
+                            Integer age = arr[2] != null ? ((Number) arr[2]).intValue() : null;
                             String ageGroup = getAgeGroup(age);
                             return PollStaticsDto.builder()
                                     .gender(gender)
                                     .ageGroup(ageGroup)
-                                    .voteCount((Long)arr[3])
+                                    .voteCount((Long) arr[3])
                                     .build();
                         }).toList();
             }

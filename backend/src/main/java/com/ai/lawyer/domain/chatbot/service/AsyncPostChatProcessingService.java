@@ -1,0 +1,132 @@
+package com.ai.lawyer.domain.chatbot.service;
+
+import com.ai.lawyer.domain.chatbot.dto.ExtractionDto.KeywordExtractionDto;
+import com.ai.lawyer.domain.chatbot.dto.ExtractionDto.TitleExtractionDto;
+import com.ai.lawyer.domain.chatbot.entity.*;
+import com.ai.lawyer.domain.chatbot.repository.*;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.memory.ChatMemoryRepository;
+import org.springframework.ai.chat.memory.MessageWindowChatMemory;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.MessageType;
+import org.springframework.ai.document.Document;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class AsyncPostChatProcessingService {
+
+    private final KeywordService keywordService;
+    private final HistoryRepository historyRepository;
+    private final ChatRepository chatRepository;
+    private final KeywordRankRepository keywordRankRepository;
+    private final ChatMemoryRepository chatMemoryRepository;
+    private final ChatPrecedentRepository chatPrecedentRepository;
+    private final ChatLawRepository chatLawRepository;
+
+    @Value("${custom.ai.title-extraction}")
+    private String titleExtraction;
+    @Value("{$custom.ai.keyword-extraction}")
+    private String keywordExtraction;
+
+    @Async
+    @Transactional
+    public void processHandlerTasks(Long historyId, String userMessage, String fullResponse, List<Document> similarCaseDocuments, List<Document> similarLawDocuments) {
+        try {
+            History history = historyRepository.findById(historyId)
+                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 채팅방입니다. historyId: " + historyId));
+
+            // 1. 메시지 기억 저장
+            ChatMemory chatMemory = MessageWindowChatMemory.builder()
+                    .maxMessages(10)
+                    .chatMemoryRepository(chatMemoryRepository)
+                    .build();
+
+            chatMemory.add(String.valueOf(history.getHistoryId()), new AssistantMessage(fullResponse));
+            chatMemoryRepository.saveAll(String.valueOf(history.getHistoryId()), chatMemory.get(String.valueOf(history.getHistoryId())));
+
+            // 2. 채팅방 제목 설정 / 및 필터
+            setHistoryTitle(userMessage, history, fullResponse);
+
+            // 3. 채팅 기록 저장
+            saveChatWithDocuments(history, MessageType.USER, userMessage, similarCaseDocuments, similarLawDocuments);
+            saveChatWithDocuments(history, MessageType.ASSISTANT, fullResponse, similarCaseDocuments, similarLawDocuments);
+
+            // 4. 키워드 추출 및 랭킹 업데이트
+            if (!fullResponse.contains("해당 질문은 법률")) {
+                extractAndUpdateKeywordRanks(userMessage);
+            }
+        } catch (Exception e) {
+            log.error("에러 발생: {}", historyId, e);
+        }
+    }
+
+    private void setHistoryTitle(String userMessage, History history, String fullResponse) {
+        String targetText = fullResponse.contains("해당 질문은 법률") ? userMessage : fullResponse;
+        TitleExtractionDto titleDto = keywordService.keywordExtract(targetText, titleExtraction, TitleExtractionDto.class);
+        history.setTitle(titleDto.getTitle());
+        historyRepository.save(history); // @Transactional 어노테이션으로 인해 메소드 종료 시 자동 저장되지만, 명시적으로 호출할 수도 있습니다.
+    }
+
+    private void extractAndUpdateKeywordRanks(String message) {
+        KeywordExtractionDto keywordResponse = keywordService.keywordExtract(message, keywordExtraction, KeywordExtractionDto.class);
+        if (keywordResponse == null || keywordResponse.getKeyword() == null) {
+            return;
+        }
+
+        KeywordRank keywordRank = keywordRankRepository.findByKeyword(keywordResponse.getKeyword());
+
+        if (keywordRank == null) {
+            keywordRank = KeywordRank.builder()
+                    .keyword(keywordResponse.getKeyword())
+                    .score(1L)
+                    .build();
+        } else {
+            keywordRank.setScore(keywordRank.getScore() + 1);
+        }
+        keywordRankRepository.save(keywordRank);
+    }
+
+    private void saveChatWithDocuments(History history, MessageType type, String message, List<Document> similarCaseDocuments, List<Document> similarLawDocuments) {
+        Chat chat = chatRepository.save(Chat.builder()
+                .historyId(history)
+                .type(type)
+                .message(message)
+                .build());
+
+        // Ai 메시지가 저장될 때 관련 문서 저장
+        if (type == MessageType.ASSISTANT) {
+            if (similarCaseDocuments != null && !similarCaseDocuments.isEmpty()) {
+                List<ChatPrecedent> chatPrecedents = similarCaseDocuments.stream()
+                        .map(doc -> ChatPrecedent.builder()
+                                .chatId(chat)
+                                .precedentContent(doc.getText())
+                                .caseNumber(doc.getMetadata().get("caseNumber").toString())
+                                .caseName(doc.getMetadata().get("caseName").toString())
+                                .build())
+                        .collect(Collectors.toList());
+                chatPrecedentRepository.saveAll(chatPrecedents);
+            }
+
+            if (similarLawDocuments != null && !similarLawDocuments.isEmpty()) {
+                List<ChatLaw> chatLaws = similarLawDocuments.stream()
+                        .map(doc -> ChatLaw.builder()
+                                .chatId(chat)
+                                .content(doc.getText())
+                                .lawName(doc.getMetadata().get("lawName").toString())
+                                .build())
+                        .collect(Collectors.toList());
+                chatLawRepository.saveAll(chatLaws);
+            }
+        }
+    }
+}

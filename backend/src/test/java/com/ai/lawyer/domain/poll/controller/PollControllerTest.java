@@ -114,7 +114,7 @@ class PollControllerTest {
     void t5() throws Exception {
         PollDto pollDto = PollDto.builder().pollId(1L).postId(1L).build();
         Mockito.when(pollService.getPoll(Mockito.eq(1L), Mockito.anyLong())).thenReturn(pollDto);
-        Mockito.doNothing().when(pollService).deletePoll(Mockito.anyLong());
+        Mockito.doNothing().when(pollService).deletePoll(Mockito.anyLong(), Mockito.anyLong());
 
         mockMvc.perform(
                 org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/polls/1")
