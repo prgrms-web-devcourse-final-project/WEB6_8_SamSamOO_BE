@@ -11,6 +11,7 @@ import com.ai.lawyer.domain.member.repositories.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -52,6 +53,7 @@ public class HistoryService {
 
     }
 
+    @Transactional(readOnly = true)
     public ResponseEntity<List<ChatDto.ChatHistoryDto>> getChatHistory(Long memberId, Long roomId) {
 
         Member member = memberRepository.findById(memberId).orElseThrow(
