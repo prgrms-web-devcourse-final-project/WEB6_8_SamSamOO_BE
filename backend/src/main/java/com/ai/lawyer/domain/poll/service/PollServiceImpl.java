@@ -65,6 +65,7 @@ public class PollServiceImpl implements PollService {
                     .voteTitle(request.getVoteTitle())
                     .status(Poll.PollStatus.ONGOING)
                     .createdAt(now)
+                    .updatedAt(now)
                     .reservedCloseAt(request.getReservedCloseAt())
                     .build();
             Poll savedPoll = pollRepository.save(poll);
@@ -371,10 +372,10 @@ public class PollServiceImpl implements PollService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "예약 종료 시간은 최대 7일 이내여야 합니다.");
             }
             poll.setReservedCloseAt(reservedCloseAt);
-            System.out.println("poll에 저장된 reservedCloseAt 값: " + poll.getReservedCloseAt());
         }
-        Poll updated = pollRepository.save(poll);
-        return convertToDto(updated, null, false);
+        poll.setUpdatedAt(now); // 투표(Poll) 수정 시 updatedAt 갱신
+        pollRepository.save(poll);
+        return getPoll(pollId, memberId);
     }
 
     @Override
@@ -429,7 +430,6 @@ public class PollServiceImpl implements PollService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "예약 종료 시간은 최대 7일 이내여야 합니다.");
             }
             poll.setReservedCloseAt(reservedCloseAt);
-            System.out.println("poll에 저장된 reservedCloseAt 값: " + poll.getReservedCloseAt());
         }
         pollRepository.save(poll);
     }
@@ -485,7 +485,6 @@ public class PollServiceImpl implements PollService {
                 .createdAt(poll.getCreatedAt())
                 .closedAt(poll.getClosedAt())
                 .expectedCloseAt(expectedCloseAt)
-                .pollOptions(optionDtos)
                 .totalVoteCount(totalVoteCount)
                 .build();
     }

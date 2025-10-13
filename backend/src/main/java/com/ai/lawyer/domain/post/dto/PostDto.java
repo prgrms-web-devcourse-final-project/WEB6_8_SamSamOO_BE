@@ -17,5 +17,6 @@ public class  PostDto {
     private String postContent;
     private String category;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
     private PollDto poll;
 }

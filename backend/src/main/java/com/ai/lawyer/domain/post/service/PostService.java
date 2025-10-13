@@ -7,7 +7,7 @@ import com.ai.lawyer.domain.post.dto.PostRequestDto;
 import com.ai.lawyer.domain.post.dto.PostUpdateDto;
 import com.ai.lawyer.domain.post.dto.PostWithPollCreateDto;
 import com.ai.lawyer.domain.post.dto.PostSimpleDto;
-import com.ai.lawyer.domain.poll.dto.PollDto;
+import com.ai.lawyer.domain.poll.dto.PollDto.PollStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -30,7 +30,7 @@ public interface PostService {
 
     // ===== 본인 게시글 관련 =====
     PostDto getMyPostById(Long postId, Long requesterMemberId);
-    List<PostDto> getMyPosts(Long requesterMemberId);
+    Page<PostDto> getMyPosts(Pageable pageable, Long requesterMemberId);
 
     // ===== 페이징 관련 =====
     Page<PostDto> getPostsPaged(Pageable pageable, Long memberId);
@@ -41,6 +41,6 @@ public interface PostService {
     Page<PostDto> getMyVotedPostsPaged(Pageable pageable, Long memberId);
 
     // ===== 투표 Top 관련 =====
-    List<PostDto> getTopNPollsByStatus(PollDto.PollStatus status, int n, Long memberId);
-    PostDto getTopPollByStatus(PollDto.PollStatus status, Long memberId);
+    PostDto getTopPollByStatus(PollStatus status, Long memberId);
+    List<PostDto> getTopNPollsByStatus(PollStatus status, int n, Long memberId);
 }

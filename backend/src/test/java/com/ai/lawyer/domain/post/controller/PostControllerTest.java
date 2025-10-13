@@ -17,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import jakarta.servlet.http.Cookie;
+
 import static org.mockito.BDDMockito.*;
 import com.ai.lawyer.global.jwt.TokenProvider;
 
@@ -211,14 +212,22 @@ class PostControllerTest {
     }
 
     @Test
-    @DisplayName("본인 게시글 전체 조회")
-    void t10() throws Exception {
-        List<com.ai.lawyer.domain.post.dto.PostDto> posts = java.util.Collections.emptyList();
-        Mockito.when(postService.getMyPosts(Mockito.anyLong())).thenReturn(posts);
+    @DisplayName("본인 게시글 전체 페이징 조회")
+    void t10_paged() throws Exception {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        java.util.List<com.ai.lawyer.domain.post.dto.PostDto> posts = java.util.List.of(
+            com.ai.lawyer.domain.post.dto.PostDto.builder().postId(1L).postName("테스트 제목").build()
+        );
+        org.springframework.data.domain.PageImpl<com.ai.lawyer.domain.post.dto.PostDto> page = new org.springframework.data.domain.PageImpl<>(posts, pageable, 1);
+        Mockito.when(postService.getMyPosts(Mockito.any(), Mockito.anyLong())).thenReturn(page);
         mockMvc.perform(get("/api/posts/my")
+                .param("page", "0")
+                .param("size", "10")
                 .cookie(new Cookie("accessToken", "valid-access-token")))
             .andExpect(status().isOk())
-            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result").isArray());
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result.content").isArray())
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result.totalElements").value(1))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result.totalPages").value(1));
     }
 
     @Test
@@ -265,3 +274,4 @@ class PostControllerTest {
             .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result.content").isArray());
     }
 }
+

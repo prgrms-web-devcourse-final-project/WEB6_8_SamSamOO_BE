@@ -111,12 +111,16 @@ class PostServiceTest {
     }
 
     @Test
-    @DisplayName("내 게시글 목록 조회")
-    void t10() {
-        java.util.List expected = java.util.Collections.emptyList();
-        Mockito.when(postService.getMyPosts(Mockito.anyLong())).thenReturn(expected);
-        java.util.List result = postService.getMyPosts(1L);
-        assertThat(result).isEqualTo(expected);
+    @DisplayName("내 게시글 목록 페이징 조회")
+    void t10_paged() {
+        java.util.List<PostDto> postList = java.util.List.of(new PostDto());
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        org.springframework.data.domain.PageImpl<PostDto> page = new org.springframework.data.domain.PageImpl<>(postList, pageable, 1);
+        Mockito.when(postService.getMyPosts(Mockito.eq(pageable), Mockito.eq(1L))).thenReturn(page);
+        var result = postService.getMyPosts(pageable, 1L);
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        assertThat(result.getTotalPages()).isEqualTo(1);
     }
 
     @Test

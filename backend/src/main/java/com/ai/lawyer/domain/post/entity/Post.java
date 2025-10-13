@@ -37,6 +37,9 @@ public class Post {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
     @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "poll_id", foreignKey = @ForeignKey(name = "FK_POST_POLL"))
     private Poll poll;
