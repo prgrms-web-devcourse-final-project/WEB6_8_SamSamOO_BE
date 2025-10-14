@@ -1,4 +1,4 @@
-package com.ai.lawyer.global.test;
+package com.ai.lawyer.global.sentry;
 
 import io.sentry.Sentry;
 import org.springframework.web.bind.annotation.GetMapping;
