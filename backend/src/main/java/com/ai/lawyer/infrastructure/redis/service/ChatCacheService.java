@@ -12,7 +12,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ChatCacheService {
 
-    private final RedisTemplate<String, ChatHistoryDto> chatRedisTemplate; // 새 템플릿 사용
+    private final RedisTemplate<String, ChatHistoryDto> chatRedisTemplate;
     private static final String CHAT_HISTORY_KEY_PREFIX = "chat:history:";
 
     // 채팅 메시지 캐싱 (24시간)

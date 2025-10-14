@@ -52,6 +52,8 @@ public class HistoryService {
         History room = historyRepository.findByHistoryIdAndMemberId(roomId, member);
 
         historyRepository.delete(room);
+        chatCacheService.clearChatHistory(roomId);
+
         return "채팅방이 삭제되었습니다.";
 
     }
