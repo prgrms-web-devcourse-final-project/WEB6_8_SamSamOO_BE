@@ -60,7 +60,8 @@ public class SecurityConfig {
             "/api/home/**",         // 홈 (공개)
             "/h2-console/**",          // H2 콘솔 (개발용)
             "/actuator/health", "/actuator/health/**", "/actuator/info",    // Spring Actuator
-            "/api/actuator/health", "/api/actuator/health/**", "/api/actuator/info"
+            "/api/actuator/health", "/api/actuator/health/**", "/api/actuator/info",
+            "/sentry-test"           // Sentry 테스트용
     };
 
     // CORS 허용 메서드
