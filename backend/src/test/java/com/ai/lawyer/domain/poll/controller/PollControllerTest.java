@@ -1,36 +1,55 @@
 package com.ai.lawyer.domain.poll.controller;
 
 import com.ai.lawyer.domain.poll.service.PollService;
-import org.junit.jupiter.api.Test;
+import com.ai.lawyer.domain.poll.dto.PollDto;
+import com.ai.lawyer.domain.poll.dto.PollVoteDto;
+import com.ai.lawyer.domain.poll.dto.PollStaticsResponseDto;
+import com.ai.lawyer.global.jwt.TokenProvider;
+import com.ai.lawyer.global.security.SecurityConfig;
+import com.ai.lawyer.domain.post.service.PostService;
+import com.ai.lawyer.domain.member.repositories.MemberRepository;
+import com.ai.lawyer.global.jwt.CookieUtil;
+import com.ai.lawyer.global.oauth.CustomOAuth2UserService;
+import com.ai.lawyer.global.oauth.OAuth2SuccessHandler;
+import com.ai.lawyer.global.oauth.OAuth2FailureHandler;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import com.ai.lawyer.domain.poll.dto.PollDto;
-import com.ai.lawyer.domain.poll.dto.PollVoteDto;
-import org.springframework.context.annotation.Import;
-import com.ai.lawyer.global.security.SecurityConfig;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.junit.jupiter.api.DisplayName;
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
+import org.springframework.data.redis.core.RedisTemplate;
 import jakarta.servlet.http.Cookie;
+
 import static org.mockito.BDDMockito.*;
-import com.ai.lawyer.global.jwt.TokenProvider;
-import com.ai.lawyer.domain.poll.dto.PollStaticsResponseDto;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
+import org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
+import org.springframework.boot.autoconfigure.orm.jpa.JpaBaseConfiguration;
 
 @Import(SecurityConfig.class)
 @AutoConfigureMockMvc
 @WebMvcTest(
-    controllers = PollController.class,
-    excludeAutoConfiguration = {
-        org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration.class,
-        org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration.class,
-        org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration.class,
-        org.springframework.boot.autoconfigure.orm.jpa.JpaBaseConfiguration.class
-    }
+        controllers = PollController.class,
+        excludeAutoConfiguration = {
+                HibernateJpaAutoConfiguration.class,
+                JpaRepositoriesAutoConfiguration.class,
+                DataSourceAutoConfiguration.class,
+                JpaBaseConfiguration.class
+        }
 )
 class PollControllerTest {
     @Autowired
@@ -38,23 +57,23 @@ class PollControllerTest {
     @MockitoBean
     private PollService pollService;
     @MockitoBean
-    private com.ai.lawyer.domain.post.service.PostService postService;
+    private PostService postService;
     @MockitoBean
-    private com.ai.lawyer.global.jwt.TokenProvider tokenProvider;
+    private TokenProvider tokenProvider;
     @MockitoBean
-    private com.ai.lawyer.global.jwt.CookieUtil cookieUtil;
+    private CookieUtil cookieUtil;
     @MockitoBean
-    private com.ai.lawyer.domain.member.repositories.MemberRepository memberRepository;
+    private MemberRepository memberRepository;
     @MockitoBean
-    private org.springframework.data.jpa.mapping.JpaMetamodelMappingContext jpaMappingContext;
+    private JpaMetamodelMappingContext jpaMappingContext;
     @MockitoBean
-    private org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate;
+    private RedisTemplate<String, Object> redisTemplate;
     @MockitoBean
-    private com.ai.lawyer.global.oauth.CustomOAuth2UserService customOAuth2UserService;
+    private CustomOAuth2UserService customOAuth2UserService;
     @MockitoBean
-    private com.ai.lawyer.global.oauth.OAuth2SuccessHandler oauth2SuccessHandler;
+    private OAuth2SuccessHandler oauth2SuccessHandler;
     @MockitoBean
-    private com.ai.lawyer.global.oauth.OAuth2FailureHandler oauth2FailureHandler;
+    private OAuth2FailureHandler oauth2FailureHandler;
 
     @BeforeEach
     void setUp() {
@@ -72,7 +91,7 @@ class PollControllerTest {
         Mockito.when(pollService.getPoll(Mockito.anyLong(), Mockito.anyLong())).thenReturn(null);
 
         mockMvc.perform(get("/api/polls/1")
-                .cookie(new Cookie("accessToken", "valid-access-token")))
+                        .cookie(new Cookie("accessToken", "valid-access-token")))
                 .andExpect(status().isOk());
     }
 
@@ -82,7 +101,7 @@ class PollControllerTest {
         Mockito.when(pollService.vote(Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong())).thenReturn(null);
 
         mockMvc.perform(
-                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/polls/1/vote")
+                post("/api/polls/1/vote")
                         .param("pollItemsId", "1")
                         .cookie(new Cookie("accessToken", "valid-access-token"))
         ).andExpect(status().isOk());
@@ -94,7 +113,7 @@ class PollControllerTest {
         Mockito.when(pollService.getPollStatics(Mockito.anyLong())).thenReturn(new PollStaticsResponseDto());
 
         mockMvc.perform(get("/api/polls/1/statics")
-                .cookie(new Cookie("accessToken", "valid-access-token")))
+                        .cookie(new Cookie("accessToken", "valid-access-token")))
                 .andExpect(status().isOk());
     }
 
@@ -104,7 +123,7 @@ class PollControllerTest {
         Mockito.doNothing().when(pollService).closePoll(Mockito.anyLong());
 
         mockMvc.perform(
-                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/polls/1/close")
+                put("/api/polls/1/close")
                         .cookie(new Cookie("accessToken", "valid-access-token"))
         ).andExpect(status().isOk());
     }
@@ -117,7 +136,7 @@ class PollControllerTest {
         Mockito.doNothing().when(pollService).deletePoll(Mockito.anyLong(), Mockito.anyLong());
 
         mockMvc.perform(
-                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/polls/1")
+                delete("/api/polls/1")
                         .cookie(new Cookie("accessToken", "valid-access-token"))
         ).andExpect(status().isOk());
     }
@@ -128,7 +147,7 @@ class PollControllerTest {
         Mockito.when(pollService.getTopPollByStatus(Mockito.any(), Mockito.anyLong())).thenReturn(null);
 
         mockMvc.perform(get("/api/polls/top/ongoing")
-                .cookie(new Cookie("accessToken", "valid-access-token")))
+                        .cookie(new Cookie("accessToken", "valid-access-token")))
                 .andExpect(status().isOk());
     }
 
@@ -138,7 +157,7 @@ class PollControllerTest {
         Mockito.when(pollService.getTopPollByStatus(Mockito.any(), Mockito.anyLong())).thenReturn(null);
 
         mockMvc.perform(get("/api/polls/top/closed")
-                .cookie(new Cookie("accessToken", "valid-access-token")))
+                        .cookie(new Cookie("accessToken", "valid-access-token")))
                 .andExpect(status().isOk());
     }
 
@@ -148,8 +167,8 @@ class PollControllerTest {
         Mockito.when(pollService.createPoll(Mockito.any(), Mockito.anyLong())).thenReturn(null);
 
         mockMvc.perform(
-                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/polls")
-                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                post("/api/polls")
+                        .contentType(MediaType.APPLICATION_JSON)
                         .content("{}")
                         .cookie(new Cookie("accessToken", "valid-access-token"))
         ).andExpect(status().isOk());
@@ -162,10 +181,10 @@ class PollControllerTest {
         Mockito.when(pollService.getPoll(Mockito.anyLong(), Mockito.anyLong())).thenReturn(responseDto);
 
         mockMvc.perform(get("/api/polls/1")
-                .cookie(new Cookie("accessToken", "valid-access-token")))
+                        .cookie(new Cookie("accessToken", "valid-access-token")))
                 .andExpect(status().isOk())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result.pollId").value(1L))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result.voteTitle").value("테스트 투표"));
+                .andExpect(MockMvcResultMatchers.jsonPath("$.result.pollId").value(1L))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.result.voteTitle").value("테스트 투표"));
     }
 
     @Test
@@ -175,11 +194,11 @@ class PollControllerTest {
         Mockito.when(pollService.vote(Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong())).thenReturn(responseDto);
 
         mockMvc.perform(
-                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/polls/1/vote")
-                        .param("pollItemsId", "1")
-                        .cookie(new Cookie("accessToken", "valid-access-token"))
-        ).andExpect(status().isOk())
-         .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result.pollId").value(1L))
-         .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result.memberId").value(1L));
+                        post("/api/polls/1/vote")
+                                .param("pollItemsId", "1")
+                                .cookie(new Cookie("accessToken", "valid-access-token"))
+                ).andExpect(status().isOk())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.result.pollId").value(1L))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.result.memberId").value(1L));
     }
 }

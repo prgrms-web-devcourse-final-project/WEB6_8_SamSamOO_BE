@@ -2,6 +2,8 @@ package com.ai.lawyer.domain.precedent.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
 
@@ -22,4 +24,8 @@ public class PrecedentSearchRequestDto {
 
     @Schema(description = "페이지 크기", example = "10")
     private int pageSize;               // 페이지 크기
+
+    public Pageable toPageable() {
+        return PageRequest.of(pageNumber, pageSize);
+    }
 }

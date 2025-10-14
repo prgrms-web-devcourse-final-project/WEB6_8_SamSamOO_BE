@@ -40,20 +40,11 @@ public class PrecedentController {
     public ResponseEntity<?> searchPrecedents(
             @RequestBody PrecedentSearchRequestDto requestDto) {
         try {
-            Page<PrecedentSummaryListDto> results = precedentService.searchByKeyword(requestDto);
-            PageResponseDto response = PageResponseDto.builder()
-                    .content(results.getContent())
-                    .totalElements(results.getTotalElements())
-                    .totalPages(results.getTotalPages())
-                    .pageNumber(results.getNumber())
-                    .pageSize(results.getSize())
-                    .build();
-            return ResponseEntity.ok(response);
+            Page<PrecedentSummaryListDto> results = precedentService.searchByKeywordV2(requestDto);
+            return ResponseEntity.ok(PageResponseDto.from(results));
         }catch (Exception e){
             return ResponseEntity.badRequest().body("판례 목록 검색 에러 : " + e.getMessage());
         }
-
-
     }
 
     /**

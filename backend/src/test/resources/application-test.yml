@@ -40,6 +40,7 @@ spring:
   # 로컬 환경: Embedded Redis 사용
   data:
     redis:
+      embedded: false
       port: 6370  # 기본 포트와 충돌 방지
 
   ai:

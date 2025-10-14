@@ -23,7 +23,15 @@ import java.time.LocalDateTime;
 public class Member implements MemberAdapter {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.TABLE, generator = "member_id_gen")
+    @TableGenerator(
+            name = "member_id_gen",
+            table = "member_id_sequence",
+            pkColumnName = "sequence_name",
+            valueColumnName = "next_val",
+            pkColumnValue = "member_id_seq",
+            allocationSize = 1
+    )
     @Column(name = "member_id", nullable = false)
     private Long memberId;
 

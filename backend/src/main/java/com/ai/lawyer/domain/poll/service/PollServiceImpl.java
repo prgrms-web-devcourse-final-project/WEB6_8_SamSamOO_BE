@@ -1,8 +1,8 @@
 package com.ai.lawyer.domain.poll.service;
 
+import com.ai.lawyer.domain.poll.dto.*;
 import com.ai.lawyer.domain.poll.entity.*;
 import com.ai.lawyer.domain.poll.repository.*;
-import com.ai.lawyer.domain.poll.dto.PollDto;
 import com.ai.lawyer.domain.member.entity.Member;
 import com.ai.lawyer.domain.post.dto.PostDto;
 import com.ai.lawyer.domain.post.entity.Post;
@@ -16,21 +16,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.*;
-import com.ai.lawyer.domain.poll.dto.PollCreateDto;
-import com.ai.lawyer.domain.poll.dto.PollForPostDto;
-import com.ai.lawyer.domain.poll.dto.PollOptionCreateDto;
-import com.ai.lawyer.domain.poll.dto.PollStaticsDto;
-import com.ai.lawyer.domain.poll.dto.PollOptionDto;
-import com.ai.lawyer.domain.poll.dto.PollVoteDto;
-import com.ai.lawyer.domain.poll.dto.PollUpdateDto;
+
 import com.ai.lawyer.domain.poll.entity.Poll;
 
 import org.springframework.data.domain.Pageable;
 import java.time.LocalDateTime;
 
-import com.ai.lawyer.domain.poll.dto.PollGenderStaticsDto;
-import com.ai.lawyer.domain.poll.dto.PollStaticsResponseDto;
-import com.ai.lawyer.domain.poll.dto.PollAgeStaticsDto;
 import com.ai.lawyer.global.util.AuthUtil;
 
 @Service
@@ -178,19 +169,12 @@ public class PollServiceImpl implements PollService {
             PollOptions opt = options.get(i);
             optionMap.put(opt.getOption(), opt);
         }
-        // age 통계 그룹핑
-        List<Object[]> optionAgeRaw = pollVoteRepository.getOptionAgeStatics(pollId);
+        List<PollAgeStaticsDto.AgeGroupCountDto> optionAgeRaw = pollVoteRepository.getOptionAgeStatics(pollId);
         java.util.Map<Long, java.util.List<PollAgeStaticsDto.AgeGroupCountDto>> ageGroupMap = new java.util.HashMap<>();
-        for (Object[] arr : optionAgeRaw) {
-            String option = arr[0] != null ? arr[0].toString() : null;
-            PollOptions opt = optionMap.get(option);
+        for (PollAgeStaticsDto.AgeGroupCountDto dto : optionAgeRaw) {
+            PollOptions opt = optionMap.get(dto.getOption());
             if (opt == null) continue;
             Long pollItemsId = opt.getPollItemsId();
-            PollAgeStaticsDto.AgeGroupCountDto dto = PollAgeStaticsDto.AgeGroupCountDto.builder()
-                    .option(option)
-                    .ageGroup(arr[1] != null ? arr[1].toString() : null)
-                    .voteCount(arr[2] != null ? ((Number) arr[2]).longValue() : 0L)
-                    .build();
             ageGroupMap.computeIfAbsent(pollItemsId, k -> new java.util.ArrayList<>()).add(dto);
         }
         java.util.List<PollAgeStaticsDto> optionAgeStatics = new java.util.ArrayList<>();
@@ -202,19 +186,12 @@ public class PollServiceImpl implements PollService {
                     .ageGroupCounts(ageGroupMap.getOrDefault(opt.getPollItemsId(), java.util.Collections.emptyList()))
                     .build());
         }
-        // gender 통계 그룹핑
-        List<Object[]> optionGenderRaw = pollVoteRepository.getOptionGenderStatics(pollId);
+        List<PollGenderStaticsDto.GenderCountDto> optionGenderRaw = pollVoteRepository.getOptionGenderStatics(pollId);
         java.util.Map<Long, java.util.List<PollGenderStaticsDto.GenderCountDto>> genderGroupMap = new java.util.HashMap<>();
-        for (Object[] arr : optionGenderRaw) {
-            String option = arr[0] != null ? arr[0].toString() : null;
-            PollOptions opt = optionMap.get(option);
+        for (PollGenderStaticsDto.GenderCountDto dto : optionGenderRaw) {
+            PollOptions opt = optionMap.get(dto.getOption());
             if (opt == null) continue;
             Long pollItemsId = opt.getPollItemsId();
-            PollGenderStaticsDto.GenderCountDto dto = PollGenderStaticsDto.GenderCountDto.builder()
-                    .option(option)
-                    .gender(arr[1] != null ? arr[1].toString() : null)
-                    .voteCount(arr[2] != null ? ((Number) arr[2]).longValue() : 0L)
-                    .build();
             genderGroupMap.computeIfAbsent(pollItemsId, k -> new java.util.ArrayList<>()).add(dto);
         }
         java.util.List<PollGenderStaticsDto> optionGenderStatics = new java.util.ArrayList<>();
@@ -236,7 +213,7 @@ public class PollServiceImpl implements PollService {
                 .build();
     }
 
-    // 최대 7일 동안 투표 가능 (초기 요구사항)
+    // 최대 7일 동안 투표 가능
     @Override
     public void closePoll(Long pollId) {
         Poll poll = pollRepository.findById(pollId)
@@ -268,7 +245,7 @@ public class PollServiceImpl implements PollService {
 
     @Override
     public PollDto getTopPollByStatus(PollDto.PollStatus status, Long memberId) {
-        List<Object[]> result = pollVoteRepository.findTopPollByStatus(Poll.PollStatus.valueOf(status.name()));
+        List<PollTopDto> result = pollVoteRepository.findTopPollByStatus(Poll.PollStatus.valueOf(status.name()));
         if (result.isEmpty()) {
             // 종료된 투표가 없으면 빈 PollDto 반환
             return PollDto.builder()
@@ -282,18 +259,18 @@ public class PollServiceImpl implements PollService {
                     .totalVoteCount(0L)
                     .build();
         }
-        Long pollId = (Long) result.get(0)[0];
+        Long pollId = result.get(0).getPollId();
         return getPoll(pollId, memberId);
     }
 
     @Override
     public List<PollDto> getTopNPollsByStatus(PollDto.PollStatus status, int n, Long memberId) {
         Pageable pageable = org.springframework.data.domain.PageRequest.of(0, n);
-        List<Object[]> result = pollVoteRepository.findTopNPollByStatus(
+        List<PollTopDto> result = pollVoteRepository.findTopNPollByStatus(
                 com.ai.lawyer.domain.poll.entity.Poll.PollStatus.valueOf(status.name()), pageable);
         List<PollDto> pollDtos = new java.util.ArrayList<>();
-        for (Object[] row : result) {
-            Long pollId = (Long) row[0];
+        for (PollTopDto row : result) {
+            Long pollId = row.getPollId();
             pollDtos.add(status == PollDto.PollStatus.CLOSED
                     ? getPollWithStatistics(pollId, memberId)
                     : getPoll(pollId, memberId));
@@ -455,18 +432,8 @@ public class PollServiceImpl implements PollService {
             }
             List<PollStaticsDto> statics = null;
             if (withStatistics && poll.getStatus() == Poll.PollStatus.CLOSED) {
-                List<Object[]> staticsRaw = pollVoteRepository.countStaticsByPollOptionIds(List.of(option.getPollItemsId()));
-                statics = staticsRaw.stream()
-                        .map(arr -> {
-                            String gender = arr[1] != null ? arr[1].toString() : null;
-                            Integer age = arr[2] != null ? ((Number) arr[2]).intValue() : null;
-                            String ageGroup = getAgeGroup(age);
-                            return PollStaticsDto.builder()
-                                    .gender(gender)
-                                    .ageGroup(ageGroup)
-                                    .voteCount((Long) arr[3])
-                                    .build();
-                        }).toList();
+                List<PollStaticsDto> staticsRaw = pollVoteRepository.countStaticsByPollOptionIds(List.of(option.getPollItemsId()));
+                statics = staticsRaw;
             }
             optionDtos.add(PollOptionDto.builder()
                     .pollItemsId(option.getPollItemsId())

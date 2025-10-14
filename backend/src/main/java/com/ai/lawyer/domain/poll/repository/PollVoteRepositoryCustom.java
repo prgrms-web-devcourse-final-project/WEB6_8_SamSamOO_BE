@@ -4,13 +4,17 @@ import com.ai.lawyer.domain.poll.entity.Poll;
 import com.ai.lawyer.domain.poll.entity.PollVote;
 import org.springframework.data.domain.Pageable;
 import java.util.List;
+import com.ai.lawyer.domain.poll.dto.PollAgeStaticsDto;
+import com.ai.lawyer.domain.poll.dto.PollGenderStaticsDto;
+import com.ai.lawyer.domain.poll.dto.PollTopDto;
+import com.ai.lawyer.domain.poll.dto.PollStaticsDto;
 
 public interface PollVoteRepositoryCustom {
-    List<Object[]> findTopPollByStatus(Poll.PollStatus status);
-    List<Object[]> findTopNPollByStatus(Poll.PollStatus status, Pageable pageable);
+    List<PollTopDto> findTopPollByStatus(Poll.PollStatus status);
+    List<PollTopDto> findTopNPollByStatus(Poll.PollStatus status, Pageable pageable);
     Long countByPollId(Long pollId);
     Long countByPollOptionId(Long pollOptionId);
-    List<Object[]> countStaticsByPollOptionIds(List<Long> pollOptionIds);
-    List<Object[]> getOptionAgeStatics(Long pollId);
-    List<Object[]> getOptionGenderStatics(Long pollId);
+    List<PollAgeStaticsDto.AgeGroupCountDto> getOptionAgeStatics(Long pollId);
+    List<PollGenderStaticsDto.GenderCountDto> getOptionGenderStatics(Long pollId);
+    List<PollStaticsDto> countStaticsByPollOptionIds(List<Long> pollOptionIds);
 }

@@ -42,18 +42,10 @@ public class LawController {
     public ResponseEntity<?> searchLaws(@RequestBody LawSearchRequestDto searchRequest) {
         try {
             Page<LawsDto> laws = lawService.searchLaws(searchRequest);
-            PageResponseDto response = PageResponseDto.builder()
-                    .content(laws.getContent())
-                    .totalElements(laws.getTotalElements())
-                    .totalPages(laws.getTotalPages())
-                    .pageNumber(laws.getNumber())
-                    .pageSize(laws.getSize())
-                    .build();
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(PageResponseDto.from(laws));
         }catch (Exception e){
             return ResponseEntity.badRequest().body("법령 목록 검색 에러 : " + e.getMessage());
         }
-
     }
 
     @GetMapping("/{id}")

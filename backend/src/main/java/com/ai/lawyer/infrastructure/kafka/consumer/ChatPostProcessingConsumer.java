@@ -1,12 +1,16 @@
-package com.ai.lawyer.domain.kafka.consumer;
+package com.ai.lawyer.infrastructure.kafka.consumer;
 
+import com.ai.lawyer.domain.chatbot.dto.ChatDto.ChatHistoryDto;
+import com.ai.lawyer.domain.chatbot.dto.ChatDto.ChatLawDto;
+import com.ai.lawyer.domain.chatbot.dto.ChatDto.ChatPrecedentDto;
 import com.ai.lawyer.domain.chatbot.dto.ExtractionDto.KeywordExtractionDto;
 import com.ai.lawyer.domain.chatbot.dto.ExtractionDto.TitleExtractionDto;
 import com.ai.lawyer.domain.chatbot.entity.*;
 import com.ai.lawyer.domain.chatbot.repository.*;
 import com.ai.lawyer.domain.chatbot.service.KeywordService;
-import com.ai.lawyer.domain.kafka.dto.ChatPostProcessEvent;
-import com.ai.lawyer.domain.kafka.dto.DocumentDto;
+import com.ai.lawyer.infrastructure.kafka.dto.ChatPostProcessEvent;
+import com.ai.lawyer.infrastructure.kafka.dto.DocumentDto;
+import com.ai.lawyer.infrastructure.redis.service.ChatCacheService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -19,6 +23,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -28,6 +33,8 @@ import java.util.stream.Collectors;
 public class ChatPostProcessingConsumer {
 
     private final KeywordService keywordService;
+    private final ChatCacheService chatCacheService;
+
     private final HistoryRepository historyRepository;
     private final ChatRepository chatRepository;
     private final KeywordRankRepository keywordRankRepository;
@@ -59,7 +66,7 @@ public class ChatPostProcessingConsumer {
             // 2. 채팅방 제목 설정 / 및 필터
             setHistoryTitle(event.getUserMessage(), history, event.getChatResponse());
 
-            // 3. 채팅 기록 저장
+            // 3. 채팅 기록 저장 및 Redis 캐시 저장
             saveChatWithDocuments(history, MessageType.USER, event.getUserMessage(), event.getSimilarCaseDocuments(), event.getSimilarLawDocuments());
             saveChatWithDocuments(history, MessageType.ASSISTANT, event.getChatResponse(), event.getSimilarCaseDocuments(), event.getSimilarLawDocuments());
 
@@ -99,6 +106,10 @@ public class ChatPostProcessingConsumer {
     }
 
     private void saveChatWithDocuments(History history, MessageType type, String message, List<DocumentDto> similarCaseDocuments, List<DocumentDto> similarLawDocuments) {
+
+        List<ChatPrecedent> chatPrecedents = new ArrayList<>();
+        List<ChatLaw> chatLaws = new ArrayList<>();
+
         Chat chat = chatRepository.save(Chat.builder()
                 .historyId(history)
                 .type(type)
@@ -108,7 +119,7 @@ public class ChatPostProcessingConsumer {
         // Ai 메시지가 저장될 때 관련 문서 저장
         if (type == MessageType.ASSISTANT) {
             if (similarCaseDocuments != null && !similarCaseDocuments.isEmpty()) {
-                List<ChatPrecedent> chatPrecedents = similarCaseDocuments.stream()
+                chatPrecedents = similarCaseDocuments.stream()
                         .map(doc -> ChatPrecedent.builder()
                                 .chatId(chat)
                                 .precedentContent(doc.getText())
@@ -120,7 +131,7 @@ public class ChatPostProcessingConsumer {
             }
 
             if (similarLawDocuments != null && !similarLawDocuments.isEmpty()) {
-                List<ChatLaw> chatLaws = similarLawDocuments.stream()
+                chatLaws = similarLawDocuments.stream()
                         .map(doc -> ChatLaw.builder()
                                 .chatId(chat)
                                 .content(doc.getText())
@@ -130,5 +141,16 @@ public class ChatPostProcessingConsumer {
                 chatLawRepository.saveAll(chatLaws);
             }
         }
+
+        // Redis 캐시에 DTO 저장
+        ChatHistoryDto dto = ChatHistoryDto.builder()
+                .type(type.toString())
+                .message(message)
+                .createdAt(chat.getCreatedAt())
+                .precedent(chatPrecedents.isEmpty() ? null : ChatPrecedentDto.from(chatPrecedents.get(0)))
+                .law(chatLaws.isEmpty() ? null : ChatLawDto.from(chatLaws.get(0)))
+                .build();
+
+        chatCacheService.cacheChatMessage(history.getHistoryId(), dto);
     }
 }

@@ -1,5 +1,6 @@
 package com.ai.lawyer.domain.poll.repository;
 
+import com.ai.lawyer.domain.member.entity.Member;
 import com.ai.lawyer.domain.poll.entity.Poll;
 import com.ai.lawyer.domain.poll.entity.QPoll;
 import com.ai.lawyer.domain.poll.entity.QPollOptions;
@@ -13,6 +14,11 @@ import com.querydsl.core.Tuple;
 
 import java.util.List;
 
+import com.ai.lawyer.domain.poll.dto.PollAgeStaticsDto.AgeGroupCountDto;
+import com.ai.lawyer.domain.poll.dto.PollGenderStaticsDto.GenderCountDto;
+import com.ai.lawyer.domain.poll.dto.PollTopDto;
+import com.ai.lawyer.domain.poll.dto.PollStaticsDto;
+
 @Repository
 @RequiredArgsConstructor
 public class PollVoteRepositoryImpl implements PollVoteRepositoryCustom {
@@ -23,7 +29,7 @@ public class PollVoteRepositoryImpl implements PollVoteRepositoryCustom {
     private final QMember member = QMember.member;
 
     @Override
-    public List<Object[]> findTopPollByStatus(Poll.PollStatus status) {
+    public List<PollTopDto> findTopPollByStatus(Poll.PollStatus status) {
         List<Tuple> tuples = queryFactory.select(poll.getPollId(), pollVote.count())
                 .from(pollVote)
                 .join(pollVote.getPoll(), poll)
@@ -31,11 +37,16 @@ public class PollVoteRepositoryImpl implements PollVoteRepositoryCustom {
                 .groupBy(poll.getPollId())
                 .orderBy(pollVote.count().desc())
                 .fetch();
-        return tuples.stream().map(Tuple::toArray).toList();
+        return tuples.stream()
+                .map(t -> new PollTopDto(
+                        t.get(0, Long.class),
+                        t.get(1, Long.class)
+                ))
+                .toList();
     }
 
     @Override
-    public List<Object[]> findTopNPollByStatus(Poll.PollStatus status, Pageable pageable) {
+    public List<PollTopDto> findTopNPollByStatus(Poll.PollStatus status, Pageable pageable) {
         List<Tuple> tuples = queryFactory.select(poll.getPollId(), pollVote.count())
                 .from(pollVote)
                 .join(pollVote.getPoll(), poll)
@@ -45,7 +56,12 @@ public class PollVoteRepositoryImpl implements PollVoteRepositoryCustom {
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
                 .fetch();
-        return tuples.stream().map(Tuple::toArray).toList();
+        return tuples.stream()
+                .map(t -> new PollTopDto(
+                        t.get(0, Long.class),
+                        t.get(1, Long.class)
+                ))
+                .toList();
     }
 
     @Override
@@ -67,19 +83,47 @@ public class PollVoteRepositoryImpl implements PollVoteRepositoryCustom {
     }
 
     @Override
-    public List<Object[]> countStaticsByPollOptionIds(List<Long> pollOptionIds) {
-        List<Tuple> tuples = queryFactory.select(pollOptions.getPollItemsId(), member.getGender(), member.getAge(), pollVote.count())
+    public List<PollStaticsDto> countStaticsByPollOptionIds(List<Long> pollOptionIds) {
+        List<Tuple> tuples = queryFactory.select(
+                pollOptions.getPollItemsId(),
+                member.getGender(),
+                member.getAge(),
+                pollVote.count())
                 .from(pollVote)
                 .join(pollVote.getPollOptions(), pollOptions)
                 .join(pollVote.getMember(), member)
                 .where(pollOptions.getPollItemsId().in(pollOptionIds))
                 .groupBy(pollOptions.getPollItemsId(), member.getGender(), member.getAge())
                 .fetch();
-        return tuples.stream().map(Tuple::toArray).toList();
+        return tuples.stream()
+                .map(t -> {
+                    String gender = t.get(1, String.class);
+                    Integer age = t.get(2, Integer.class);
+                    String ageGroup = getAgeGroup(age);
+                    Long voteCount = t.get(3, Long.class);
+                    return PollStaticsDto.builder()
+                            .gender(gender)
+                            .ageGroup(ageGroup)
+                            .voteCount(voteCount)
+                            .build();
+                })
+                .toList();
+    }
+
+    private String getAgeGroup(Integer age) {
+        if (age == null) return "기타";
+        if (age < 20) return "10대";
+        if (age < 30) return "20대";
+        if (age < 40) return "30대";
+        if (age < 50) return "40대";
+        if (age < 60) return "50대";
+        if (age < 70) return "60대";
+        if (age < 80) return "70대";
+        return "80대 이상";
     }
 
     @Override
-    public List<Object[]> getOptionAgeStatics(Long pollId) {
+    public List<AgeGroupCountDto> getOptionAgeStatics(Long pollId) {
         List<Tuple> tuples = queryFactory.select(
                 pollOptions.getOption(),
                 new com.querydsl.core.types.dsl.CaseBuilder()
@@ -107,11 +151,17 @@ public class PollVoteRepositoryImpl implements PollVoteRepositoryCustom {
                                 .when(member.getAge().lt(80)).then("70대")
                                 .otherwise("80대 이상"))
                 .fetch();
-        return tuples.stream().map(Tuple::toArray).toList();
+        return tuples.stream()
+                .map(t -> new AgeGroupCountDto(
+                        t.get(0, String.class),
+                        t.get(1, String.class),
+                        t.get(2, Long.class)
+                ))
+                .toList();
     }
 
     @Override
-    public List<Object[]> getOptionGenderStatics(Long pollId) {
+    public List<GenderCountDto> getOptionGenderStatics(Long pollId) {
         List<Tuple> tuples = queryFactory.select(
                 pollOptions.getOption(),
                 member.getGender(),
@@ -122,6 +172,12 @@ public class PollVoteRepositoryImpl implements PollVoteRepositoryCustom {
                 .where(pollOptions.getPoll().getPollId().eq(pollId))
                 .groupBy(pollOptions.getOption(), member.getGender())
                 .fetch();
-        return tuples.stream().map(Tuple::toArray).toList();
+        return tuples.stream()
+                .map(t -> new GenderCountDto(
+                        t.get(0, String.class),
+                        t.get(1, Member.Gender.class).name(),
+                        t.get(2, Long.class)
+                ))
+                .toList();
     }
 }

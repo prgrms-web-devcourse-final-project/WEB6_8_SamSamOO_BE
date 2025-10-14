@@ -1,4 +1,4 @@
-package com.ai.lawyer.domain.kafka.dto;
+package com.ai.lawyer.infrastructure.kafka.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
