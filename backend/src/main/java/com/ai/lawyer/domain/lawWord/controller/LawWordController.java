@@ -5,12 +5,14 @@ import com.ai.lawyer.domain.precedent.entity.Precedent;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/law-word")
@@ -26,6 +28,7 @@ public class LawWordController {
         try {
             return ResponseEntity.ok(lawWordService.findDefinition(word));
         }catch (Exception e){
+            log.error("법령 용어 검색 에러 : " + e.getMessage());
             return ResponseEntity.badRequest().body("법령 용어 검색 에러 : " + e.getMessage());
         }
     }
@@ -37,6 +40,7 @@ public class LawWordController {
         try {
             return ResponseEntity.ok(lawWordService.findDefinitionV2(word));
         }catch (Exception e){
+            log.error("법령 용어 검색 에러 : " + e.getMessage());
             return ResponseEntity.badRequest().body("법령 용어 검색 에러 : " + e.getMessage());
         }
     }

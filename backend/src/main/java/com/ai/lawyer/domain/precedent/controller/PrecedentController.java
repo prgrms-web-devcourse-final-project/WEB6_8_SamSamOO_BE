@@ -8,10 +8,12 @@ import com.ai.lawyer.global.dto.PageResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/precedent")
@@ -43,6 +45,7 @@ public class PrecedentController {
             Page<PrecedentSummaryListDto> results = precedentService.searchByKeywordV2(requestDto);
             return ResponseEntity.ok(PageResponseDto.from(results));
         }catch (Exception e){
+            log.error("판례 목록 검색 에러 : " + e.getMessage());
             return ResponseEntity.badRequest().body("판례 목록 검색 에러 : " + e.getMessage());
         }
     }
@@ -62,6 +65,7 @@ public class PrecedentController {
             Precedent precedent = precedentService.getPrecedentById(id);
             return ResponseEntity.ok(precedent);
         }catch (Exception e){
+            log.error("판례 상세 조회 에러 : " + e.getMessage());
             return ResponseEntity.badRequest().body("판례 상세 조회 에러 : " + e.getMessage());
         }
     }

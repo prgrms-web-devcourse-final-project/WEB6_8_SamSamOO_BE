@@ -8,10 +8,12 @@ import com.ai.lawyer.global.dto.PageResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 @Tag(name = "법령", description = "법령 API")
@@ -44,6 +46,7 @@ public class LawController {
             Page<LawsDto> laws = lawService.searchLaws(searchRequest);
             return ResponseEntity.ok(PageResponseDto.from(laws));
         }catch (Exception e){
+            log.error("법령 목록 검색 에러 : " + e.getMessage());
             return ResponseEntity.badRequest().body("법령 목록 검색 에러 : " + e.getMessage());
         }
     }
@@ -56,6 +59,7 @@ public class LawController {
             Law law = lawService.getLawWithAllChildren(id);
             return ResponseEntity.ok(law);
         }catch (Exception e){
+            log.error("법령 상세 조회 에러 : " + e.getMessage());
             return ResponseEntity.badRequest().body("법령 상세 조회 에러 : " + e.getMessage());
         }
 
