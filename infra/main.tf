@@ -409,6 +409,7 @@ docker run -d \
   --network common \
   -p 11434:11434 \
   -v ollama-data:/root/.ollama \
+  --memory 2g \
   --entrypoint /bin/sh \
   --health-cmd 'curl -f http://localhost:11434/api/version || exit 1' \
   --health-interval 10s \
@@ -418,7 +419,15 @@ docker run -d \
   -c 'ollama serve & sleep 5 && ollama pull daynice/kure-v1:567m && wait'
 
 echo "${var.github_access_token_1}" | docker login ghcr.io -u ${var.github_access_token_1_owner} --password-stdin
-# zookeeper
+# zookeeper 설치
+docker run -d \
+  --name zookeeper \
+  --network common \
+  -p 2181:2181 \
+  -e ALLOW_ANONYMOUS_LOGIN=yes \
+  bitnami/zookeeper:latest
+
+# kafka
 docker run -d \
   --name kafka \
   --network common \
@@ -430,13 +439,7 @@ docker run -d \
   -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
   confluentinc/cp-kafka:7.6.0
 
-# kafka 설치
-docker run -d \
-  --name zookeeper \
-  --network common \
-  -p 2181:2181 \
-  -e ALLOW_ANONYMOUS_LOGIN=yes \
-  bitnami/zookeeper:latest
+
 
 END_OF_FILE
 }

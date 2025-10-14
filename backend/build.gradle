@@ -62,8 +62,8 @@ dependencies {
     implementation 'org.springframework.session:spring-session-data-redis'
 
     // Logging & Monitoring (로깅/모니터링)
-    implementation 'io.sentry:sentry-spring-boot-starter:7.16.0'
-    implementation 'io.sentry:sentry-logback:7.16.0'
+    implementation 'io.sentry:sentry-spring-boot-starter:7.18.0'
+    implementation 'io.sentry:sentry-logback:7.18.0'
 
     // Development Tools (개발 도구)
     compileOnly 'org.projectlombok:lombok'
