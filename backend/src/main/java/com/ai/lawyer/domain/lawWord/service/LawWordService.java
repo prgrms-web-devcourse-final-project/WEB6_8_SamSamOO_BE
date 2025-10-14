@@ -153,9 +153,12 @@ public class LawWordService {
 
         // 2. 클라이언트가 요청한 단어와 정확히 일치하는 item만 필터링
         List<JsonNode> matchingItems = new ArrayList<>();
+        String normalizedRequestedWord = normalize(requestedWord);
+
         for (JsonNode item : itemsNode) {
             String itemWord = item.path("word").asText();
-            if (requestedWord.equals(itemWord)) {
+            String normalizedItemWord = normalize(itemWord);
+            if (normalizedRequestedWord.equals(normalizedItemWord)) {
                 matchingItems.add(item);
             }
         }
@@ -210,5 +213,10 @@ public class LawWordService {
                 .definition(definition)
                 .build();
         lawWordRepository.save(entity);
+    }
+
+    // 유틸: 단어 정규화 함수
+    private String normalize(String input) {
+        return input.replaceAll("[\\s\\^]", "");
     }
 }

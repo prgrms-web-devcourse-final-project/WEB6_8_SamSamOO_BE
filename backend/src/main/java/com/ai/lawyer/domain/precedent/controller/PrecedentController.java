@@ -37,18 +37,23 @@ public class PrecedentController {
 
     @PostMapping("/search")
     @Operation(summary = "판례 목록 검색 기능", description = "조건에 맞는 판례 목록을 가져옵니다")
-    public ResponseEntity<PageResponseDto> searchPrecedents(
+    public ResponseEntity<?> searchPrecedents(
             @RequestBody PrecedentSearchRequestDto requestDto) {
+        try {
+            Page<PrecedentSummaryListDto> results = precedentService.searchByKeyword(requestDto);
+            PageResponseDto response = PageResponseDto.builder()
+                    .content(results.getContent())
+                    .totalElements(results.getTotalElements())
+                    .totalPages(results.getTotalPages())
+                    .pageNumber(results.getNumber())
+                    .pageSize(results.getSize())
+                    .build();
+            return ResponseEntity.ok(response);
+        }catch (Exception e){
+            return ResponseEntity.badRequest().body("판례 목록 검색 에러 : " + e.getMessage());
+        }
 
-        Page<PrecedentSummaryListDto> results = precedentService.searchByKeyword(requestDto);
-        PageResponseDto response = PageResponseDto.builder()
-                .content(results.getContent())
-                .totalElements(results.getTotalElements())
-                .totalPages(results.getTotalPages())
-                .pageNumber(results.getNumber())
-                .pageSize(results.getSize())
-                .build();
-        return ResponseEntity.ok(response);
+
     }
 
     /**
@@ -61,8 +66,12 @@ public class PrecedentController {
     @GetMapping("/{id}")
     @Operation(summary = "판례 상세 조회 기능", description = "판례 상세 데이터를 조회합니다 \n" +
             "예시: /api/precedent/1")
-    public ResponseEntity<Precedent> getPrecedent(@PathVariable Long id) {
-        Precedent precedent = precedentService.getPrecedentById(id);
-        return ResponseEntity.ok(precedent);
+    public ResponseEntity<?> getPrecedent(@PathVariable Long id) {
+        try {
+            Precedent precedent = precedentService.getPrecedentById(id);
+            return ResponseEntity.ok(precedent);
+        }catch (Exception e){
+            return ResponseEntity.badRequest().body("판례 상세 조회 에러 : " + e.getMessage());
+        }
     }
 }

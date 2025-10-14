@@ -26,7 +26,7 @@ public class LawWordController {
         try {
             return ResponseEntity.ok(lawWordService.findDefinition(word));
         }catch (Exception e){
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.badRequest().body("법령 용어 검색 에러 : " + e.getMessage());
         }
     }
 
@@ -37,7 +37,7 @@ public class LawWordController {
         try {
             return ResponseEntity.ok(lawWordService.findDefinitionV2(word));
         }catch (Exception e){
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.badRequest().body("법령 용어 검색 에러 : " + e.getMessage());
         }
     }
 }
