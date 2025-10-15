@@ -12,4 +12,5 @@ public class PollOptionDto {
     private Long voteCount;
     private java.util.List<PollStaticsDto> statics;
     private int pollOptionIndex;
+    private boolean voted; // 해당 옵션에 투표했는지 여부
 }

@@ -112,7 +112,7 @@ class PollAutoCloseTest {
         poll.setReservedCloseAt(LocalDateTime.now().minusSeconds(1));
         poll.setStatus(Poll.PollStatus.CLOSED);
         given(pollRepository.findById(eq(1L))).willReturn(java.util.Optional.of(poll));
-        PollDto closed = pollService.getPoll(1L);
+        PollDto closed = pollService.getPoll(1L, 1L);
         assertThat(closed.getStatus()).isEqualTo(PollDto.PollStatus.CLOSED);
     }
 }

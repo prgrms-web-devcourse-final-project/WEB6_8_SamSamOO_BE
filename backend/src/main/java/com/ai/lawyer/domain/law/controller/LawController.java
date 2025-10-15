@@ -8,10 +8,12 @@ import com.ai.lawyer.global.dto.PageResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 @Tag(name = "법령", description = "법령 API")
@@ -39,24 +41,29 @@ public class LawController {
 
     @PostMapping("/search")
     @Operation(summary = "볍령 목록 검색 기능", description = "조건에 맞는 법령 목록을 가져옵니다")
-    public ResponseEntity<PageResponseDto> searchLaws(@RequestBody LawSearchRequestDto searchRequest) {
-        Page<LawsDto> laws = lawService.searchLaws(searchRequest);
-        PageResponseDto response = PageResponseDto.builder()
-                .content(laws.getContent())
-                .totalElements(laws.getTotalElements())
-                .totalPages(laws.getTotalPages())
-                .pageNumber(laws.getNumber())
-                .pageSize(laws.getSize())
-                .build();
-        return ResponseEntity.ok(response);
+    public ResponseEntity<?> searchLaws(@RequestBody LawSearchRequestDto searchRequest) {
+        try {
+            Page<LawsDto> laws = lawService.searchLaws(searchRequest);
+            return ResponseEntity.ok(PageResponseDto.from(laws));
+        }catch (Exception e){
+            log.error("법령 목록 검색 에러 : " + e.getMessage());
+            return ResponseEntity.badRequest().body("법령 목록 검색 에러 : " + e.getMessage());
+        }
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "볍령 상세 조회 기능", description = "법령 상세 데이터를 조회합니다 \n" +
             "예시: /api/law/1")
-    public ResponseEntity<Law> getFullLaw(@PathVariable Long id) {
-        Law law = lawService.getLawWithAllChildren(id);
+    public ResponseEntity<?> getFullLaw(@PathVariable Long id) {
+        try {
+            Law law = lawService.getLawWithAllChildren(id);
+            return ResponseEntity.ok(law);
+        }catch (Exception e){
+            log.error("법령 상세 조회 에러 : " + e.getMessage());
+            return ResponseEntity.badRequest().body("법령 상세 조회 에러 : " + e.getMessage());
+        }
 
-        return ResponseEntity.ok(law);
+
+
     }
 }

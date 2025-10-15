@@ -25,7 +25,7 @@ public class History {
     private Long historyId;
 
     @ManyToOne
-    @JoinColumn(name = "member_id")
+    @JoinColumn(name = "member_id", foreignKey = @ForeignKey(name = "FK_HISTORY_MEMBER"))
     private Member memberId;
 
     @OneToMany(mappedBy = "historyId", cascade = CascadeType.ALL, orphanRemoval = true)

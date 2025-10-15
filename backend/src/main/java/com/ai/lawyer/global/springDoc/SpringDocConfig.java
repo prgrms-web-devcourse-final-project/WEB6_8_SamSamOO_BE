@@ -68,11 +68,21 @@ public class SpringDocConfig {
                 .build();
     }
 
-    @Bean GroupedOpenApi chatApi() {
+    @Bean
+    GroupedOpenApi chatApi() {
         return GroupedOpenApi.builder()
                 .group("챗봇과 관련된 API")
                 .pathsToMatch("/api/chat/**")
                 .packagesToScan("com.ai.lawyer.domain.chatbot.controller")
+                .build();
+    }
+
+    @Bean
+    GroupedOpenApi homeApi() {
+        return GroupedOpenApi.builder()
+                .group("Home API")
+                .pathsToMatch("/api/home/**")
+                .packagesToScan("com.ai.lawyer.domain.home.controller")
                 .build();
     }
 

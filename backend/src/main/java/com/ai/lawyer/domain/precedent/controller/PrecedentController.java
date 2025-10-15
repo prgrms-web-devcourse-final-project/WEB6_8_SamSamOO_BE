@@ -8,10 +8,12 @@ import com.ai.lawyer.global.dto.PageResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/precedent")
@@ -37,18 +39,15 @@ public class PrecedentController {
 
     @PostMapping("/search")
     @Operation(summary = "판례 목록 검색 기능", description = "조건에 맞는 판례 목록을 가져옵니다")
-    public ResponseEntity<PageResponseDto> searchPrecedents(
+    public ResponseEntity<?> searchPrecedents(
             @RequestBody PrecedentSearchRequestDto requestDto) {
-
-        Page<PrecedentSummaryListDto> results = precedentService.searchByKeyword(requestDto);
-        PageResponseDto response = PageResponseDto.builder()
-                .content(results.getContent())
-                .totalElements(results.getTotalElements())
-                .totalPages(results.getTotalPages())
-                .pageNumber(results.getNumber())
-                .pageSize(results.getSize())
-                .build();
-        return ResponseEntity.ok(response);
+        try {
+            Page<PrecedentSummaryListDto> results = precedentService.searchByKeywordV2(requestDto);
+            return ResponseEntity.ok(PageResponseDto.from(results));
+        }catch (Exception e){
+            log.error("판례 목록 검색 에러 : " + e.getMessage());
+            return ResponseEntity.badRequest().body("판례 목록 검색 에러 : " + e.getMessage());
+        }
     }
 
     /**
@@ -61,8 +60,13 @@ public class PrecedentController {
     @GetMapping("/{id}")
     @Operation(summary = "판례 상세 조회 기능", description = "판례 상세 데이터를 조회합니다 \n" +
             "예시: /api/precedent/1")
-    public ResponseEntity<Precedent> getPrecedent(@PathVariable Long id) {
-        Precedent precedent = precedentService.getPrecedentById(id);
-        return ResponseEntity.ok(precedent);
+    public ResponseEntity<?> getPrecedent(@PathVariable Long id) {
+        try {
+            Precedent precedent = precedentService.getPrecedentById(id);
+            return ResponseEntity.ok(precedent);
+        }catch (Exception e){
+            log.error("판례 상세 조회 에러 : " + e.getMessage());
+            return ResponseEntity.badRequest().body("판례 상세 조회 에러 : " + e.getMessage());
+        }
     }
 }

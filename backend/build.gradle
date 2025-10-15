@@ -41,6 +41,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
     implementation group: 'org.springframework.boot', name: 'spring-boot-starter-mail', version: '3.0.5'
     implementation 'org.springframework.boot:spring-boot-starter-batch'
+    implementation 'org.springframework.kafka:spring-kafka'
+    testImplementation 'org.springframework.kafka:spring-kafka-test'
 
     // API Documentation (문서화)
     implementation 'org.apache.commons:commons-lang3:3.18.0'
@@ -60,8 +62,8 @@ dependencies {
     implementation 'org.springframework.session:spring-session-data-redis'
 
     // Logging & Monitoring (로깅/모니터링)
-    implementation 'io.sentry:sentry-spring-boot-starter:7.16.0'
-    implementation 'io.sentry:sentry-logback:7.16.0'
+    implementation 'io.sentry:sentry-spring-boot-starter:7.18.0'
+    implementation 'io.sentry:sentry-logback:7.18.0'
 
     // Development Tools (개발 도구)
     compileOnly 'org.projectlombok:lombok'

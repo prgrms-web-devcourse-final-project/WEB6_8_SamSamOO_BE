@@ -155,3 +155,5 @@ custom:
     failure-url: ${CUSTOM_OAUTH2_FAILURE_URL}
   frontend:
     url: ${CUSTOM_FRONTEND_URL}
+  cookie:
+    domain:

@@ -70,7 +70,7 @@ class CookieUtilTest {
         assertThat(accessCookieHeader).contains(ACCESS_TOKEN_NAME + "=" + ACCESS_TOKEN);
         assertThat(accessCookieHeader).contains("HttpOnly");
         assertThat(accessCookieHeader).contains("Path=/");
-        assertThat(accessCookieHeader).contains("Max-Age=300"); // 5분 = 300초
+        assertThat(accessCookieHeader).contains("Max-Age=3600"); // 1시간 = 3600초
         assertThat(accessCookieHeader).contains("SameSite=Lax");
         log.info("액세스 토큰 쿠키 검증 완료: {}", accessCookieHeader);
 
@@ -102,7 +102,7 @@ class CookieUtilTest {
         String cookieHeader = headerCaptor.getValue();
         assertThat(cookieHeader).contains(ACCESS_TOKEN_NAME + "=" + ACCESS_TOKEN);
         assertThat(cookieHeader).contains("HttpOnly");
-        assertThat(cookieHeader).contains("Max-Age=300");
+        assertThat(cookieHeader).contains("Max-Age=3600");
         assertThat(cookieHeader).contains("SameSite=Lax");
         log.info("=== 액세스 토큰 단독 쿠키 설정 테스트 완료 ===");
     }
@@ -304,11 +304,11 @@ class CookieUtilTest {
     }
 
     @Test
-    @DisplayName("토큰 만료 시간 확인 - 액세스 5분, 리프레시 7일")
+    @DisplayName("토큰 만료 시간 확인 - 액세스 1시간, 리프레시 7일")
     void cookieMaxAgeAttribute_ExpiryTime() {
         // given
         log.info("=== 토큰 만료 시간 테스트 시작 ===");
-        log.info("액세스 토큰 만료: 5분 (300초)");
+        log.info("액세스 토큰 만료: 1시간 (3600초)");
         log.info("리프레시 토큰 만료: 7일 (604800초)");
 
         // when
@@ -321,8 +321,8 @@ class CookieUtilTest {
         var setCookieHeaders = headerCaptor.getAllValues();
 
         String accessHeader = setCookieHeaders.getFirst();
-        assertThat(accessHeader).contains("Max-Age=300");
-        log.info("액세스 토큰 만료 시간: 300초 (5분)");
+        assertThat(accessHeader).contains("Max-Age=3600");
+        log.info("액세스 토큰 만료 시간: 3600초 (1시간)");
 
         String refreshHeader = setCookieHeaders.get(1);
         assertThat(refreshHeader).contains("Max-Age=604800");

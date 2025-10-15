@@ -10,6 +10,7 @@ import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -24,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
@@ -62,6 +64,65 @@ public class PrecedentService {
      */
     public Page<PrecedentSummaryListDto> searchByKeyword(PrecedentSearchRequestDto requestDto) {
         return precedentRepository.searchPrecedentsByKeyword(requestDto);
+    }
+
+    public Page<PrecedentSummaryListDto> searchByKeywordV2(PrecedentSearchRequestDto requestDto) {
+        String keyword = null;
+        if (StringUtils.hasText(requestDto.getKeyword())) {
+            keyword = requestDto.getKeyword().trim() + "*";
+        }
+
+        int offset = requestDto.getPageNumber() * requestDto.getPageSize();
+
+        List<Object[]> results = precedentRepository.searchByKeywordNative(
+                keyword,
+                requestDto.getSentencingDateStart(),
+                requestDto.getSentencingDateEnd(),
+                offset,
+                requestDto.getPageSize()
+        );
+
+        Long total = precedentRepository.countByKeywordNative(
+                keyword,
+                requestDto.getSentencingDateStart(),
+                requestDto.getSentencingDateEnd()
+        );
+
+        List<PrecedentSummaryListDto> content = results.stream()
+                .map(this::mapToDto)
+                .toList();
+
+        return new PageImpl<>(content, requestDto.toPageable(), total);
+    }
+
+    private PrecedentSummaryListDto mapToDto(Object[] row) {
+        Long id = ((Number) row[0]).longValue();
+        String caseName = (String) row[1];
+        String caseNumber = (String) row[2];
+        java.sql.Date sqlDate = (java.sql.Date) row[3];
+        String contents = (String) row[4];
+
+        if (contents == null) contents = "";
+
+        return new PrecedentSummaryListDto(
+                id,
+                caseName,
+                caseNumber,
+                sqlDate != null ? sqlDate.toLocalDate() : null,
+                extractOrderPart(contents)
+        );
+    }
+
+    private String extractOrderPart(String contents) {
+        if (contents == null || contents.isBlank()) return "";
+
+        int start = contents.indexOf("【주    문】");
+        if (start == -1) return contents;
+
+        int end = contents.indexOf("【이    유】", start);
+        if (end == -1) end = contents.length();
+
+        return contents.substring(start, end).trim();
     }
 
     /**

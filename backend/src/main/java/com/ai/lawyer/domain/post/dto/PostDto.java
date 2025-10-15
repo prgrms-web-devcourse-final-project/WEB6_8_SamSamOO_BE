@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder(toBuilder = true)
-public class PostDto {
+public class  PostDto {
 
     private Long postId;
     private Long memberId;
@@ -17,5 +17,6 @@ public class PostDto {
     private String postContent;
     private String category;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
     private PollDto poll;
 }

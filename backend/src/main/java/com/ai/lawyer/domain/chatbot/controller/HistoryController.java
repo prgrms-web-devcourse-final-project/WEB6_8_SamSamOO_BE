@@ -2,7 +2,6 @@ package com.ai.lawyer.domain.chatbot.controller;
 
 import com.ai.lawyer.domain.chatbot.dto.ChatDto.ChatHistoryDto;
 import com.ai.lawyer.domain.chatbot.dto.HistoryDto;
-import com.ai.lawyer.domain.chatbot.service.ChatService;
 import com.ai.lawyer.domain.chatbot.service.HistoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -21,7 +20,6 @@ import java.util.List;
 public class HistoryController {
 
     private final HistoryService historyService;
-    private final ChatService chatService;
 
     @Operation(summary = "채팅방 제목 목록 조회")
     @GetMapping("/")
@@ -32,7 +30,7 @@ public class HistoryController {
     @Operation(summary = "채팅 조회")
     @GetMapping("/{historyId}")
     public ResponseEntity<List<ChatHistoryDto>> getChatHistory(@AuthenticationPrincipal Long memberId, @PathVariable("historyId") Long roomId) {
-        return chatService.getChatHistory(memberId, roomId);
+        return historyService.getChatHistory(memberId, roomId);
     }
 
     @Operation(summary = "채팅방 삭제")

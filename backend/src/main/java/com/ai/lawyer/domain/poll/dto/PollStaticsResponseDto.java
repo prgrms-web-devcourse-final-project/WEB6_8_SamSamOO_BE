@@ -12,4 +12,5 @@ public class PollStaticsResponseDto {
     private Long pollId;
     private List<PollAgeStaticsDto> optionAgeStatics;
     private List<PollGenderStaticsDto> optionGenderStatics;
+    private Long totalVoteCount;
 }

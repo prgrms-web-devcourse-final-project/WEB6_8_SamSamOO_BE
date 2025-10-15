@@ -52,13 +52,16 @@ public class SecurityConfig {
             "/swagger-ui/**",         // Swagger UI
             "/swagger-ui.html",       // Swagger UI HTML
             "/api/posts/**",          // 게시글 (공개)
+            "/api/polls/{pollId}/statics", // 투표 통계 (공개)
             "/api/precedent/**",      // 판례 (공개)
             "/api/law/**",            // 법령 (공개)
             "/api/law-word/**",       // 법률 용어 (공개)
             "/api/chat/**",           // 챗봇 (공개)
+            "/api/home/**",         // 홈 (공개)
             "/h2-console/**",          // H2 콘솔 (개발용)
             "/actuator/health", "/actuator/health/**", "/actuator/info",    // Spring Actuator
-            "/api/actuator/health", "/api/actuator/health/**", "/api/actuator/info"
+            "/api/actuator/health", "/api/actuator/health/**", "/api/actuator/info",
+            "/sentry-test"           // Sentry 테스트용
     };
 
     // CORS 허용 메서드

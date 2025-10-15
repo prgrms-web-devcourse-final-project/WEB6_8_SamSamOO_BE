@@ -3,11 +3,14 @@ package com.ai.lawyer.global.jwt;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 
+@Slf4j
 @Component
 public class CookieUtil {
 
@@ -18,7 +21,7 @@ public class CookieUtil {
     // 쿠키 만료 시간 상수 (초 단위)
     private static final int MINUTES_PER_HOUR = 60;
     private static final int HOURS_PER_DAY = 24;
-    private static final int ACCESS_TOKEN_EXPIRE_TIME = 5 * 60; // 5분 (300초)
+    private static final int ACCESS_TOKEN_EXPIRE_TIME = 60 * 60; // 5분 (300초)
     private static final int REFRESH_TOKEN_EXPIRE_TIME = 7 * HOURS_PER_DAY * MINUTES_PER_HOUR * 60; // 7일
 
     // 쿠키 보안 설정 상수
@@ -27,6 +30,9 @@ public class CookieUtil {
     private static final String COOKIE_PATH = "/";
     private static final String SAME_SITE = "Lax"; // Lax: 같은 사이트 요청에서 쿠키 전송 허용
     private static final int COOKIE_EXPIRE_IMMEDIATELY = 0;
+
+    @Value("${custom.cookie.domain:}")
+    private String cookieDomain;
 
     public void setTokenCookies(HttpServletResponse response, String accessToken, String refreshToken) {
         setAccessTokenCookie(response, accessToken);
@@ -52,13 +58,27 @@ public class CookieUtil {
      * ResponseCookie를 생성합니다 (SameSite 지원).
      */
     private ResponseCookie createResponseCookie(String name, String value, int maxAge) {
-        return ResponseCookie.from(name, value)
+        log.debug("=== 쿠키 생성 중: name={}, cookieDomain='{}', isEmpty={}",
+                name, cookieDomain, cookieDomain == null || cookieDomain.isEmpty());
+
+        ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(name, value)
                 .httpOnly(HTTP_ONLY)
                 .secure(SECURE_IN_PRODUCTION)
                 .path(COOKIE_PATH)
                 .maxAge(Duration.ofSeconds(maxAge))
-                .sameSite(SAME_SITE)
-                .build();
+                .sameSite(SAME_SITE);
+
+        // 도메인이 설정되어 있으면 추가
+        if (cookieDomain != null && !cookieDomain.isEmpty()) {
+            log.debug("쿠키 도메인 설정: {}", cookieDomain);
+            builder.domain(cookieDomain);
+        } else {
+            log.debug("쿠키 도메인 설정 안 함 (빈 값 또는 null)");
+        }
+
+        ResponseCookie cookie = builder.build();
+        log.debug("생성된 쿠키: {}", cookie);
+        return cookie;
     }
 
     /**

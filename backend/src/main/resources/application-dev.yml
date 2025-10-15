@@ -17,11 +17,31 @@ spring:
       password: ${DEV_REDIS_PASSWORD}
       embedded: false
 
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: chat-processing-group  # 컨슈머 그룹 ID
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+
   batch:
     job:
       enabled: false     # 최소 한번 시작
     jdbc:
       initialize-schema: always
+
+  task:
+    scheduling:
+      shutdown:
+        await-termination: true
+        await-termination-period: 60s
+  lifecycle:
+    timeout-per-shutdown-phase: 60s
 
   datasource-meta:
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -50,3 +70,5 @@ custom:
     failure-url: ${DEV_OAUTH2_FAILURE_REDIRECT_URL}
   frontend:
     url: ${DEV_FRONTEND_URL}
+  cookie:
+    domain: ${DEV_COOKIE_DOMAIN}

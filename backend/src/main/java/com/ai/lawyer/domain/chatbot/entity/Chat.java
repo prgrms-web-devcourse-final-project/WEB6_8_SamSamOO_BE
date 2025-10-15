@@ -33,10 +33,10 @@ public class Chat {
     @Lob
     private String message;
 
-    @OneToMany(mappedBy = "chatId")
+    @OneToMany(mappedBy = "chatId", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ChatPrecedent> chatPrecedents;
 
-    @OneToMany(mappedBy = "chatId")
+    @OneToMany(mappedBy = "chatId", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ChatLaw> chatLaws;
 
     @CreationTimestamp

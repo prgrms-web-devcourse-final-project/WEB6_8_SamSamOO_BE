@@ -12,7 +12,9 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.springframework.web.server.ResponseStatusException;
+import java.util.List;
 import java.util.Collections;
+import org.springframework.http.HttpStatus;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -29,17 +31,17 @@ class PollServiceTest {
     @DisplayName("투표 단일 조회")
     void t1() {
         PollDto expected = new PollDto();
-        Mockito.when(pollService.getPoll(Mockito.anyLong())).thenReturn(expected);
-        PollDto result = pollService.getPoll(1L);
+        Mockito.when(pollService.getPoll(Mockito.anyLong(), Mockito.anyLong())).thenReturn(expected);
+        PollDto result = pollService.getPoll(1L, 1L);
         assertThat(result).isEqualTo(expected);
     }
 
     @Test
     @DisplayName("투표 옵션 목록 조회")
     void t2() {
-        java.util.List expected = java.util.Collections.emptyList();
+        List expected = Collections.emptyList();
         Mockito.when(pollService.getPollOptions(Mockito.anyLong())).thenReturn(expected);
-        java.util.List result = pollService.getPollOptions(1L);
+        List result = pollService.getPollOptions(1L);
         assertThat(result).isEqualTo(expected);
     }
 
@@ -72,17 +74,17 @@ class PollServiceTest {
     @Test
     @DisplayName("투표 삭제")
     void t6() {
-        Mockito.doNothing().when(pollService).deletePoll(Mockito.anyLong());
-        pollService.deletePoll(1L);
-        Mockito.verify(pollService).deletePoll(1L);
+        Mockito.doNothing().when(pollService).deletePoll(Mockito.anyLong(), Mockito.anyLong());
+        pollService.deletePoll(1L, 1L);
+        Mockito.verify(pollService).deletePoll(1L, 1L);
     }
 
     @Test
     @DisplayName("상태별 Top 투표 조회")
     void t7() {
         PollDto expected = new PollDto();
-        Mockito.when(pollService.getTopPollByStatus(Mockito.any())).thenReturn(expected);
-        PollDto result = pollService.getTopPollByStatus(PollDto.PollStatus.ONGOING);
+        Mockito.when(pollService.getTopPollByStatus(Mockito.any(), Mockito.anyLong())).thenReturn(expected);
+        PollDto result = pollService.getTopPollByStatus(PollDto.PollStatus.ONGOING, 1L);
         assertThat(result).isEqualTo(expected);
     }
 
@@ -107,8 +109,8 @@ class PollServiceTest {
     void t10() {
         PollDto expected = new PollDto();
         PollUpdateDto updateDto = new PollUpdateDto();
-        Mockito.when(pollService.updatePoll(Mockito.anyLong(), Mockito.any())).thenReturn(expected);
-        PollDto result = pollService.updatePoll(1L, updateDto);
+        Mockito.when(pollService.updatePoll(Mockito.anyLong(), Mockito.any(), Mockito.anyLong())).thenReturn(expected);
+        PollDto result = pollService.updatePoll(1L, updateDto, 1L);
         assertThat(result).isEqualTo(expected);
     }
 
@@ -116,8 +118,8 @@ class PollServiceTest {
     @DisplayName("통계 포함 투표 조회")
     void t11() {
         PollDto expected = new PollDto();
-        Mockito.when(pollService.getPollWithStatistics(Mockito.anyLong())).thenReturn(expected);
-        PollDto result = pollService.getPollWithStatistics(1L);
+        Mockito.when(pollService.getPollWithStatistics(Mockito.anyLong(), Mockito.isNull())).thenReturn(expected);
+        PollDto result = pollService.getPollWithStatistics(1L, null);
         assertThat(result).isEqualTo(expected);
     }
 
@@ -143,18 +145,18 @@ class PollServiceTest {
     @Test
     @DisplayName("상태별 투표 목록 조회")
     void t14() {
-        java.util.List expected = java.util.Collections.emptyList();
-        Mockito.when(pollService.getPollsByStatus(Mockito.any())).thenReturn(expected);
-        java.util.List result = pollService.getPollsByStatus(PollDto.PollStatus.ONGOING);
+        List expected = Collections.emptyList();
+        Mockito.when(pollService.getPollsByStatus(Mockito.any(), Mockito.anyLong())).thenReturn(expected);
+        List result = pollService.getPollsByStatus(PollDto.PollStatus.ONGOING, 1L);
         assertThat(result).isEqualTo(expected);
     }
 
     @Test
     @DisplayName("상태별 Top N 투표 목록 조회")
     void t15() {
-        java.util.List expected = java.util.Collections.emptyList();
-        Mockito.when(pollService.getTopNPollsByStatus(Mockito.any(), Mockito.anyInt())).thenReturn(expected);
-        java.util.List result = pollService.getTopNPollsByStatus(PollDto.PollStatus.ONGOING, 3);
+        List expected = Collections.emptyList();
+        Mockito.when(pollService.getTopNPollsByStatus(Mockito.any(), Mockito.anyInt(), Mockito.anyLong())).thenReturn(expected);
+        List result = pollService.getTopNPollsByStatus(PollDto.PollStatus.ONGOING, 3, 1L);
         assertThat(result).isEqualTo(expected);
     }
 
@@ -163,7 +165,7 @@ class PollServiceTest {
     void t16() {
         PollCreateDto dto = new PollCreateDto();
         dto.setVoteTitle("테스트 투표");
-        Mockito.doThrow(new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "게시글 ID(postId)는 필수입니다.")).when(pollService).createPoll(Mockito.any(), Mockito.anyLong());
+        Mockito.doThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "게시글 ID(postId)는 필수입니다.")).when(pollService).createPoll(Mockito.any(), Mockito.anyLong());
         assertThatThrownBy(() -> pollService.createPoll(dto, 1L))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("게시글 ID(postId)는 필수입니다.");
@@ -174,7 +176,7 @@ class PollServiceTest {
     void t17() {
         PollCreateDto dto = new PollCreateDto();
         dto.setPostId(1L);
-        Mockito.doThrow(new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "투표 제목(voteTitle)은 필수입니다.")).when(pollService).createPoll(Mockito.any(), Mockito.anyLong());
+        Mockito.doThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "투표 제목(voteTitle)은 필수입니다.")).when(pollService).createPoll(Mockito.any(), Mockito.anyLong());
         assertThatThrownBy(() -> pollService.createPoll(dto, 1L))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("투표 제목(voteTitle)은 필수입니다.");

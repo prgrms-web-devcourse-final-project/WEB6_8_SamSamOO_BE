@@ -1,38 +1,32 @@
 package com.ai.lawyer.domain.poll.service;
 
+import com.ai.lawyer.domain.poll.dto.*;
 import com.ai.lawyer.domain.poll.entity.*;
 import com.ai.lawyer.domain.poll.repository.*;
-import com.ai.lawyer.domain.poll.dto.PollDto;
 import com.ai.lawyer.domain.member.entity.Member;
-import com.ai.lawyer.domain.member.repositories.MemberRepository;
+import com.ai.lawyer.domain.post.dto.PostDto;
 import com.ai.lawyer.domain.post.entity.Post;
 import com.ai.lawyer.domain.post.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.List;
-import java.util.ArrayList;
-import com.ai.lawyer.domain.poll.dto.PollCreateDto;
-import com.ai.lawyer.domain.poll.dto.PollForPostDto;
-import com.ai.lawyer.domain.poll.dto.PollOptionCreateDto;
-import com.ai.lawyer.domain.poll.dto.PollStaticsDto;
-import com.ai.lawyer.domain.poll.dto.PollOptionDto;
-import com.ai.lawyer.domain.poll.dto.PollVoteDto;
-import com.ai.lawyer.domain.poll.dto.PollUpdateDto;
+import java.util.*;
+
 import com.ai.lawyer.domain.poll.entity.Poll;
 
 import org.springframework.data.domain.Pageable;
 import java.time.LocalDateTime;
 
-import com.ai.lawyer.domain.poll.dto.PollGenderStaticsDto;
-import com.ai.lawyer.domain.poll.dto.PollStaticsResponseDto;
-import com.ai.lawyer.domain.poll.dto.PollAgeStaticsDto;
+import com.ai.lawyer.global.util.AuthUtil;
 
 @Service
 @Transactional
+@Slf4j
 @RequiredArgsConstructor
 public class PollServiceImpl implements PollService {
 
@@ -40,7 +34,6 @@ public class PollServiceImpl implements PollService {
     private final PollOptionsRepository pollOptionsRepository;
     private final PollVoteRepository pollVoteRepository;
     private final PollStaticsRepository pollStaticsRepository;
-    private final MemberRepository memberRepository;
     private final PostRepository postRepository;
 
     @Override
@@ -49,8 +42,7 @@ public class PollServiceImpl implements PollService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "게시글 ID는 필수입니다.");
         }
         validatePollCommon(request.getVoteTitle(), request.getPollOptions(), request.getReservedCloseAt());
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 정보를 찾을 수 없습니다."));
+        Member member = AuthUtil.getMemberOrThrow(memberId);
         Post post = postRepository.findById(request.getPostId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "게시글을 찾을 수 없습니다."));
         if (post.getPoll() != null) {
@@ -63,6 +55,7 @@ public class PollServiceImpl implements PollService {
                     .voteTitle(request.getVoteTitle())
                     .status(Poll.PollStatus.ONGOING)
                     .createdAt(now)
+                    .updatedAt(now)
                     .reservedCloseAt(request.getReservedCloseAt())
                     .build();
             Poll savedPoll = pollRepository.save(poll);
@@ -76,7 +69,7 @@ public class PollServiceImpl implements PollService {
                         .build();
                 pollOptionsRepository.save(option);
             }
-            return convertToDto(savedPoll);
+            return convertToDto(savedPoll, memberId, false);
         } catch (ResponseStatusException e) {
             throw e;
         } catch (Exception e) {
@@ -85,18 +78,14 @@ public class PollServiceImpl implements PollService {
     }
 
     @Override
-    public PollDto getPoll(Long pollId) {
+    public PollDto getPoll(Long pollId, Long memberId) {
         Poll poll = pollRepository.findById(pollId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "투표를 찾을 수 없습니다."));
-        autoClose(poll);
-        if (poll.getStatus() == Poll.PollStatus.CLOSED) {
-            return getPollWithStatistics(pollId);
-        }
-        return convertToDto(poll);
+        return convertToDto(poll, memberId, false);
     }
 
     @Override
-    public List<PollDto> getPollsByStatus(PollDto.PollStatus status) {
+    public List<PollDto> getPollsByStatus(PollDto.PollStatus status, Long memberId) {
         List<Poll> polls = pollRepository.findAll();
         for (Poll poll : polls) {
             autoClose(poll);
@@ -104,8 +93,8 @@ public class PollServiceImpl implements PollService {
         List<PollDto> pollDtos = polls.stream()
                 .filter(p -> p.getStatus().name().equals(status.name()))
                 .map(p -> status == PollDto.PollStatus.CLOSED
-                        ? getPollWithStatistics(p.getPollId())
-                        : convertToDto(p))
+                        ? getPollWithStatistics(p.getPollId(), memberId)
+                        : getPoll(p.getPollId(), memberId))
                 .toList();
         return pollDtos;
     }
@@ -119,25 +108,43 @@ public class PollServiceImpl implements PollService {
         }
         PollOptions pollOptions = pollOptionsRepository.findById(pollItemsId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "투표 항목을 찾을 수 없습니다."));
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 정보를 찾을 수 없습니다."));
+        Member member = AuthUtil.getMemberOrThrow(memberId);
         // USER 또는 ADMIN만 투표 가능
         if (!(member.getRole().name().equals("USER") || member.getRole().name().equals("ADMIN"))) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "투표 권한이 없습니다.");
         }
-        // 중복 투표 방지
-        /*
-        if (pollVoteRepository.existsByPoll_PollIdAndMember_MemberId(pollId, memberId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 이 투표에 참여하셨습니다.");
+        // 기존 투표 내역 조회
+        var existingVoteOpt = pollVoteRepository.findByMember_MemberIdAndPoll_PollId(memberId, pollId);
+        if (existingVoteOpt.isPresent()) {
+            PollVote existingVote = existingVoteOpt.get();
+            if (existingVote.getPollOptions().getPollItemsId().equals(pollItemsId)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 투표하셨습니다.");
+            } else {
+                pollVoteRepository.deleteByMember_MemberIdAndPoll_PollId(memberId, pollId);
+                PollVote pollVote = PollVote.builder()
+                        .poll(poll)
+                        .pollOptions(pollOptions)
+                        .member(member)
+                        .build();
+                PollVote savedVote = pollVoteRepository.save(pollVote);
+                Long voteCount = pollVoteRepository.countByPollOptionId(pollItemsId);
+                return PollVoteDto.builder()
+                        .pollVoteId(savedVote.getPollVoteId())
+                        .pollId(pollId)
+                        .pollItemsId(pollItemsId)
+                        .memberId(memberId)
+                        .voteCount(voteCount)
+                        .message("투표 항목을 변경하였습니다.")
+                        .build();
+            }
         }
-        */
+        // 기존 투표 내역이 없으면 정상 투표
         PollVote pollVote = PollVote.builder()
                 .poll(poll)
                 .pollOptions(pollOptions)
                 .member(member)
                 .build();
         PollVote savedVote = pollVoteRepository.save(pollVote);
-        // 해당 옵션의 투표 수 계산
         Long voteCount = pollVoteRepository.countByPollOptionId(pollItemsId);
         return PollVoteDto.builder()
                 .pollVoteId(savedVote.getPollVoteId())
@@ -145,6 +152,7 @@ public class PollServiceImpl implements PollService {
                 .pollItemsId(pollItemsId)
                 .memberId(memberId)
                 .voteCount(voteCount)
+                .message("투표가 완료되었습니다.")
                 .build();
     }
 
@@ -161,19 +169,12 @@ public class PollServiceImpl implements PollService {
             PollOptions opt = options.get(i);
             optionMap.put(opt.getOption(), opt);
         }
-        // age 통계 그룹핑
-        List<Object[]> optionAgeRaw = pollVoteRepository.getOptionAgeStatics(pollId);
+        List<PollAgeStaticsDto.AgeGroupCountDto> optionAgeRaw = pollVoteRepository.getOptionAgeStatics(pollId);
         java.util.Map<Long, java.util.List<PollAgeStaticsDto.AgeGroupCountDto>> ageGroupMap = new java.util.HashMap<>();
-        for (Object[] arr : optionAgeRaw) {
-            String option = arr[0] != null ? arr[0].toString() : null;
-            PollOptions opt = optionMap.get(option);
+        for (PollAgeStaticsDto.AgeGroupCountDto dto : optionAgeRaw) {
+            PollOptions opt = optionMap.get(dto.getOption());
             if (opt == null) continue;
             Long pollItemsId = opt.getPollItemsId();
-            PollAgeStaticsDto.AgeGroupCountDto dto = PollAgeStaticsDto.AgeGroupCountDto.builder()
-                    .option(option)
-                    .ageGroup(arr[1] != null ? arr[1].toString() : null)
-                    .voteCount(arr[2] != null ? ((Number)arr[2]).longValue() : 0L)
-                    .build();
             ageGroupMap.computeIfAbsent(pollItemsId, k -> new java.util.ArrayList<>()).add(dto);
         }
         java.util.List<PollAgeStaticsDto> optionAgeStatics = new java.util.ArrayList<>();
@@ -185,19 +186,12 @@ public class PollServiceImpl implements PollService {
                     .ageGroupCounts(ageGroupMap.getOrDefault(opt.getPollItemsId(), java.util.Collections.emptyList()))
                     .build());
         }
-        // gender 통계 그룹핑
-        List<Object[]> optionGenderRaw = pollVoteRepository.getOptionGenderStatics(pollId);
+        List<PollGenderStaticsDto.GenderCountDto> optionGenderRaw = pollVoteRepository.getOptionGenderStatics(pollId);
         java.util.Map<Long, java.util.List<PollGenderStaticsDto.GenderCountDto>> genderGroupMap = new java.util.HashMap<>();
-        for (Object[] arr : optionGenderRaw) {
-            String option = arr[0] != null ? arr[0].toString() : null;
-            PollOptions opt = optionMap.get(option);
+        for (PollGenderStaticsDto.GenderCountDto dto : optionGenderRaw) {
+            PollOptions opt = optionMap.get(dto.getOption());
             if (opt == null) continue;
             Long pollItemsId = opt.getPollItemsId();
-            PollGenderStaticsDto.GenderCountDto dto = PollGenderStaticsDto.GenderCountDto.builder()
-                    .option(option)
-                    .gender(arr[1] != null ? arr[1].toString() : null)
-                    .voteCount(arr[2] != null ? ((Number)arr[2]).longValue() : 0L)
-                    .build();
             genderGroupMap.computeIfAbsent(pollItemsId, k -> new java.util.ArrayList<>()).add(dto);
         }
         java.util.List<PollGenderStaticsDto> optionGenderStatics = new java.util.ArrayList<>();
@@ -209,15 +203,17 @@ public class PollServiceImpl implements PollService {
                     .genderCounts(genderGroupMap.getOrDefault(opt.getPollItemsId(), java.util.Collections.emptyList()))
                     .build());
         }
+        Long totalVoteCount = pollVoteRepository.countByPollId(pollId);
         return PollStaticsResponseDto.builder()
                 .postId(postId)
                 .pollId(pollId)
                 .optionAgeStatics(optionAgeStatics)
                 .optionGenderStatics(optionGenderStatics)
+                .totalVoteCount(totalVoteCount)
                 .build();
     }
 
-    // 최대 7일 동안 투표 가능 (초기 요구사항)
+    // 최대 7일 동안 투표 가능
     @Override
     public void closePoll(Long pollId) {
         Poll poll = pollRepository.findById(pollId)
@@ -228,10 +224,12 @@ public class PollServiceImpl implements PollService {
     }
 
     @Override
-    public void deletePoll(Long pollId) {
+    public void deletePoll(Long pollId, Long memberId) {
         Poll poll = pollRepository.findById(pollId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "투표를 찾을 수 없습니다."));
-
+        if (poll.getPost() == null || !poll.getPost().getMember().getMemberId().equals(memberId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "본인만 투표를 삭제할 수 있습니다.");
+        }
         // 1. 이 Poll을 참조하는 Post가 있으면 연결 해제
         Post post = postRepository.findAll().stream()
                 .filter(p -> p.getPoll() != null && p.getPoll().getPollId().equals(pollId))
@@ -241,14 +239,13 @@ public class PollServiceImpl implements PollService {
             post.setPoll(null);
             postRepository.save(post);
         }
-
         // 2. Poll 삭제
         pollRepository.deleteById(pollId);
     }
 
     @Override
-    public PollDto getTopPollByStatus(PollDto.PollStatus status) {
-        List<Object[]> result = pollVoteRepository.findTopPollByStatus(Poll.PollStatus.valueOf(status.name()));
+    public PollDto getTopPollByStatus(PollDto.PollStatus status, Long memberId) {
+        List<PollTopDto> result = pollVoteRepository.findTopPollByStatus(Poll.PollStatus.valueOf(status.name()));
         if (result.isEmpty()) {
             // 종료된 투표가 없으면 빈 PollDto 반환
             return PollDto.builder()
@@ -262,21 +259,21 @@ public class PollServiceImpl implements PollService {
                     .totalVoteCount(0L)
                     .build();
         }
-        Long pollId = (Long) result.get(0)[0];
-        return getPoll(pollId);
+        Long pollId = result.get(0).getPollId();
+        return getPoll(pollId, memberId);
     }
 
     @Override
-    public List<PollDto> getTopNPollsByStatus(PollDto.PollStatus status, int n) {
+    public List<PollDto> getTopNPollsByStatus(PollDto.PollStatus status, int n, Long memberId) {
         Pageable pageable = org.springframework.data.domain.PageRequest.of(0, n);
-        List<Object[]> result = pollVoteRepository.findTopNPollByStatus(
+        List<PollTopDto> result = pollVoteRepository.findTopNPollByStatus(
                 com.ai.lawyer.domain.poll.entity.Poll.PollStatus.valueOf(status.name()), pageable);
         List<PollDto> pollDtos = new java.util.ArrayList<>();
-        for (Object[] row : result) {
-            Long pollId = (Long) row[0];
+        for (PollTopDto row : result) {
+            Long pollId = row.getPollId();
             pollDtos.add(status == PollDto.PollStatus.CLOSED
-                    ? getPollWithStatistics(pollId)
-                    : getPoll(pollId));
+                    ? getPollWithStatistics(pollId, memberId)
+                    : getPoll(pollId, memberId));
         }
         return pollDtos;
     }
@@ -297,9 +294,12 @@ public class PollServiceImpl implements PollService {
 
 
     @Override
-    public PollDto updatePoll(Long pollId, PollUpdateDto pollUpdateDto) {
+    public PollDto updatePoll(Long pollId, PollUpdateDto pollUpdateDto, Long memberId) {
         Poll poll = pollRepository.findById(pollId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "수정할 투표를 찾을 수 없습니다."));
+        if (!poll.getPost().getMember().getMemberId().equals(memberId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "본인만 투표를 수정할 수 있습니다.");
+        }
         if (getVoteCountByPollId(pollId) > 0) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "투표가 진행된 투표는 수정할 수 없습니다.");
         }
@@ -350,10 +350,10 @@ public class PollServiceImpl implements PollService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "예약 종료 시간은 최대 7일 이내여야 합니다.");
             }
             poll.setReservedCloseAt(reservedCloseAt);
-            System.out.println("poll에 저장된 reservedCloseAt 값: " + poll.getReservedCloseAt());
         }
-        Poll updated = pollRepository.save(poll);
-        return convertToDto(updated);
+        poll.setUpdatedAt(now); // 투표(Poll) 수정 시 updatedAt 갱신
+        pollRepository.save(poll);
+        return getPoll(pollId, memberId);
     }
 
     @Override
@@ -408,85 +408,40 @@ public class PollServiceImpl implements PollService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "예약 종료 시간은 최대 7일 이내여야 합니다.");
             }
             poll.setReservedCloseAt(reservedCloseAt);
-            System.out.println("poll에 저장된 reservedCloseAt 값: " + poll.getReservedCloseAt());
         }
         pollRepository.save(poll);
     }
 
     @Override
-    public PollDto getPollWithStatistics(Long pollId) {
+    public PollDto getPollWithStatistics(Long pollId, Long memberId) {
         Poll poll = pollRepository.findById(pollId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "투표를 찾을 수 없습니다."));
-        List<PollOptions> options = pollOptionsRepository.findByPoll_PollId(poll.getPollId());
-        List<Long> optionIds = options.stream().map(PollOptions::getPollItemsId).toList();
-        Long totalVoteCount = pollVoteRepository.countByPollId(poll.getPollId());
-        List<PollOptionDto> optionDtos;
-        if (poll.getStatus() == Poll.PollStatus.CLOSED && !optionIds.isEmpty()) {
-            List<Object[]> staticsRaw = pollVoteRepository.countStaticsByPollOptionIds(optionIds);
-            optionDtos = new ArrayList<>();
-            for (int i = 0; i < options.size(); i++) {
-                PollOptions option = options.get(i);
-                Long voteCount = pollVoteRepository.countByPollOptionId(option.getPollItemsId());
-                List<PollStaticsDto> statics = staticsRaw.stream()
-                        .filter(arr -> ((Long)arr[0]).equals(option.getPollItemsId()))
-                        .map(arr -> {
-                            String gender = arr[1] != null ? arr[1].toString() : null;
-                            Integer age = arr[2] != null ? ((Number)arr[2]).intValue() : null;
-                            String ageGroup = getAgeGroup(age);
-                            return PollStaticsDto.builder()
-                                    .gender(gender)
-                                    .ageGroup(ageGroup)
-                                    .voteCount((Long)arr[3])
-                                    .build();
-                        })
-                        .toList();
-                optionDtos.add(PollOptionDto.builder()
-                        .pollItemsId(option.getPollItemsId())
-                        .content(option.getOption())
-                        .voteCount(voteCount)
-                        .statics(statics)
-                        .pollOptionIndex(i + 1)
-                        .build());
-            }
-        } else {
-            optionDtos = new ArrayList<>();
-            for (int i = 0; i < options.size(); i++) {
-                PollOptions option = options.get(i);
-                Long voteCount = pollVoteRepository.countByPollOptionId(option.getPollItemsId());
-                optionDtos.add(PollOptionDto.builder()
-                        .pollItemsId(option.getPollItemsId())
-                        .content(option.getOption())
-                        .voteCount(voteCount)
-                        .statics(null)
-                        .pollOptionIndex(i + 1)
-                        .build());
-            }
-        }
-        return PollDto.builder()
-                .pollId(poll.getPollId())
-                .postId(poll.getPost() != null ? poll.getPost().getPostId() : null)
-                .voteTitle(poll.getVoteTitle())
-                .status(PollDto.PollStatus.valueOf(poll.getStatus().name()))
-                .createdAt(poll.getCreatedAt())
-                .closedAt(poll.getClosedAt())
-                .pollOptions(optionDtos)
-                .totalVoteCount(totalVoteCount)
-                .build();
+        return convertToDto(poll, memberId, true);
     }
 
-    private PollDto convertToDto(Poll poll) {
+    private PollDto convertToDto(Poll poll, Long memberId, boolean withStatistics) {
         List<PollOptions> options = pollOptionsRepository.findByPoll_PollId(poll.getPollId());
         List<PollOptionDto> optionDtos = new ArrayList<>();
         Long totalVoteCount = pollVoteRepository.countByPollId(poll.getPollId());
         for (int i = 0; i < options.size(); i++) {
             PollOptions option = options.get(i);
             Long voteCount = pollVoteRepository.countByPollOptionId(option.getPollItemsId());
+            boolean voted = false;
+            if (memberId != null) {
+                voted = !pollVoteRepository.findByMember_MemberIdAndPollOptions_PollItemsId(memberId, option.getPollItemsId()).isEmpty();
+            }
+            List<PollStaticsDto> statics = null;
+            if (withStatistics && poll.getStatus() == Poll.PollStatus.CLOSED) {
+                List<PollStaticsDto> staticsRaw = pollVoteRepository.countStaticsByPollOptionIds(List.of(option.getPollItemsId()));
+                statics = staticsRaw;
+            }
             optionDtos.add(PollOptionDto.builder()
                     .pollItemsId(option.getPollItemsId())
                     .content(option.getOption())
                     .voteCount(voteCount)
-                    .statics(null)
+                    .statics(statics)
                     .pollOptionIndex(i + 1)
+                    .voted(voted)
                     .build());
         }
         LocalDateTime expectedCloseAt = poll.getReservedCloseAt() != null ? poll.getReservedCloseAt() : poll.getCreatedAt().plusDays(7);
@@ -567,5 +522,11 @@ public class PollServiceImpl implements PollService {
     @Override
     public void validatePollCreate(PollCreateDto dto) {
         validatePollCommon(dto.getVoteTitle(), dto.getPollOptions(), dto.getReservedCloseAt());
+    }
+
+    @Override
+    public void cancelVote(Long pollId, Long memberId) {
+        pollVoteRepository.findByMember_MemberIdAndPoll_PollId(memberId, pollId)
+                .ifPresent(pollVoteRepository::delete);
     }
 }
