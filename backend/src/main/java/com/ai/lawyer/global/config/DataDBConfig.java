@@ -1,5 +1,6 @@
 package com.ai.lawyer.global.config;
 
+import com.ai.lawyer.domain.member.repositories.MemberRepositoryFactoryBean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
@@ -18,7 +19,8 @@ import java.util.HashMap;
 @EnableJpaRepositories(
         basePackages = "com.ai.lawyer.domain.*",
         entityManagerFactoryRef = "dataEntityManager",
-        transactionManagerRef = "dataTransactionManager"
+        transactionManagerRef = "dataTransactionManager",
+        repositoryFactoryBeanClass = MemberRepositoryFactoryBean.class
 )
 public class DataDBConfig {
 
@@ -49,7 +51,7 @@ public class DataDBConfig {
         LocalContainerEntityManagerFactoryBean em = new LocalContainerEntityManagerFactoryBean();
 
         em.setDataSource(dataDBSource());
-        em.setPackagesToScan(new String[]{"com.ai.lawyer.domain.*"});
+        em.setPackagesToScan("com.ai.lawyer.domain.*");
         em.setJpaVendorAdapter(new HibernateJpaVendorAdapter());
 
         HashMap<String, Object> properties = new HashMap<>();
