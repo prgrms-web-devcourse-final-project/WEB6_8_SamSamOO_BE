@@ -112,17 +112,17 @@ public class PollServiceImpl implements PollService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "투표 권한이 없습니다.");
         }
         // 기존 투표 내역 조회
-        var existingVoteOpt = pollVoteRepository.findByMember_MemberIdAndPoll_PollId(memberId, pollId);
+        var existingVoteOpt = pollVoteRepository.findByMemberIdAndPoll_PollId(memberId, pollId);
         if (existingVoteOpt.isPresent()) {
             PollVote existingVote = existingVoteOpt.get();
             if (existingVote.getPollOptions().getPollItemsId().equals(pollItemsId)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 투표하셨습니다.");
             } else {
-                pollVoteRepository.deleteByMember_MemberIdAndPoll_PollId(memberId, pollId);
+                pollVoteRepository.deleteByMemberIdAndPoll_PollId(memberId, pollId);
                 PollVote pollVote = PollVote.builder()
                         .poll(poll)
                         .pollOptions(pollOptions)
-                        .member(member)
+                        .memberId(memberId)
                         .build();
                 PollVote savedVote = pollVoteRepository.save(pollVote);
                 Long voteCount = pollVoteRepository.countByPollOptionId(pollItemsId);
@@ -140,7 +140,7 @@ public class PollServiceImpl implements PollService {
         PollVote pollVote = PollVote.builder()
                 .poll(poll)
                 .pollOptions(pollOptions)
-                .member(member)
+                .memberId(memberId)
                 .build();
         PollVote savedVote = pollVoteRepository.save(pollVote);
         Long voteCount = pollVoteRepository.countByPollOptionId(pollItemsId);
@@ -441,7 +441,7 @@ public class PollServiceImpl implements PollService {
             Long voteCount = pollVoteRepository.countByPollOptionId(option.getPollItemsId());
             boolean voted = false;
             if (memberId != null) {
-                voted = !pollVoteRepository.findByMember_MemberIdAndPollOptions_PollItemsId(memberId, option.getPollItemsId()).isEmpty();
+                voted = !pollVoteRepository.findByMemberIdAndPollOptions_PollItemsId(memberId, option.getPollItemsId()).isEmpty();
             }
             List<PollStaticsDto> statics = null;
             if (withStatistics && poll.getStatus() == Poll.PollStatus.CLOSED) {
@@ -539,7 +539,7 @@ public class PollServiceImpl implements PollService {
 
     @Override
     public void cancelVote(Long pollId, Long memberId) {
-        pollVoteRepository.findByMember_MemberIdAndPoll_PollId(memberId, pollId)
+        pollVoteRepository.findByMemberIdAndPoll_PollId(memberId, pollId)
                 .ifPresent(pollVoteRepository::delete);
     }
 }
