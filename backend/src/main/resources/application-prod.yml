@@ -84,6 +84,8 @@ custom:
     url: ${PROD_FRONTEND_URL}
   cookie:
     domain: ${PROD_COOKIE_DOMAIN:.trybalaw.com} # 운영환경: 모든 서브도메인에서 쿠키 공유
+    secure: true # HTTPS 환경에서는 반드시 true
+    same-site: None # 크로스 도메인 쿠키 전송 허용 (api.trybalaw.com <-> www.trybalaw.com)
 
 sentry:
   dsn: ${PROD_SENTRY_DSN}
