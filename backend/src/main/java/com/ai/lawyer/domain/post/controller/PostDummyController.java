@@ -38,4 +38,20 @@ public class PostDummyController {
         int deleted = dummyService.deleteDummyMembers();
         return ResponseEntity.ok("더미 멤버 " + deleted + "명 삭제 완료");
     }
+
+    //모든 더미 유저가 1번 옵션에 투표
+    @Operation(summary = "더미 멤버 1번 투표")
+    @PostMapping("/vote1")
+    public ResponseEntity<String> dummyVote1Option(@RequestParam Long postId) {
+        int voteCount = dummyService.dummyVote1Option(postId);
+        return ResponseEntity.ok("더미 멤버 " + voteCount + "명 투표 완료");
+    }
+
+    //모든 더미 유저가 2번 옵션에 투표
+    @Operation(summary = "더미 멤버 2번 투표")
+    @PostMapping("/vote2")
+    public ResponseEntity<String> dummyVote2Option(@RequestParam Long postId) {
+        int voteCount = dummyService.dummyVote2Option(postId);
+        return ResponseEntity.ok("더미 멤버 " + voteCount + "명 투표 완료");
+    }
 }
