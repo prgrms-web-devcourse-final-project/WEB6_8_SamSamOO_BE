@@ -117,7 +117,14 @@ public class MemberController {
 
             if (principal instanceof Long) {
                 memberId = (Long) principal;
-                loginId = (String) authentication.getDetails();
+                // Details가 Map이면 loginId 추출
+                if (authentication.getDetails() instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, String> details = (Map<String, String>) authentication.getDetails();
+                    loginId = details.get("loginId");
+                } else if (authentication.getDetails() instanceof String) {
+                    loginId = (String) authentication.getDetails();
+                }
             } else if (principal instanceof PrincipalDetails principalDetails) {
                 com.ai.lawyer.domain.member.entity.MemberAdapter member = principalDetails.getMember();
                 loginId = member.getLoginId();
@@ -203,9 +210,16 @@ public class MemberController {
 
         if (authentication != null) {
             // 1순위: authentication.getDetails()에서 loginId 추출 (JWT 필터가 설정)
-            if (authentication.getDetails() instanceof String) {
-                loginId = (String) authentication.getDetails();
+            if (authentication.getDetails() instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, String> details = (Map<String, String>) authentication.getDetails();
+                loginId = details.get("loginId");
                 log.info("JWT Details로 로그아웃: loginId={}", loginId);
+            }
+            // 1-2순위: 이전 버전 호환성 (String으로 저장된 경우)
+            else if (authentication.getDetails() instanceof String) {
+                loginId = (String) authentication.getDetails();
+                log.info("JWT Details(legacy)로 로그아웃: loginId={}", loginId);
             }
             // 2순위: PrincipalDetails (OAuth2 직접 로그인)
             else if (authentication.getPrincipal() instanceof PrincipalDetails principalDetails) {
@@ -257,9 +271,16 @@ public class MemberController {
 
         if (authentication != null) {
             // 1순위: authentication.getDetails()에서 loginId 추출 (JWT 필터가 설정)
-            if (authentication.getDetails() instanceof String) {
-                loginId = (String) authentication.getDetails();
+            if (authentication.getDetails() instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, String> details = (Map<String, String>) authentication.getDetails();
+                loginId = details.get("loginId");
                 log.info("JWT Details로 회원 탈퇴: loginId={}", loginId);
+            }
+            // 1-2순위: 이전 버전 호환성 (String으로 저장된 경우)
+            else if (authentication.getDetails() instanceof String) {
+                loginId = (String) authentication.getDetails();
+                log.info("JWT Details(legacy)로 회원 탈퇴: loginId={}", loginId);
             }
             // 2순위: PrincipalDetails (OAuth2 직접 로그인)
             else if (authentication.getPrincipal() instanceof PrincipalDetails principalDetails) {
