@@ -28,6 +28,8 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.HashMap;
 import java.util.List;
@@ -60,27 +62,36 @@ public class ChatBotService {
     @Transactional
     public Flux<ChatResponse> sendMessage(Long memberId, ChatRequest chatRequestDto, Long roomId) {
 
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+        // Mono.fromCallable()과 subscribeOn()을 사용하여 블로킹 작업을 별도 스레드에서 실행
+        // boundedElastic 스케줄러는 블로킹 I/O 작업에 최적화된 스레드 풀 사용
+        return Mono.fromCallable(() -> {
+            // 멤버 조회 (블로킹)
+            Member member = memberRepository.findById(memberId)
+                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
 
-        // 벡터 검색 (판례, 법령)
-        List<Document> similarCaseDocuments = qdrantService.searchDocument(chatRequestDto.getMessage(), "type", "판례");
-        List<Document> similarLawDocuments = qdrantService.searchDocument(chatRequestDto.getMessage(), "type", "법령");
+            // 벡터 검색 (판례, 법령) (블로킹)
+            List<Document> similarCaseDocuments = qdrantService.searchDocument(chatRequestDto.getMessage(), "type", "판례");
+            List<Document> similarLawDocuments = qdrantService.searchDocument(chatRequestDto.getMessage(), "type", "법령");
 
-        String caseContext = formatting(similarCaseDocuments);
-        String lawContext = formatting(similarLawDocuments);
+            String caseContext = formatting(similarCaseDocuments);
+            String lawContext = formatting(similarLawDocuments);
 
-        // 채팅방 조회 또는 생성
-        History history = getOrCreateRoom(member, roomId);
+            // 채팅방 조회 또는 생성 (블로킹)
+            History history = getOrCreateRoom(member, roomId);
 
-        // 메시지 기억 관리 (User 메시지 추가)
-        ChatMemory chatMemory = saveChatMemory(chatRequestDto, history);
+            // 메시지 기억 관리 (User 메시지 추가)
+            ChatMemory chatMemory = saveChatMemory(chatRequestDto, history);
 
-        // 프롬프트 생성
-        Prompt prompt = getPrompt(caseContext, lawContext, chatMemory, history);
+            // 프롬프트 생성
+            Prompt prompt = getPrompt(caseContext, lawContext, chatMemory, history);
 
-        // LLM 스트리밍 호출 및 클라이언트에게 즉시 응답
-        return chatClient.prompt(prompt)
+            // 준비된 데이터를 담은 컨텍스트 객체 반환
+            return new PreparedChatContext(prompt, history, similarCaseDocuments, similarLawDocuments);
+        })
+        .subscribeOn(Schedulers.boundedElastic()) // 블로킹 작업을 별도 스레드에서 실행
+        .flatMapMany(context -> {
+            // LLM 스트리밍 호출 및 클라이언트에게 즉시 응답
+            return chatClient.prompt(context.prompt)
                 .stream()
                 .content()
                 .collectList()
@@ -88,40 +99,41 @@ public class ChatBotService {
                 .doOnNext(fullResponse -> {
 
                     // Document를 DTO로 변환
-                    List<DocumentDto> caseDtos = similarCaseDocuments.stream().map(DocumentDto::from).collect(Collectors.toList());
-                    List<DocumentDto> lawDtos = similarLawDocuments.stream().map(DocumentDto::from).collect(Collectors.toList());
+                    List<DocumentDto> caseDtos = context.similarCaseDocuments.stream().map(DocumentDto::from).collect(Collectors.toList());
+                    List<DocumentDto> lawDtos = context.similarLawDocuments.stream().map(DocumentDto::from).collect(Collectors.toList());
 
                     // Kafka로 보낼 이벤트 객체
                     ChatPostProcessEvent event = new ChatPostProcessEvent(
-                            history.getHistoryId(),
+                            context.history.getHistoryId(),
                             chatRequestDto.getMessage(),
                             fullResponse,
                             caseDtos,
                             lawDtos
                     );
-                    
+
                     // Kafka 이벤트 발행
                     kafkaTemplate.send(POST_PROCESSING_TOPIC, event);
 
                 })
-                .map(fullResponse -> createChatResponse(history, fullResponse, similarCaseDocuments, similarLawDocuments))
+                .map(fullResponse -> createChatResponse(context.history, fullResponse, context.similarCaseDocuments, context.similarLawDocuments))
                 .flux()
                 .onErrorResume(throwable -> {
-                    log.error("스트리밍 처리 중 에러 발생 (historyId: {})", history.getHistoryId(), throwable);
-                    return Flux.just(handleError(history));
+                    log.error("스트리밍 처리 중 에러 발생 (historyId: {})", context.history.getHistoryId(), throwable);
+                    return Flux.just(handleError(context.history));
                 });
+        });
     }
 
     private ChatResponse createChatResponse(History history, String fullResponse, List<Document> cases, List<Document> laws) {
         ChatPrecedentDto precedentDto = null;
         if (cases != null && !cases.isEmpty()) {
-            Document firstCase = cases.get(0);
+            Document firstCase = cases.getFirst();
             precedentDto = ChatPrecedentDto.from(firstCase);
         }
 
         ChatLawDto lawDto = null;
         if (laws != null && !laws.isEmpty()) {
-            Document firstLaw = laws.get(0);
+            Document firstLaw = laws.getFirst();
             lawDto = ChatLawDto.from(firstLaw);
         }
 
@@ -159,7 +171,7 @@ public class ChatBotService {
         if (roomId != null) {
             return historyService.getHistory(roomId);
         } else {
-            return historyRepository.save(History.builder().memberId(member).build());
+            return historyRepository.save(History.builder().memberId(member.getMemberId()).build());
         }
     }
 
@@ -177,5 +189,25 @@ public class ChatBotService {
                 .roomId(history.getHistoryId())
                 .message("죄송합니다. 서비스 처리 중 오류가 발생했습니다. 요청을 다시 전송해 주세요.")
                 .build();
+    }
+
+    /**
+     * 블로킹 작업에서 준비된 데이터를 담는 컨텍스트 클래스
+     * 리액티브 체인에서 데이터를 전달하기 위한 내부 클래스
+     */
+    private static class PreparedChatContext {
+        final Prompt prompt;
+        final History history;
+        final List<Document> similarCaseDocuments;
+        final List<Document> similarLawDocuments;
+
+        PreparedChatContext(Prompt prompt, History history,
+                          List<Document> similarCaseDocuments,
+                          List<Document> similarLawDocuments) {
+            this.prompt = prompt;
+            this.history = history;
+            this.similarCaseDocuments = similarCaseDocuments;
+            this.similarLawDocuments = similarLawDocuments;
+        }
     }
 }

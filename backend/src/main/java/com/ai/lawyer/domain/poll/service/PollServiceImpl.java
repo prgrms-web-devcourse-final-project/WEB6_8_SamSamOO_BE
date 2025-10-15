@@ -4,12 +4,10 @@ import com.ai.lawyer.domain.poll.dto.*;
 import com.ai.lawyer.domain.poll.entity.*;
 import com.ai.lawyer.domain.poll.repository.*;
 import com.ai.lawyer.domain.member.entity.Member;
-import com.ai.lawyer.domain.post.dto.PostDto;
 import com.ai.lawyer.domain.post.entity.Post;
 import com.ai.lawyer.domain.post.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -242,7 +240,7 @@ public class PollServiceImpl implements PollService {
     public void deletePoll(Long pollId, Long memberId) {
         Poll poll = pollRepository.findById(pollId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "투표를 찾을 수 없습니다."));
-        if (poll.getPost() == null || !poll.getPost().getMember().getMemberId().equals(memberId)) {
+        if (poll.getPost() == null || !poll.getPost().getMemberId().equals(memberId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "본인만 투표를 삭제할 수 있습니다.");
         }
         // 1. 이 Poll을 참조하는 Post가 있으면 연결 해제
@@ -312,7 +310,7 @@ public class PollServiceImpl implements PollService {
     public PollDto updatePoll(Long pollId, PollUpdateDto pollUpdateDto, Long memberId) {
         Poll poll = pollRepository.findById(pollId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "수정할 투표를 찾을 수 없습니다."));
-        if (!poll.getPost().getMember().getMemberId().equals(memberId)) {
+        if (!poll.getPost().getMemberId().equals(memberId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "본인만 투표를 수정할 수 있습니다.");
         }
         if (getVoteCountByPollId(pollId) > 0) {

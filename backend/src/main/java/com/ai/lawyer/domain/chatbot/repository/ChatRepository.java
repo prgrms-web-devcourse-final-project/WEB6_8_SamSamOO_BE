@@ -12,8 +12,9 @@ public interface ChatRepository extends JpaRepository<Chat, Long> {
 
     /**
      * member_id에 해당하는 모든 Chat 삭제 (회원 탈퇴 시 사용)
+     * History.memberId가 Long 타입이므로 직접 비교
      */
     @Modifying
-    @Query("DELETE FROM Chat c WHERE c.historyId.memberId.memberId = :memberId")
+    @Query("DELETE FROM Chat c WHERE c.historyId.memberId = :memberId")
     void deleteByMemberIdValue(@Param("memberId") Long memberId);
 }
