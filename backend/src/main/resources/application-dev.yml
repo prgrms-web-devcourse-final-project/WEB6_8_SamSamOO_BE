@@ -71,4 +71,6 @@ custom:
   frontend:
     url: ${DEV_FRONTEND_URL}
   cookie:
-    domain: ${DEV_COOKIE_DOMAIN}
+    domain: ${DEV_COOKIE_DOMAIN:} # 개발환경: 도메인 설정 없음 (localhost)
+    secure: false # HTTP 환경 (localhost)
+    same-site: Lax # 개발환경에서는 Lax로 충분
