@@ -104,8 +104,72 @@ public class PostDummyService {
                 PollOptions selectedOption = pollOptionsList.get(random.nextInt(pollOptionsList.size()));
                 PollVote pollVote = PollVote.builder()
                         .poll(post.getPoll())
-                        .member(member)
+                        .memberId(member.getMemberId())
                         .pollOptions(selectedOption)
+                        .build();
+                pollVoteRepository.save(pollVote);
+                voteCount++;
+            }
+        }
+        return voteCount;
+    }
+
+    /**
+     * 모든 더미 유저가 1번 옵션에 투표
+     */
+    @Transactional
+    public int dummyVote1Option(Long postId) {
+        Optional<Post> postOpt = postRepository.findById(postId);
+        if (postOpt.isEmpty()) return 0;
+        Post post = postOpt.get();
+        if (post.getPoll() == null) return 0;
+        List<PollOptions> pollOptionsList = pollOptionsRepository.findByPoll_PollId(post.getPoll().getPollId());
+        if (pollOptionsList.size() < 1) return 0;
+        PollOptions firstOption = pollOptionsList.get(0);
+        List<Member> dummyMembers = memberRepository.findAll().stream()
+                .filter(m -> m.getLoginId().startsWith("dummy") && m.getLoginId().endsWith("@test.com"))
+                .toList();
+        List<Long> votedMemberIds = pollVoteRepository.findMemberIdsByPoll(post.getPoll());
+        Set<Long> votedMemberIdSet = new HashSet<>(votedMemberIds);
+        int voteCount = 0;
+        for (Member member : dummyMembers) {
+            if (!votedMemberIdSet.contains(member.getMemberId())) {
+                PollVote pollVote = PollVote.builder()
+                        .poll(post.getPoll())
+                        .memberId(member.getMemberId())
+                        .pollOptions(firstOption)
+                        .build();
+                pollVoteRepository.save(pollVote);
+                voteCount++;
+            }
+        }
+        return voteCount;
+    }
+
+    /**
+     * 모든 더미 유저가 2번 옵션에 투표
+     */
+    @Transactional
+    public int dummyVote2Option(Long postId) {
+        Optional<Post> postOpt = postRepository.findById(postId);
+        if (postOpt.isEmpty()) return 0;
+        Post post = postOpt.get();
+        if (post.getPoll() == null) return 0;
+        List<PollOptions> pollOptionsList = pollOptionsRepository.findByPoll_PollId(post.getPoll().getPollId());
+        if (pollOptionsList.size() < 2) return 0;
+        PollOptions secondOption = pollOptionsList.get(1);
+        List<Member> dummyMembers = memberRepository.findAll().stream()
+                .filter(m -> m.getLoginId().startsWith("dummy") && m.getLoginId().endsWith("@test.com"))
+                .toList();
+        List<Long> votedMemberIds = pollVoteRepository.findMemberIdsByPoll(post.getPoll());
+        Set<Long> votedMemberIdSet = new HashSet<>(votedMemberIds);
+        int voteCount = 0;
+        for (Member member : dummyMembers) {
+            if (!votedMemberIdSet.contains(member.getMemberId())) {
+                PollVote pollVote = PollVote.builder()
+                        .poll(post.getPoll())
+                        .memberId(member.getMemberId())
+                        .pollOptions(secondOption)
                         .build();
                 pollVoteRepository.save(pollVote);
                 voteCount++;

@@ -94,7 +94,7 @@ public class PollVoteRepositoryImpl implements PollVoteRepositoryCustom {
                 pollVote.count())
                 .from(pollVote)
                 .join(pollVote.getPollOptions(), pollOptions)
-                .join(pollVote.getMember(), member)
+                .join(member).on(pollVote.getMemberId().eq(member.getMemberId()))
                 .where(pollOptions.getPollItemsId().in(pollOptionIds))
                 .groupBy(pollOptions.getPollItemsId(), member.getGender(), member.getAge())
                 .fetch();
@@ -147,7 +147,7 @@ public class PollVoteRepositoryImpl implements PollVoteRepositoryCustom {
                 pollVote.count())
                 .from(pollVote)
                 .join(pollVote.getPollOptions(), pollOptions)
-                .join(pollVote.getMember(), member)
+                .join(member).on(pollVote.getMemberId().eq(member.getMemberId()))
                 .where(pollOptions.getPoll().getPollId().eq(pollId))
                 .groupBy(pollOptions.getOption(),
                         new com.querydsl.core.types.dsl.CaseBuilder()
@@ -177,7 +177,7 @@ public class PollVoteRepositoryImpl implements PollVoteRepositoryCustom {
                 pollVote.count())
                 .from(pollVote)
                 .join(pollVote.getPollOptions(), pollOptions)
-                .join(pollVote.getMember(), member)
+                .join(member).on(pollVote.getMemberId().eq(member.getMemberId()))
                 .where(pollOptions.getPoll().getPollId().eq(pollId))
                 .groupBy(pollOptions.getOption(), member.getGender())
                 .fetch();
