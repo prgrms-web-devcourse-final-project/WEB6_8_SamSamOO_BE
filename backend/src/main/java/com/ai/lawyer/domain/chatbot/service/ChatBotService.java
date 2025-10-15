@@ -61,13 +61,7 @@ public class ChatBotService {
     // 멤버 조회 -> 벡터 검색 -> 프롬프트 생성 -> LLM 호출 (스트림) -> Kafka 이벤트 발행 -> 응답 반환
     @Transactional
     public Flux<ChatResponse> sendMessage(Long memberId, ChatRequest chatRequestDto, Long roomId) {
-
-        // Mono.fromCallable()과 subscribeOn()을 사용하여 블로킹 작업을 별도 스레드에서 실행
-        // boundedElastic 스케줄러는 블로킹 I/O 작업에 최적화된 스레드 풀 사용
         return Mono.fromCallable(() -> {
-            // 멤버 조회 (블로킹)
-            Member member = memberRepository.findById(memberId)
-                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
 
             // 벡터 검색 (판례, 법령) (블로킹)
             List<Document> similarCaseDocuments = qdrantService.searchDocument(chatRequestDto.getMessage(), "type", "판례");
@@ -77,7 +71,7 @@ public class ChatBotService {
             String lawContext = formatting(similarLawDocuments);
 
             // 채팅방 조회 또는 생성 (블로킹)
-            History history = getOrCreateRoom(member, roomId);
+            History history = getOrCreateRoom(memberId, roomId);
 
             // 메시지 기억 관리 (User 메시지 추가)
             ChatMemory chatMemory = saveChatMemory(chatRequestDto, history);
@@ -167,11 +161,11 @@ public class ChatBotService {
         return new Prompt(List.of(systemMessage, userMessage));
     }
 
-    private History getOrCreateRoom(Member member, Long roomId) {
+    private History getOrCreateRoom(Long memberId, Long roomId) {
         if (roomId != null) {
             return historyService.getHistory(roomId);
         } else {
-            return historyRepository.save(History.builder().memberId(member.getMemberId()).build());
+            return historyRepository.save(History.builder().memberId(memberId).build());
         }
     }
 
