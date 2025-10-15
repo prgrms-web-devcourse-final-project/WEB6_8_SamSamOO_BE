@@ -118,6 +118,7 @@ class TokenProviderTest {
         assertThat(claims.get("loginId", String.class)).as("loginId claim 일치").isEqualTo("test@example.com");
         assertThat(claims.get("memberId", Long.class)).as("memberId claim 일치").isEqualTo(1L);
         assertThat(claims.get("role", String.class)).as("role claim 일치").isEqualTo("USER");
+        assertThat(claims.get("loginType", String.class)).as("loginType claim 일치").isEqualTo("LOCAL");
         assertThat(claims.getIssuedAt()).as("발급 시간 존재").isNotNull();
         assertThat(claims.getExpiration()).as("만료 시간 존재").isNotNull();
         assertThat(claims.getExpiration()).as("만료 시간이 발급 시간 이후").isAfter(claims.getIssuedAt());
@@ -569,6 +570,80 @@ class TokenProviderTest {
         log.info("Redis 삭제 호출 검증");
         verify(redisTemplate).delete(tokenKey);
         log.info("=== 모든 토큰 삭제 테스트 완료 ===");
+    }
+
+    @Test
+    @DisplayName("토큰에서 loginType 추출 성공 - LOCAL")
+    void getLoginTypeFromToken_Success_Local() {
+        // given
+        log.info("=== 토큰에서 loginType 추출 테스트 시작 (LOCAL) ===");
+        willDoNothing().given(hashOperations).put(anyString(), anyString(), anyString());
+        given(redisTemplate.expire(anyString(), any(Duration.class))).willReturn(true);
+
+        String token = tokenProvider.generateAccessToken(member);
+        log.info("토큰 생성 완료");
+
+        // when
+        log.info("loginType 추출 호출 중...");
+        String loginType = tokenProvider.getLoginTypeFromToken(token);
+        log.info("loginType 추출 완료: {}", loginType);
+
+        // then
+        assertThat(loginType).as("loginType이 null이 아님").isNotNull();
+        assertThat(loginType).as("loginType 일치").isEqualTo("LOCAL");
+        log.info("=== 토큰에서 loginType 추출 테스트 완료 (LOCAL) ===");
+    }
+
+    @Test
+    @DisplayName("토큰에서 loginType 추출 성공 - OAUTH2")
+    void getLoginTypeFromToken_Success_OAuth2() {
+        // given
+        log.info("=== 토큰에서 loginType 추출 테스트 시작 (OAUTH2) ===");
+        willDoNothing().given(hashOperations).put(anyString(), anyString(), anyString());
+        given(redisTemplate.expire(anyString(), any(Duration.class))).willReturn(true);
+
+        com.ai.lawyer.domain.member.entity.OAuth2Member oauth2Member =
+            com.ai.lawyer.domain.member.entity.OAuth2Member.builder()
+                .memberId(2L)
+                .loginId("oauth@example.com")
+                .email("oauth@example.com")
+                .name("OAuth User")
+                .age(30)
+                .gender(Member.Gender.MALE)
+                .provider(com.ai.lawyer.domain.member.entity.OAuth2Member.Provider.KAKAO)
+                .providerId("kakao123")
+                .role(Member.Role.USER)
+                .build();
+
+        String token = tokenProvider.generateAccessToken(oauth2Member);
+        log.info("OAuth2 토큰 생성 완료");
+
+        // when
+        log.info("loginType 추출 호출 중...");
+        String loginType = tokenProvider.getLoginTypeFromToken(token);
+        log.info("loginType 추출 완료: {}", loginType);
+
+        // then
+        assertThat(loginType).as("loginType이 null이 아님").isNotNull();
+        assertThat(loginType).as("loginType 일치").isEqualTo("OAUTH2");
+        log.info("=== 토큰에서 loginType 추출 테스트 완료 (OAUTH2) ===");
+    }
+
+    @Test
+    @DisplayName("토큰에서 loginType 추출 실패 - 유효하지 않은 토큰")
+    void getLoginTypeFromToken_Fail_InvalidToken() {
+        // given
+        log.info("=== 토큰에서 loginType 추출 실패 테스트 시작 ===");
+        String invalidToken = "invalid.token.format";
+
+        // when
+        log.info("loginType 추출 호출 중...");
+        String loginType = tokenProvider.getLoginTypeFromToken(invalidToken);
+        log.info("loginType 추출 결과: {}", loginType);
+
+        // then
+        assertThat(loginType).as("유효하지 않은 토큰에서는 null 반환").isNull();
+        log.info("=== 토큰에서 loginType 추출 실패 테스트 완료 ===");
     }
 
     @Test

@@ -37,6 +37,7 @@ public class TokenProvider {
     private static final String CLAIM_LOGIN_ID = "loginId";
     private static final String CLAIM_MEMBER_ID = "memberId";
     private static final String CLAIM_ROLE = "role";
+    private static final String CLAIM_LOGIN_TYPE = "loginType";
 
     // 로그 메시지 상수
     private static final String LOG_ACCESS_TOKEN_SAVED = "=== Access token Hash 저장 성공: key={}, expiry={} ===";
@@ -60,12 +61,16 @@ public class TokenProvider {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + jwtProperties.getAccessToken().getExpirationSeconds() * MILLIS_PER_SECOND);
 
+        // 로그인 타입 결정 (OAuth2Member인지 Member인지 확인)
+        String loginType = (member instanceof com.ai.lawyer.domain.member.entity.OAuth2Member) ? "OAUTH2" : "LOCAL";
+
         String accessToken = Jwts.builder()
                 .setIssuedAt(now)
                 .setExpiration(expiry)
                 .claim(CLAIM_LOGIN_ID, member.getLoginId())
                 .claim(CLAIM_MEMBER_ID, member.getMemberId())
                 .claim(CLAIM_ROLE, member.getRole().name())
+                .claim(CLAIM_LOGIN_TYPE, loginType)
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
 
@@ -174,6 +179,10 @@ public class TokenProvider {
 
     public String getLoginIdFromToken(String token) {
         return getClaimFromToken(token, CLAIM_LOGIN_ID, String.class, LOG_LOGIN_ID_EXTRACTION_FAILED);
+    }
+
+    public String getLoginTypeFromToken(String token) {
+        return getClaimFromToken(token, CLAIM_LOGIN_TYPE, String.class, "토큰에서 로그인 타입 추출 실패: {}");
     }
 
     /**
