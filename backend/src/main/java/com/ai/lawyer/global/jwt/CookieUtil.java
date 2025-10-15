@@ -26,13 +26,17 @@ public class CookieUtil {
 
     // 쿠키 보안 설정 상수
     private static final boolean HTTP_ONLY = true;
-    private static final boolean SECURE_IN_PRODUCTION = false; // 개발환경에서는 false (HTTP), 운영환경에서는 true로 변경 (HTTPS)
     private static final String COOKIE_PATH = "/";
-    private static final String SAME_SITE = "Lax"; // Lax: 같은 사이트 요청에서 쿠키 전송 허용
     private static final int COOKIE_EXPIRE_IMMEDIATELY = 0;
 
     @Value("${custom.cookie.domain:}")
     private String cookieDomain;
+
+    @Value("${custom.cookie.secure:false}")
+    private boolean cookieSecure;
+
+    @Value("${custom.cookie.same-site:Lax}")
+    private String cookieSameSite;
 
     public void setTokenCookies(HttpServletResponse response, String accessToken, String refreshToken) {
         setAccessTokenCookie(response, accessToken);
@@ -58,26 +62,26 @@ public class CookieUtil {
      * ResponseCookie를 생성합니다 (SameSite 지원).
      */
     private ResponseCookie createResponseCookie(String name, String value, int maxAge) {
-        log.debug("=== 쿠키 생성 중: name={}, cookieDomain='{}', isEmpty={}",
-                name, cookieDomain, cookieDomain == null || cookieDomain.isEmpty());
+        log.info("=== 쿠키 생성 중: name={}, domain='{}', secure={}, sameSite={}",
+                name, cookieDomain, cookieSecure, cookieSameSite);
 
         ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(name, value)
                 .httpOnly(HTTP_ONLY)
-                .secure(SECURE_IN_PRODUCTION)
+                .secure(cookieSecure)
                 .path(COOKIE_PATH)
                 .maxAge(Duration.ofSeconds(maxAge))
-                .sameSite(SAME_SITE);
+                .sameSite(cookieSameSite);
 
         // 도메인이 설정되어 있으면 추가
         if (cookieDomain != null && !cookieDomain.isEmpty()) {
-            log.debug("쿠키 도메인 설정: {}", cookieDomain);
+            log.info("쿠키 도메인 설정: {}", cookieDomain);
             builder.domain(cookieDomain);
         } else {
-            log.debug("쿠키 도메인 설정 안 함 (빈 값 또는 null)");
+            log.info("쿠키 도메인 설정 안 함 (빈 값 또는 null)");
         }
 
         ResponseCookie cookie = builder.build();
-        log.debug("생성된 쿠키: {}", cookie);
+        log.info("생성된 쿠키: {}", cookie);
         return cookie;
     }
 

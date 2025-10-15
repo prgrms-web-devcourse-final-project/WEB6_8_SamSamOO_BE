@@ -8,7 +8,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.Logger;
@@ -32,7 +31,6 @@ class CookieUtilTest {
     @Mock
     private HttpServletResponse response;
 
-    @InjectMocks
     private CookieUtil cookieUtil;
 
     private static final String ACCESS_TOKEN = "testAccessToken";
@@ -43,6 +41,12 @@ class CookieUtilTest {
     @BeforeEach
     void setUp() {
         log.info("=== 테스트 초기화 ===");
+        cookieUtil = new CookieUtil();
+        // 테스트 환경 설정: 개발 환경 (HTTP, SameSite=Lax)
+        org.springframework.test.util.ReflectionTestUtils.setField(cookieUtil, "cookieDomain", "");
+        org.springframework.test.util.ReflectionTestUtils.setField(cookieUtil, "cookieSecure", false);
+        org.springframework.test.util.ReflectionTestUtils.setField(cookieUtil, "cookieSameSite", "Lax");
+        log.info("CookieUtil 설정 완료: domain='', secure=false, sameSite=Lax");
     }
 
     @Test
@@ -329,5 +333,46 @@ class CookieUtilTest {
         log.info("리프레시 토큰 만료 시간: 604800초 (7일)");
 
         log.info("=== 토큰 만료 시간 테스트 완료 ===");
+    }
+
+    @Test
+    @DisplayName("프로덕션 환경 - Secure=true, SameSite=None, Domain 설정")
+    void productionCookieSettings() {
+        // given
+        log.info("=== 프로덕션 환경 쿠키 설정 테스트 시작 ===");
+        CookieUtil prodCookieUtil = new CookieUtil();
+        org.springframework.test.util.ReflectionTestUtils.setField(prodCookieUtil, "cookieDomain", ".trybalaw.com");
+        org.springframework.test.util.ReflectionTestUtils.setField(prodCookieUtil, "cookieSecure", true);
+        org.springframework.test.util.ReflectionTestUtils.setField(prodCookieUtil, "cookieSameSite", "None");
+        log.info("프로덕션 설정: domain=.trybalaw.com, secure=true, sameSite=None");
+
+        // when
+        prodCookieUtil.setTokenCookies(response, ACCESS_TOKEN, REFRESH_TOKEN);
+
+        // then
+        ArgumentCaptor<String> headerCaptor = ArgumentCaptor.forClass(String.class);
+        verify(response, times(2)).addHeader(eq("Set-Cookie"), headerCaptor.capture());
+
+        var setCookieHeaders = headerCaptor.getAllValues();
+
+        // 액세스 토큰 쿠키 검증
+        String accessCookieHeader = setCookieHeaders.getFirst();
+        assertThat(accessCookieHeader).contains(ACCESS_TOKEN_NAME + "=" + ACCESS_TOKEN);
+        assertThat(accessCookieHeader).contains("HttpOnly");
+        assertThat(accessCookieHeader).contains("Secure");
+        assertThat(accessCookieHeader).contains("Domain=.trybalaw.com");
+        assertThat(accessCookieHeader).contains("SameSite=None");
+        log.info("프로덕션 액세스 토큰 쿠키 검증 완료: {}", accessCookieHeader);
+
+        // 리프레시 토큰 쿠키 검증
+        String refreshCookieHeader = setCookieHeaders.get(1);
+        assertThat(refreshCookieHeader).contains(REFRESH_TOKEN_NAME + "=" + REFRESH_TOKEN);
+        assertThat(refreshCookieHeader).contains("HttpOnly");
+        assertThat(refreshCookieHeader).contains("Secure");
+        assertThat(refreshCookieHeader).contains("Domain=.trybalaw.com");
+        assertThat(refreshCookieHeader).contains("SameSite=None");
+        log.info("프로덕션 리프레시 토큰 쿠키 검증 완료: {}", refreshCookieHeader);
+
+        log.info("=== 프로덕션 환경 쿠키 설정 테스트 완료 ===");
     }
 }
