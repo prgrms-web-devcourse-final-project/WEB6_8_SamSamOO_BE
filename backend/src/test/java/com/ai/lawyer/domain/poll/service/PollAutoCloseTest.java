@@ -63,7 +63,7 @@ class PollAutoCloseTest {
         post.setPostContent("테스트 내용");
         post.setCategory("테스트");
         post.setCreatedAt(LocalDateTime.now());
-        post.setMember(member);
+        post.setMemberId(member.getMemberId());
         post.setPoll(null);
         lenient().when(postRepository.save(any(Post.class))).thenReturn(post);
 
@@ -80,7 +80,7 @@ class PollAutoCloseTest {
         postWithPoll.setPostContent("테스트 내용");
         postWithPoll.setCategory("테스트");
         postWithPoll.setCreatedAt(post.getCreatedAt());
-        postWithPoll.setMember(member);
+        postWithPoll.setMemberId(member.getMemberId());
         postWithPoll.setPoll(poll);
         lenient().when(postRepository.save(argThat(p -> p.getPoll() != null))).thenReturn(postWithPoll);
 

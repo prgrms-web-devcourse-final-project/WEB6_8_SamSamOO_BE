@@ -6,7 +6,6 @@ import com.ai.lawyer.domain.chatbot.entity.Chat;
 import com.ai.lawyer.domain.chatbot.entity.History;
 import com.ai.lawyer.domain.chatbot.exception.HistoryNotFoundException;
 import com.ai.lawyer.domain.chatbot.repository.HistoryRepository;
-import com.ai.lawyer.domain.member.entity.Member;
 import com.ai.lawyer.domain.member.repositories.MemberRepository;
 import com.ai.lawyer.infrastructure.redis.service.ChatCacheService;
 import lombok.RequiredArgsConstructor;
@@ -28,11 +27,12 @@ public class HistoryService {
 
     public List<HistoryDto> getHistoryTitle(Long memberId) {
 
-        Member member = memberRepository.findById(memberId).orElseThrow(
+        // 회원 존재 여부 확인
+        memberRepository.findById(memberId).orElseThrow(
                 () -> new IllegalArgumentException("존재하지 않는 회원입니다.")
         );
 
-        List<History> rooms = historyRepository.findAllByMemberId(member);
+        List<History> rooms = historyRepository.findAllByMemberId(memberId);
         List<HistoryDto> roomDtos = new ArrayList<>();
 
         for (History room : rooms)
@@ -45,11 +45,12 @@ public class HistoryService {
 
         getHistory(roomId);
 
-        Member member = memberRepository.findById(memberId).orElseThrow(
+        // 회원 존재 여부 확인
+        memberRepository.findById(memberId).orElseThrow(
                 () -> new IllegalArgumentException("존재하지 않는 회원입니다.")
         );
 
-        History room = historyRepository.findByHistoryIdAndMemberId(roomId, member);
+        History room = historyRepository.findByHistoryIdAndMemberId(roomId, memberId);
 
         historyRepository.delete(room);
         chatCacheService.clearChatHistory(roomId);
@@ -61,7 +62,8 @@ public class HistoryService {
     @Transactional(readOnly = true)
     public ResponseEntity<List<ChatHistoryDto>> getChatHistory(Long memberId, Long roomId) {
 
-        Member member = memberRepository.findById(memberId).orElseThrow(
+        // 회원 존재 여부 확인
+        memberRepository.findById(memberId).orElseThrow(
                 () -> new IllegalArgumentException("존재하지 않는 회원입니다.")
         );
 
@@ -72,7 +74,7 @@ public class HistoryService {
         }
 
         // 2. DB에서 조회 후 캐시에 저장
-        History history = historyRepository.findByHistoryIdAndMemberId(roomId, member);
+        History history = historyRepository.findByHistoryIdAndMemberId(roomId, memberId);
         List<Chat> chats = history.getChats();
 
         // 엔티티 -> DTO 변환
