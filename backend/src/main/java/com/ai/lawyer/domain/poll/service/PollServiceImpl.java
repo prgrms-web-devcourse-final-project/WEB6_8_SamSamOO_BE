@@ -157,6 +157,19 @@ public class PollServiceImpl implements PollService {
     }
 
     @Override
+    public PollVoteDto voteByIndex(Long pollId, int index, Long memberId) {
+        List<PollOptions> options = getPollOptions(pollId);
+        if (options == null || options.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "투표 항목이 존재하지 않습니다.");
+        }
+        if (index < 1 || index > options.size()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "index가 옵션 범위를 벗어났습니다.");
+        }
+        Long pollItemsId = options.get(index - 1).getPollItemsId();
+        return vote(pollId, pollItemsId, memberId);
+    }
+
+    @Override
     public PollStaticsResponseDto getPollStatics(Long pollId) {
         if (!pollRepository.existsById(pollId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "해당 투표가 존재하지 않습니다.");
