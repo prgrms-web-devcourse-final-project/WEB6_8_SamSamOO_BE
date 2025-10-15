@@ -17,6 +17,7 @@ spring:
       connection-timeout: 30000
       max-lifetime: 1800000          # MySQL wait_timeout(기본 28800)보다 짧게
   jpa:
+    show-sql: false
     open-in-view: false              # 프로덕션 권장
     hibernate:
       ddl-auto: ${PROD_JPA_HIBERNATE_DDL_AUTO} # 운영 DB는 보통 validate (또는 none)
@@ -89,3 +90,11 @@ sentry:
   environment: "prod"
   release: "my-app@0.1.0-prod"
   send-default-pii: true
+
+logging:
+  level:
+    org.hibernate.SQL: WARN                # SQL 문 로그 줄이기
+    org.hibernate.orm.jdbc.bind: OFF       # 바인딩 파라미터 로그 끔(Hibernate 6)
+    org.hibernate.type.descriptor.jdbc: OFF
+    org.springframework.jdbc.core: ERROR   # JdbcTemplate 디버그 억제
+    com.zaxxer.hikari: INFO                # 커넥션 풀 상태만 간결하게

@@ -61,10 +61,10 @@ spring:
           jdbc:
             initialize-schema: never
 
-  jpa:
-    show-sql: true
-    hibernate:
-      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO}
+#  jpa:
+#    show-sql: true
+#    hibernate:
+#      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO}
 
     properties:
       hibernate:
