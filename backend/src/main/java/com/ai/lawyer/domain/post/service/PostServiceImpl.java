@@ -1,6 +1,5 @@
 package com.ai.lawyer.domain.post.service;
 
-import com.ai.lawyer.domain.member.entity.Member;
 import com.ai.lawyer.domain.poll.dto.PollDto;
 import com.ai.lawyer.domain.poll.dto.PollDto.PollStatus;
 import com.ai.lawyer.domain.post.dto.PostDto;
@@ -21,7 +20,6 @@ import com.ai.lawyer.domain.poll.service.PollService;
 import com.ai.lawyer.global.util.AuthUtil;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,9 +62,11 @@ public class PostServiceImpl implements PostService {
                 postRequestDto.getPostContent() == null || postRequestDto.getPostContent().trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "게시글 제목과 내용은 필수입니다.");
         }
-        Member member = AuthUtil.getMemberOrThrow(memberId);
+        // 회원 존재 여부 확인 (Member 또는 OAuth2Member)
+        AuthUtil.getMemberOrThrow(memberId);
+
         Post post = Post.builder()
-                .member(member)
+                .memberId(memberId)
                 .postName(postRequestDto.getPostName())
                 .postContent(postRequestDto.getPostContent())
                 .category(postRequestDto.getCategory())
@@ -90,7 +90,7 @@ public class PostServiceImpl implements PostService {
     public PostDetailDto getPostById(Long postId) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "게시글을 찾을 수 없습니다."));
-        PostDto postDto = convertToDto(post, post.getMember().getMemberId());
+        PostDto postDto = convertToDto(post, post.getMemberId());
         return PostDetailDto.builder()
                 .post(postDto)
                 .build();
@@ -98,8 +98,9 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public List<PostDto> getPostsByMemberId(Long memberId) {
-        Member member = AuthUtil.getMemberOrThrow(memberId);
-        List<Post> posts = postRepository.findByMember(member);
+        // 회원 존재 여부 확인
+        AuthUtil.getMemberOrThrow(memberId);
+        List<Post> posts = postRepository.findByMemberId(memberId);
 //        if (posts.isEmpty()) {
 //            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "해당 회원의 게시글이 없습니다.");
 //        }
@@ -127,7 +128,7 @@ public class PostServiceImpl implements PostService {
             if (post.getPoll() == null) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "이 게시글에는 투표가 없어 투표 수정이 불가능합니다.");
             }
-            pollService.updatePoll(post.getPoll().getPollId(), postUpdateDto.getPoll(), post.getMember().getMemberId());
+            pollService.updatePoll(post.getPoll().getPollId(), postUpdateDto.getPoll(), post.getMemberId());
         }
 
         if (postUpdateDto.getPostName() != null) post.setPostName(postUpdateDto.getPostName());
@@ -135,7 +136,7 @@ public class PostServiceImpl implements PostService {
         if (postUpdateDto.getCategory() != null) post.setCategory(postUpdateDto.getCategory());
         post.setUpdatedAt(LocalDateTime.now()); // 추가
         postRepository.save(post);
-        return convertToDto(post, post.getMember().getMemberId());
+        return convertToDto(post, post.getMemberId());
     }
 
     @Override
@@ -165,15 +166,16 @@ public class PostServiceImpl implements PostService {
     public PostDto getMyPostById(Long postId, Long requesterMemberId) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "게시글을 찾을 수 없습니다."));
-        if (!post.getMember().getMemberId().equals(requesterMemberId)) {
+        if (!post.getMemberId().equals(requesterMemberId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "본인 게시글만 조회할 수 있습니다.");
         }
         return convertToDto(post, requesterMemberId);
     }
 
     public List<PostDto> getMyPosts(Long requesterMemberId) {
-        Member member = AuthUtil.getMemberOrThrow(requesterMemberId);
-        List<Post> posts = postRepository.findByMember(member);
+        // 회원 존재 여부 확인
+        AuthUtil.getMemberOrThrow(requesterMemberId);
+        List<Post> posts = postRepository.findByMemberId(requesterMemberId);
         return posts.stream()
                 .sorted(Comparator.comparing(Post::getUpdatedAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
                 .map(post -> convertToDto(post, requesterMemberId))
@@ -182,8 +184,9 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public Page<PostDto> getMyPostspaged(Pageable pageable, Long requesterMemberId) {
-        Member member = AuthUtil.getMemberOrThrow(requesterMemberId);
-        Page<Post> posts = postRepository.findByMember(member, pageable);
+        // 회원 존재 여부 확인
+        AuthUtil.getMemberOrThrow(requesterMemberId);
+        Page<Post> posts = postRepository.findByMemberId(requesterMemberId, pageable);
         return posts.map(post -> convertToDto(post, requesterMemberId));
     }
 
@@ -218,9 +221,10 @@ public class PostServiceImpl implements PostService {
         }
         var pollDto = dto.getPoll();
         pollService.validatePollCreate(pollDto);
-        Member member = AuthUtil.getMemberOrThrow(memberId);
+        // 회원 존재 여부 확인
+        AuthUtil.getMemberOrThrow(memberId);
         Post post = Post.builder()
-                .member(member)
+                .memberId(memberId)
                 .postName(postDto.getPostName())
                 .postContent(postDto.getPostContent())
                 .category(postDto.getCategory())
@@ -263,7 +267,7 @@ public class PostServiceImpl implements PostService {
                     }
                     return PostSimpleDto.builder()
                             .postId(post.getPostId())
-                            .memberId(post.getMember().getMemberId())
+                            .memberId(post.getMemberId())
                             .poll(pollInfo)
                             .build();
                 })
@@ -339,10 +343,7 @@ public class PostServiceImpl implements PostService {
     }
 
     private PostDto convertToDto(Post entity, Long memberId) {
-        Long postMemberId = null;
-        if (entity.getMember() != null) {
-            postMemberId = entity.getMember().getMemberId();
-        }
+        Long postMemberId = entity.getMemberId();
         PollDto pollDto = null;
         if (entity.getPoll() != null) {
             if (entity.getPoll().getStatus() == Poll.PollStatus.CLOSED) {

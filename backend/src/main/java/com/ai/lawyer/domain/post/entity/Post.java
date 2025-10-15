@@ -1,6 +1,5 @@
 package com.ai.lawyer.domain.post.entity;
 
-import com.ai.lawyer.domain.member.entity.Member;
 import com.ai.lawyer.domain.poll.entity.Poll;
 import jakarta.persistence.*;
 import lombok.*;
@@ -21,9 +20,10 @@ public class Post {
     @Column(name = "post_id")
     private Long postId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "member_id", nullable = true, foreignKey = @ForeignKey(name = "FK_POST_MEMBER"))
-    private Member member;
+    // Member와 OAuth2Member 모두 지원하기 위해 FK 제약 조건 제거 (ConstraintMode.NO_CONSTRAINT)
+    // member_id를 직접 저장하고, 애플리케이션 레벨에서 AuthUtil로 참조 무결성 보장
+    @Column(name = "member_id")
+    private Long memberId;
 
     @Column(name = "post_name", length = 100, nullable = false)
     private String postName;
