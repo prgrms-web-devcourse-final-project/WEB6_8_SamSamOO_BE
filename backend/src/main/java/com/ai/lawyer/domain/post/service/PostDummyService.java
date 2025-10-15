@@ -104,7 +104,7 @@ public class PostDummyService {
                 PollOptions selectedOption = pollOptionsList.get(random.nextInt(pollOptionsList.size()));
                 PollVote pollVote = PollVote.builder()
                         .poll(post.getPoll())
-                        .member(member)
+                        .memberId(member.getMemberId())
                         .pollOptions(selectedOption)
                         .build();
                 pollVoteRepository.save(pollVote);
@@ -136,7 +136,7 @@ public class PostDummyService {
             if (!votedMemberIdSet.contains(member.getMemberId())) {
                 PollVote pollVote = PollVote.builder()
                         .poll(post.getPoll())
-                        .member(member)
+                        .memberId(member.getMemberId())
                         .pollOptions(firstOption)
                         .build();
                 pollVoteRepository.save(pollVote);
@@ -168,7 +168,7 @@ public class PostDummyService {
             if (!votedMemberIdSet.contains(member.getMemberId())) {
                 PollVote pollVote = PollVote.builder()
                         .poll(post.getPoll())
-                        .member(member)
+                        .memberId(member.getMemberId())
                         .pollOptions(secondOption)
                         .build();
                 pollVoteRepository.save(pollVote);
