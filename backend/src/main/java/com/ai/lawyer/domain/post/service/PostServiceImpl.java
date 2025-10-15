@@ -300,7 +300,7 @@ public class PostServiceImpl implements PostService {
     }
 
     private Page<PostDto> getMyVotedPostsPagedByStatus(Pageable pageable, Long memberId, Poll.PollStatus status) {
-        List<PollVote> votes = pollVoteRepository.findByMember_MemberId(memberId);
+        List<PollVote> votes = pollVoteRepository.findByMemberId(memberId);
         List<Long> pollIds = votes.stream().map(v -> v.getPoll().getPollId()).distinct().toList();
         Page<Post> posts = (status == null)
             ? postRepository.findByPoll_PollIdIn(pollIds, pageable)
