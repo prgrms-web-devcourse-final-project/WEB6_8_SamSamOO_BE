@@ -26,6 +26,7 @@ public interface PostService {
     PostDto updatePost(Long postId, PostUpdateDto postUpdateDto);
     void patchUpdatePost(Long postId, PostUpdateDto postUpdateDto);
     void deletePost(Long postId);
+    void deletePostAdmin(Long postId);
     PostDetailDto createPostWithPoll(PostWithPollCreateDto dto, Long memberId);
 
     // ===== 본인 게시글 관련 =====

@@ -114,6 +114,15 @@ public class PostController {
         return ResponseEntity.ok(new ApiResponse<>(200, "게시글이 삭제되었습니다.", null));
     }
 
+    @Operation(summary = "게시글 삭제(관리자)")
+    @DeleteMapping("/admin/{postId}")
+    public ResponseEntity<ApiResponse<Void>> deletePostAdmin(@PathVariable Long postId) {
+        //AuthUtil.validateAdmin(); 관리자
+        AuthUtil.getAuthenticatedMemberId(); // 모든 유저
+        postService.deletePostAdmin(postId);
+        return ResponseEntity.ok(new ApiResponse<>(200, "게시글이 삭제되었습니다.", null));
+    }
+
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ApiResponse<Void>> handleResponseStatusException(ResponseStatusException ex) {
         int code = ex.getStatusCode().value();
