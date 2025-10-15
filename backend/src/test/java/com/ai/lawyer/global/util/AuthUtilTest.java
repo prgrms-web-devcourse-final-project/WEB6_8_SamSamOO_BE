@@ -170,4 +170,99 @@ class AuthUtilTest {
         assertThat(result).isNotNull();
         assertThat(result.getLoginId()).isEqualTo("local@test.com");
     }
+
+    @Test
+    @DisplayName("loginType으로 로컬 회원 조회 성공")
+    void getMemberOrThrow_WithLoginType_Local_Success() {
+        // given
+        Long memberId = 1L;
+        String loginType = "LOCAL";
+        given(memberRepository.findById(memberId)).willReturn(Optional.of(localMember));
+
+        // when
+        Member result = AuthUtil.getMemberOrThrow(memberId, loginType);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.getMemberId()).isEqualTo(1L);
+        assertThat(result.getLoginId()).isEqualTo("local@test.com");
+        assertThat(result.getName()).isEqualTo("로컬사용자");
+
+        verify(memberRepository).findById(memberId);
+        // OAuth2 repository는 호출되지 않음
+        org.mockito.Mockito.verifyNoInteractions(oauth2MemberRepository);
+    }
+
+    @Test
+    @DisplayName("loginType으로 OAuth2 회원 조회 성공")
+    void getMemberOrThrow_WithLoginType_OAuth2_Success() {
+        // given
+        Long memberId = 2L;
+        String loginType = "OAUTH2";
+        given(oauth2MemberRepository.findById(memberId)).willReturn(Optional.of(oauth2Member));
+
+        // when
+        Member result = AuthUtil.getMemberOrThrow(memberId, loginType);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.getMemberId()).isEqualTo(2L);
+        assertThat(result.getLoginId()).isEqualTo("oauth@test.com");
+        assertThat(result.getName()).isEqualTo("소셜사용자");
+        assertThat(result.getAge()).isEqualTo(25);
+        assertThat(result.getGender()).isEqualTo(Member.Gender.FEMALE);
+
+        verify(oauth2MemberRepository).findById(memberId);
+        // Member repository는 호출되지 않음
+        org.mockito.Mockito.verifyNoInteractions(memberRepository);
+    }
+
+    @Test
+    @DisplayName("loginType이 LOCAL이지만 회원을 찾을 수 없을 때 예외 발생")
+    void getMemberOrThrow_WithLoginType_Local_NotFound() {
+        // given
+        Long memberId = 999L;
+        String loginType = "LOCAL";
+        given(memberRepository.findById(memberId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> AuthUtil.getMemberOrThrow(memberId, loginType))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("회원 정보를 찾을 수 없습니다");
+
+        verify(memberRepository).findById(memberId);
+    }
+
+    @Test
+    @DisplayName("loginType이 OAUTH2이지만 회원을 찾을 수 없을 때 예외 발생")
+    void getMemberOrThrow_WithLoginType_OAuth2_NotFound() {
+        // given
+        Long memberId = 999L;
+        String loginType = "OAUTH2";
+        given(oauth2MemberRepository.findById(memberId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> AuthUtil.getMemberOrThrow(memberId, loginType))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("회원 정보를 찾을 수 없습니다");
+
+        verify(oauth2MemberRepository).findById(memberId);
+    }
+
+    @Test
+    @DisplayName("loginType이 null일 때는 기본값 LOCAL로 처리")
+    void getMemberOrThrow_WithLoginType_Null_DefaultsToLocal() {
+        // given
+        Long memberId = 1L;
+        String loginType = null;
+        given(memberRepository.findById(memberId)).willReturn(Optional.of(localMember));
+
+        // when
+        Member result = AuthUtil.getMemberOrThrow(memberId, loginType);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.getLoginId()).isEqualTo("local@test.com");
+        verify(memberRepository).findById(memberId);
+    }
 }
