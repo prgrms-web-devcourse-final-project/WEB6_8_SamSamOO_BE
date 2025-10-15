@@ -97,7 +97,8 @@ public class PollVoteRepositoryImpl implements PollVoteRepositoryCustom {
                 .fetch();
         return tuples.stream()
                 .map(t -> {
-                    String gender = t.get(1, String.class);
+                    Member.Gender genderEnum = t.get(1, Member.Gender.class);
+                    String gender = genderEnum != null ? genderEnum.name() : "기타";
                     Integer age = t.get(2, Integer.class);
                     String ageGroup = getAgeGroup(age);
                     Long voteCount = t.get(3, Long.class);
