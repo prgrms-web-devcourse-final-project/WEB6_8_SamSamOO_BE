@@ -2,8 +2,7 @@ package com.ai.lawyer.global.util;
 
 import com.ai.lawyer.domain.member.entity.Member;
 import com.ai.lawyer.domain.member.entity.OAuth2Member;
-import com.ai.lawyer.domain.member.repositories.MemberRepository;
-import com.ai.lawyer.domain.member.repositories.OAuth2MemberRepository;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -11,8 +10,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.server.ResponseStatusException;
-
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -24,18 +21,17 @@ import static org.mockito.Mockito.verify;
 class AuthUtilTest {
 
     @Mock
-    private MemberRepository memberRepository;
-
-    @Mock
-    private OAuth2MemberRepository oauth2MemberRepository;
+    private EntityManager entityManager;
 
     private Member localMember;
     private OAuth2Member oauth2Member;
 
     @BeforeEach
     void setUp() {
-        AuthUtil authUtil = new AuthUtil(memberRepository);
-        authUtil.setOauth2MemberRepository(oauth2MemberRepository);
+        // AuthUtil의 static EntityManager를 초기화
+        // 반환값은 사용하지 않지만 static 필드 설정을 위해 생성자 호출 필요
+        @SuppressWarnings("unused")
+        AuthUtil authUtil = new AuthUtil(entityManager);
 
         localMember = Member.builder()
                 .memberId(1L)
@@ -65,7 +61,7 @@ class AuthUtilTest {
     void getMemberOrThrow_LocalMember_Success() {
         // given
         Long memberId = 1L;
-        given(memberRepository.findById(memberId)).willReturn(Optional.of(localMember));
+        given(entityManager.find(Member.class, memberId)).willReturn(localMember);
 
         // when
         Member result = AuthUtil.getMemberOrThrow(memberId);
@@ -76,7 +72,7 @@ class AuthUtilTest {
         assertThat(result.getLoginId()).isEqualTo("local@test.com");
         assertThat(result.getName()).isEqualTo("로컬사용자");
 
-        verify(memberRepository).findById(memberId);
+        verify(entityManager).find(Member.class, memberId);
     }
 
     @Test
@@ -84,8 +80,8 @@ class AuthUtilTest {
     void getMemberOrThrow_OAuth2Member_Success() {
         // given
         Long memberId = 2L;
-        given(memberRepository.findById(memberId)).willReturn(Optional.empty());
-        given(oauth2MemberRepository.findById(memberId)).willReturn(Optional.of(oauth2Member));
+        given(entityManager.find(Member.class, memberId)).willReturn(null);
+        given(entityManager.find(OAuth2Member.class, memberId)).willReturn(oauth2Member);
 
         // when
         Member result = AuthUtil.getMemberOrThrow(memberId);
@@ -99,8 +95,8 @@ class AuthUtilTest {
         assertThat(result.getGender()).isEqualTo(Member.Gender.FEMALE);
         assertThat(result.getRole()).isEqualTo(Member.Role.USER);
 
-        verify(memberRepository).findById(memberId);
-        verify(oauth2MemberRepository).findById(memberId);
+        verify(entityManager).find(Member.class, memberId);
+        verify(entityManager).find(OAuth2Member.class, memberId);
     }
 
     @Test
@@ -108,8 +104,8 @@ class AuthUtilTest {
     void getMemberOrThrow_OAuth2Member_NoPassword() {
         // given
         Long memberId = 2L;
-        given(memberRepository.findById(memberId)).willReturn(Optional.empty());
-        given(oauth2MemberRepository.findById(memberId)).willReturn(Optional.of(oauth2Member));
+        given(entityManager.find(Member.class, memberId)).willReturn(null);
+        given(entityManager.find(OAuth2Member.class, memberId)).willReturn(oauth2Member);
 
         // when
         Member result = AuthUtil.getMemberOrThrow(memberId);
@@ -123,16 +119,16 @@ class AuthUtilTest {
     void getMemberOrThrow_MemberNotFound_ThrowsException() {
         // given
         Long memberId = 999L;
-        given(memberRepository.findById(memberId)).willReturn(Optional.empty());
-        given(oauth2MemberRepository.findById(memberId)).willReturn(Optional.empty());
+        given(entityManager.find(Member.class, memberId)).willReturn(null);
+        given(entityManager.find(OAuth2Member.class, memberId)).willReturn(null);
 
         // when & then
         assertThatThrownBy(() -> AuthUtil.getMemberOrThrow(memberId))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("회원 정보를 찾을 수 없습니다");
 
-        verify(memberRepository).findById(memberId);
-        verify(oauth2MemberRepository).findById(memberId);
+        verify(entityManager).find(Member.class, memberId);
+        verify(entityManager).find(OAuth2Member.class, memberId);
     }
 
     @Test
@@ -140,8 +136,8 @@ class AuthUtilTest {
     void getMemberOrThrow_PrioritizeLocalMember() {
         // given
         Long memberId = 1L;
-        given(memberRepository.findById(memberId)).willReturn(Optional.of(localMember));
-        // OAuth2 repository는 호출되지 않아야 함
+        given(entityManager.find(Member.class, memberId)).willReturn(localMember);
+        // OAuth2 Member는 조회되지 않아야 함
 
         // when
         Member result = AuthUtil.getMemberOrThrow(memberId);
@@ -150,25 +146,10 @@ class AuthUtilTest {
         assertThat(result).isNotNull();
         assertThat(result.getLoginId()).isEqualTo("local@test.com");
 
-        verify(memberRepository).findById(memberId);
-        // OAuth2 repository는 호출되지 않음을 검증
-        org.mockito.Mockito.verifyNoInteractions(oauth2MemberRepository);
-    }
-
-    @Test
-    @DisplayName("OAuth2MemberRepository가 null일 때도 정상 동작")
-    void getMemberOrThrow_NullOAuth2Repository() {
-        // given
-        Long memberId = 1L;
-        // OAuth2 repository를 설정하지 않음
-        given(memberRepository.findById(memberId)).willReturn(Optional.of(localMember));
-
-        // when
-        Member result = AuthUtil.getMemberOrThrow(memberId);
-
-        // then
-        assertThat(result).isNotNull();
-        assertThat(result.getLoginId()).isEqualTo("local@test.com");
+        verify(entityManager).find(Member.class, memberId);
+        // OAuth2Member는 조회되지 않음을 검증
+        org.mockito.Mockito.verify(entityManager, org.mockito.Mockito.never())
+                .find(OAuth2Member.class, memberId);
     }
 
     @Test
@@ -177,7 +158,7 @@ class AuthUtilTest {
         // given
         Long memberId = 1L;
         String loginType = "LOCAL";
-        given(memberRepository.findById(memberId)).willReturn(Optional.of(localMember));
+        given(entityManager.find(Member.class, memberId)).willReturn(localMember);
 
         // when
         Member result = AuthUtil.getMemberOrThrow(memberId, loginType);
@@ -188,9 +169,10 @@ class AuthUtilTest {
         assertThat(result.getLoginId()).isEqualTo("local@test.com");
         assertThat(result.getName()).isEqualTo("로컬사용자");
 
-        verify(memberRepository).findById(memberId);
-        // OAuth2 repository는 호출되지 않음
-        org.mockito.Mockito.verifyNoInteractions(oauth2MemberRepository);
+        verify(entityManager).find(Member.class, memberId);
+        // OAuth2Member는 조회되지 않음
+        org.mockito.Mockito.verify(entityManager, org.mockito.Mockito.never())
+                .find(OAuth2Member.class, memberId);
     }
 
     @Test
@@ -199,7 +181,7 @@ class AuthUtilTest {
         // given
         Long memberId = 2L;
         String loginType = "OAUTH2";
-        given(oauth2MemberRepository.findById(memberId)).willReturn(Optional.of(oauth2Member));
+        given(entityManager.find(OAuth2Member.class, memberId)).willReturn(oauth2Member);
 
         // when
         Member result = AuthUtil.getMemberOrThrow(memberId, loginType);
@@ -212,9 +194,10 @@ class AuthUtilTest {
         assertThat(result.getAge()).isEqualTo(25);
         assertThat(result.getGender()).isEqualTo(Member.Gender.FEMALE);
 
-        verify(oauth2MemberRepository).findById(memberId);
-        // Member repository는 호출되지 않음
-        org.mockito.Mockito.verifyNoInteractions(memberRepository);
+        verify(entityManager).find(OAuth2Member.class, memberId);
+        // Member는 조회되지 않음
+        org.mockito.Mockito.verify(entityManager, org.mockito.Mockito.never())
+                .find(Member.class, memberId);
     }
 
     @Test
@@ -223,14 +206,14 @@ class AuthUtilTest {
         // given
         Long memberId = 999L;
         String loginType = "LOCAL";
-        given(memberRepository.findById(memberId)).willReturn(Optional.empty());
+        given(entityManager.find(Member.class, memberId)).willReturn(null);
 
         // when & then
         assertThatThrownBy(() -> AuthUtil.getMemberOrThrow(memberId, loginType))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("회원 정보를 찾을 수 없습니다");
 
-        verify(memberRepository).findById(memberId);
+        verify(entityManager).find(Member.class, memberId);
     }
 
     @Test
@@ -239,14 +222,14 @@ class AuthUtilTest {
         // given
         Long memberId = 999L;
         String loginType = "OAUTH2";
-        given(oauth2MemberRepository.findById(memberId)).willReturn(Optional.empty());
+        given(entityManager.find(OAuth2Member.class, memberId)).willReturn(null);
 
         // when & then
         assertThatThrownBy(() -> AuthUtil.getMemberOrThrow(memberId, loginType))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("회원 정보를 찾을 수 없습니다");
 
-        verify(oauth2MemberRepository).findById(memberId);
+        verify(entityManager).find(OAuth2Member.class, memberId);
     }
 
     @Test
@@ -255,7 +238,7 @@ class AuthUtilTest {
         // given
         Long memberId = 1L;
         String loginType = null;
-        given(memberRepository.findById(memberId)).willReturn(Optional.of(localMember));
+        given(entityManager.find(Member.class, memberId)).willReturn(localMember);
 
         // when
         Member result = AuthUtil.getMemberOrThrow(memberId, loginType);
@@ -263,6 +246,6 @@ class AuthUtilTest {
         // then
         assertThat(result).isNotNull();
         assertThat(result.getLoginId()).isEqualTo("local@test.com");
-        verify(memberRepository).findById(memberId);
+        verify(entityManager).find(Member.class, memberId);
     }
 }
