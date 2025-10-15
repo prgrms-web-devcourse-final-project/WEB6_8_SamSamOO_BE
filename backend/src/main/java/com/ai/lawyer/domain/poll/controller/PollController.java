@@ -155,12 +155,7 @@ public class PollController {
     public ResponseEntity<ApiResponse<PollVoteDto>> voteByIndex(@PathVariable Long pollId, @RequestParam int index) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         Long memberId = Long.parseLong(authentication.getName());
-        List<PollOptions> options = pollService.getPollOptions(pollId);
-        if (index < 1 || index > options.size()) {
-            throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "index가 옵션 범위를 벗어났습니다.");
-        }
-        Long pollItemsId = options.get(index - 1).getPollItemsId();
-        PollVoteDto result = pollService.vote(pollId, pollItemsId, memberId);
+        PollVoteDto result = pollService.voteByIndex(pollId, index, memberId);
         return ResponseEntity.ok(new ApiResponse<>(200, "투표가 성공적으로 완료되었습니다.", result));
     }
 

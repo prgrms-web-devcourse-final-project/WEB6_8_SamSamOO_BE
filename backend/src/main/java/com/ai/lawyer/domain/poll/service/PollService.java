@@ -28,6 +28,7 @@ public interface PollService {
 
     // ===== 투표 관련 =====
     PollVoteDto vote(Long pollId, Long pollItemsId, Long memberId);
+    PollVoteDto voteByIndex(Long pollId, int index, Long memberId);
 
     // ===== 투표 취소 관련 =====
     void cancelVote(Long pollId, Long memberId);
