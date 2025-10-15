@@ -100,9 +100,9 @@ public class PostServiceImpl implements PostService {
     public List<PostDto> getPostsByMemberId(Long memberId) {
         Member member = AuthUtil.getMemberOrThrow(memberId);
         List<Post> posts = postRepository.findByMember(member);
-        if (posts.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "해당 회원의 게시글이 없습니다.");
-        }
+//        if (posts.isEmpty()) {
+//            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "해당 회원의 게시글이 없습니다.");
+//        }
         return posts.stream()
                 .sorted(Comparator.comparing(Post::getUpdatedAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed()) // 최신순 정렬
                 .map(post -> convertToDto(post, memberId))
@@ -140,6 +140,13 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public void deletePost(Long postId) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "삭제할 게시글을 찾을 수 없습니다."));
+        postRepository.delete(post);
+    }
+
+    @Override
+    public void deletePostAdmin(Long postId) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "삭제할 게시글을 찾을 수 없습니다."));
         postRepository.delete(post);
