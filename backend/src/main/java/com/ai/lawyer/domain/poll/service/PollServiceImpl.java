@@ -233,6 +233,8 @@ public class PollServiceImpl implements PollService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "투표를 찾을 수 없습니다."));
         poll.setStatus(Poll.PollStatus.CLOSED);
         poll.setClosedAt(java.time.LocalDateTime.now());
+        //예약 종료 시간도 현재 종료로 바꿈 추후 삭제
+        poll.setReservedCloseAt(java.time.LocalDateTime.now());
         pollRepository.save(poll);
     }
 
