@@ -104,6 +104,46 @@ public class AuthUtil {
         throw new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 정보를 찾을 수 없습니다");
     }
 
+    /**
+     * memberId와 loginType으로 회원을 조회합니다.
+     * loginType이 "LOCAL"이면 Member 테이블에서, "OAUTH2"이면 OAuth2Member 테이블에서 조회합니다.
+     * @param memberId 회원 ID
+     * @param loginType 로그인 타입 ("LOCAL" 또는 "OAUTH2")
+     * @return Member 객체
+     * @throws ResponseStatusException 회원을 찾을 수 없는 경우
+     */
+    public static Member getMemberOrThrow(Long memberId, String loginType) {
+        if ("OAUTH2".equals(loginType)) {
+            // OAuth2 회원 조회
+            if (oauth2MemberRepository != null) {
+                java.util.Optional<com.ai.lawyer.domain.member.entity.OAuth2Member> oauth2Member =
+                    oauth2MemberRepository.findById(memberId);
+                if (oauth2Member.isPresent()) {
+                    // OAuth2Member를 Member로 변환
+                    com.ai.lawyer.domain.member.entity.OAuth2Member oauth = oauth2Member.get();
+                    return Member.builder()
+                            .memberId(oauth.getMemberId())
+                            .loginId(oauth.getLoginId())
+                            .name(oauth.getName())
+                            .age(oauth.getAge())
+                            .gender(oauth.getGender())
+                            .role(oauth.getRole())
+                            .password("") // OAuth2는 비밀번호 없음
+                            .build();
+                }
+            }
+        } else {
+            // LOCAL 회원 조회 (기본값)
+            java.util.Optional<Member> member = memberRepository.findById(memberId);
+            if (member.isPresent()) {
+                return member.get();
+            }
+        }
+
+        // 찾지 못한 경우 예외 발생
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 정보를 찾을 수 없습니다");
+    }
+
     public static Long getAuthenticatedMemberId() {
         try {
             Long memberId = getCurrentMemberId();
