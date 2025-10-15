@@ -111,47 +111,54 @@ public class PollServiceImpl implements PollService {
         if (!(member.getRole().name().equals("USER") || member.getRole().name().equals("ADMIN"))) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "투표 권한이 없습니다.");
         }
-        // 기존 투표 내역 조회
-        var existingVoteOpt = pollVoteRepository.findByMemberIdAndPoll_PollId(memberId, pollId);
-        if (existingVoteOpt.isPresent()) {
-            PollVote existingVote = existingVoteOpt.get();
-            if (existingVote.getPollOptions().getPollItemsId().equals(pollItemsId)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 투표하셨습니다.");
-            } else {
-                pollVoteRepository.deleteByMemberIdAndPoll_PollId(memberId, pollId);
-                PollVote pollVote = PollVote.builder()
-                        .poll(poll)
-                        .pollOptions(pollOptions)
-                        .memberId(memberId)
-                        .build();
-                PollVote savedVote = pollVoteRepository.save(pollVote);
-                Long voteCount = pollVoteRepository.countByPollOptionId(pollItemsId);
-                return PollVoteDto.builder()
-                        .pollVoteId(savedVote.getPollVoteId())
-                        .pollId(pollId)
-                        .pollItemsId(pollItemsId)
-                        .memberId(memberId)
-                        .voteCount(voteCount)
-                        .message("투표 항목을 변경하였습니다.")
-                        .build();
+
+        try {
+            // 기존 투표 내역 조회
+            var existingVoteOpt = pollVoteRepository.findByMemberIdAndPoll_PollId(memberId, pollId);
+            if (existingVoteOpt.isPresent()) {
+                PollVote existingVote = existingVoteOpt.get();
+                if (existingVote.getPollOptions().getPollItemsId().equals(pollItemsId)) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 투표하셨습니다.");
+                } else {
+                    pollVoteRepository.deleteByMemberIdAndPoll_PollId(memberId, pollId);
+                    PollVote pollVote = PollVote.builder()
+                            .poll(poll)
+                            .pollOptions(pollOptions)
+                            .memberId(memberId)
+                            .build();
+                    PollVote savedVote = pollVoteRepository.save(pollVote);
+                    Long voteCount = pollVoteRepository.countByPollOptionId(pollItemsId);
+                    return PollVoteDto.builder()
+                            .pollVoteId(savedVote.getPollVoteId())
+                            .pollId(pollId)
+                            .pollItemsId(pollItemsId)
+                            .memberId(memberId)
+                            .voteCount(voteCount)
+                            .message("투표 항목을 변경하였습니다.")
+                            .build();
+                }
             }
+            // 기존 투표 내역이 없으면 정상 투표
+            PollVote pollVote = PollVote.builder()
+                    .poll(poll)
+                    .pollOptions(pollOptions)
+                    .memberId(memberId)
+                    .build();
+            PollVote savedVote = pollVoteRepository.save(pollVote);
+            Long voteCount = pollVoteRepository.countByPollOptionId(pollItemsId);
+            return PollVoteDto.builder()
+                    .pollVoteId(savedVote.getPollVoteId())
+                    .pollId(pollId)
+                    .pollItemsId(pollItemsId)
+                    .memberId(memberId)
+                    .voteCount(voteCount)
+                    .message("투표가 완료되었습니다.")
+                    .build();
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            // 동시성 문제로 인한 중복 투표 시도 (unique constraint violation)
+            log.warn("중복 투표 시도 감지 - memberId: {}, pollId: {}", memberId, pollId, e);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 투표하셨습니다. 중복 투표는 불가능합니다.");
         }
-        // 기존 투표 내역이 없으면 정상 투표
-        PollVote pollVote = PollVote.builder()
-                .poll(poll)
-                .pollOptions(pollOptions)
-                .memberId(memberId)
-                .build();
-        PollVote savedVote = pollVoteRepository.save(pollVote);
-        Long voteCount = pollVoteRepository.countByPollOptionId(pollItemsId);
-        return PollVoteDto.builder()
-                .pollVoteId(savedVote.getPollVoteId())
-                .pollId(pollId)
-                .pollItemsId(pollItemsId)
-                .memberId(memberId)
-                .voteCount(voteCount)
-                .message("투표가 완료되었습니다.")
-                .build();
     }
 
     @Override
