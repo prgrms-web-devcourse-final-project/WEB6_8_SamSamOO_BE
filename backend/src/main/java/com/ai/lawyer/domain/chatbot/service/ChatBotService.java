@@ -7,8 +7,6 @@ import com.ai.lawyer.domain.chatbot.dto.ChatDto.ChatResponse;
 import com.ai.lawyer.domain.chatbot.entity.History;
 import com.ai.lawyer.domain.chatbot.repository.HistoryRepository;
 import com.ai.lawyer.global.qdrant.service.QdrantService;
-import com.ai.lawyer.infrastructure.kafka.dto.ChatPostProcessEvent;
-import com.ai.lawyer.infrastructure.kafka.dto.DocumentDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -22,7 +20,6 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.document.Document;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
@@ -40,17 +37,13 @@ public class ChatBotService {
     private final ChatClient chatClient;
     private final QdrantService qdrantService;
     private final HistoryService historyService;
+    private final AsyncPostChatProcessingService asyncPostChatProcessingService;
+
     private final HistoryRepository historyRepository;
     private final ChatMemoryRepository chatMemoryRepository;
 
-    // KafkaTemplate 주입
-    private final KafkaTemplate<String, ChatPostProcessEvent> kafkaTemplate;
-
     @Value("${custom.ai.system-message}")
     private String systemMessageTemplate;
-
-    // Kafka 토픽 이름 -> 추후 application.yml로 이동 고려
-    private static final String POST_PROCESSING_TOPIC = "chat-post-processing";
 
     // 핵심 로직
     // 멤버 조회 -> 벡터 검색 -> 프롬프트 생성 -> LLM 호출 (스트림) -> Kafka 이벤트 발행 -> 응답 반환
@@ -78,25 +71,7 @@ public class ChatBotService {
                 .content()
                 .collectList()
                 .map(fullResponseList -> String.join("", fullResponseList))
-                .doOnNext(fullResponse -> {
-
-                    // Document를 DTO로 변환
-                    List<DocumentDto> caseDtos = similarCaseDocuments.stream().map(DocumentDto::from).collect(Collectors.toList());
-                    List<DocumentDto> lawDtos = similarLawDocuments.stream().map(DocumentDto::from).collect(Collectors.toList());
-
-                    // Kafka로 보낼 이벤트 객체
-                    ChatPostProcessEvent event = new ChatPostProcessEvent(
-                            history.getHistoryId(),
-                            chatRequestDto.getMessage(),
-                            fullResponse,
-                            caseDtos,
-                            lawDtos
-                    );
-
-                    // Kafka 이벤트 발행
-                    kafkaTemplate.send(POST_PROCESSING_TOPIC, event);
-
-                })
+                .doOnNext(fullResponse -> asyncPostChatProcessingService.processHandlerTasks(history.getHistoryId(), chatRequestDto.getMessage(), fullResponse, similarCaseDocuments, similarLawDocuments))
                 .map(fullResponse -> createChatResponse(history, fullResponse, similarCaseDocuments, similarLawDocuments))
                 .flux()
                 .onErrorResume(throwable -> {

@@ -1,9 +1,13 @@
 package com.ai.lawyer.domain.chatbot.service;
 
+import com.ai.lawyer.domain.chatbot.dto.ChatDto.ChatHistoryDto;
+import com.ai.lawyer.domain.chatbot.dto.ChatDto.ChatLawDto;
+import com.ai.lawyer.domain.chatbot.dto.ChatDto.ChatPrecedentDto;
 import com.ai.lawyer.domain.chatbot.dto.ExtractionDto.KeywordExtractionDto;
 import com.ai.lawyer.domain.chatbot.dto.ExtractionDto.TitleExtractionDto;
 import com.ai.lawyer.domain.chatbot.entity.*;
 import com.ai.lawyer.domain.chatbot.repository.*;
+import com.ai.lawyer.infrastructure.redis.service.ChatCacheService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -16,6 +20,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -27,6 +32,8 @@ import java.util.stream.Collectors;
 public class AsyncPostChatProcessingService {
 
     private final KeywordService keywordService;
+    private final ChatCacheService chatCacheService;
+
     private final HistoryRepository historyRepository;
     private final ChatRepository chatRepository;
     private final KeywordRankRepository keywordRankRepository;
@@ -98,6 +105,9 @@ public class AsyncPostChatProcessingService {
     }
 
     private void saveChatWithDocuments(History history, MessageType type, String message, List<Document> similarCaseDocuments, List<Document> similarLawDocuments) {
+        List<ChatPrecedent> chatPrecedents = new ArrayList<>();
+        List<ChatLaw> chatLaws = new ArrayList<>();
+
         Chat chat = chatRepository.save(Chat.builder()
                 .historyId(history)
                 .type(type)
@@ -107,7 +117,7 @@ public class AsyncPostChatProcessingService {
         // Ai 메시지가 저장될 때 관련 문서 저장
         if (type == MessageType.ASSISTANT) {
             if (similarCaseDocuments != null && !similarCaseDocuments.isEmpty()) {
-                List<ChatPrecedent> chatPrecedents = similarCaseDocuments.stream()
+                chatPrecedents = similarCaseDocuments.stream()
                         .map(doc -> ChatPrecedent.builder()
                                 .chatId(chat)
                                 .precedentContent(doc.getText())
@@ -119,7 +129,7 @@ public class AsyncPostChatProcessingService {
             }
 
             if (similarLawDocuments != null && !similarLawDocuments.isEmpty()) {
-                List<ChatLaw> chatLaws = similarLawDocuments.stream()
+                chatLaws = similarLawDocuments.stream()
                         .map(doc -> ChatLaw.builder()
                                 .chatId(chat)
                                 .content(doc.getText())
@@ -129,5 +139,16 @@ public class AsyncPostChatProcessingService {
                 chatLawRepository.saveAll(chatLaws);
             }
         }
+
+        // Redis 캐시에 DTO 저장
+        ChatHistoryDto dto = ChatHistoryDto.builder()
+                .type(type.toString())
+                .message(message)
+                .createdAt(chat.getCreatedAt())
+                .precedent(chatPrecedents.isEmpty() ? null : ChatPrecedentDto.from(chatPrecedents.get(0)))
+                .law(chatLaws.isEmpty() ? null : ChatLawDto.from(chatLaws.get(0)))
+                .build();
+
+        chatCacheService.cacheChatMessage(history.getHistoryId(), dto);
     }
 }
