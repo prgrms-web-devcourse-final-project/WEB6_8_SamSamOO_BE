@@ -17,6 +17,7 @@ import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.MessageType;
 import org.springframework.ai.document.Document;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,7 +47,7 @@ public class AsyncPostChatProcessingService {
     @Value("{$custom.ai.keyword-extraction}")
     private String keywordExtraction;
 
-    //@Async
+    @Async
     @Transactional
     public void processHandlerTasks(Long historyId, String userMessage, String fullResponse, List<Document> similarCaseDocuments, List<Document> similarLawDocuments) {
         try {
