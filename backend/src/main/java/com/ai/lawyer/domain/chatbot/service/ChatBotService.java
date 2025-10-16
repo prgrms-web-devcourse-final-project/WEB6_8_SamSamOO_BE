@@ -57,24 +57,21 @@ public class ChatBotService {
     @Transactional
     public Flux<ChatResponse> sendMessage(Long memberId, ChatRequest chatRequestDto, Long roomId) {
 
-        // 벡터 검색 (판례, 법령) (블로킹)
+        // 벡터 검색 (판례, 법령)
         List<Document> similarCaseDocuments = qdrantService.searchDocument(chatRequestDto.getMessage(), "type", "판례");
         List<Document> similarLawDocuments = qdrantService.searchDocument(chatRequestDto.getMessage(), "type", "법령");
 
         String caseContext = formatting(similarCaseDocuments);
         String lawContext = formatting(similarLawDocuments);
 
-        // 채팅방 조회 또는 생성 (블로킹)
+        // 채팅방 조회 또는 생성
         History history = getOrCreateRoom(memberId, roomId);
 
-        // 메시지 기억 관리 (User 메시지 추가)
+        // 메시지 기억 관리
         ChatMemory chatMemory = saveChatMemory(chatRequestDto, history);
 
         // 프롬프트 생성
         Prompt prompt = getPrompt(caseContext, lawContext, chatMemory, history);
-
-        // 준비된 데이터를 담은 컨텍스트 객체 반환
-        //return new PreparedChatContext(prompt, history, similarCaseDocuments, similarLawDocuments);
 
         return chatClient.prompt(prompt)
                 .stream()
@@ -176,23 +173,4 @@ public class ChatBotService {
                 .build();
     }
 
-    /**
-     * 블로킹 작업에서 준비된 데이터를 담는 컨텍스트 클래스
-     * 리액티브 체인에서 데이터를 전달하기 위한 내부 클래스
-     */
-    private static class PreparedChatContext {
-        final Prompt prompt;
-        final History history;
-        final List<Document> similarCaseDocuments;
-        final List<Document> similarLawDocuments;
-
-        PreparedChatContext(Prompt prompt, History history,
-                            List<Document> similarCaseDocuments,
-                            List<Document> similarLawDocuments) {
-            this.prompt = prompt;
-            this.history = history;
-            this.similarCaseDocuments = similarCaseDocuments;
-            this.similarLawDocuments = similarLawDocuments;
-        }
-    }
 }
