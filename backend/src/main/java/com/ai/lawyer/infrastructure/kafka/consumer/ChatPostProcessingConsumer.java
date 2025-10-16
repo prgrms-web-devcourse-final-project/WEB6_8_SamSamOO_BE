@@ -19,7 +19,6 @@ import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.MessageType;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,7 +46,7 @@ public class ChatPostProcessingConsumer {
     @Value("${custom.ai.keyword-extraction}")
     private String keywordExtraction;
 
-    @KafkaListener(topics = "chat-post-processing", groupId = "chat-processing-group")
+    //@KafkaListener(topics = "chat-post-processing", groupId = "chat-processing-group")
     @Transactional
     public void consume(ChatPostProcessEvent event) {
         try {

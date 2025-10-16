@@ -7,8 +7,6 @@ import com.ai.lawyer.domain.chatbot.dto.ChatDto.ChatResponse;
 import com.ai.lawyer.domain.chatbot.entity.History;
 import com.ai.lawyer.domain.chatbot.repository.HistoryRepository;
 import com.ai.lawyer.global.qdrant.service.QdrantService;
-import com.ai.lawyer.infrastructure.kafka.dto.ChatPostProcessEvent;
-import com.ai.lawyer.infrastructure.kafka.dto.DocumentDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -22,7 +20,6 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.document.Document;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
@@ -40,66 +37,41 @@ public class ChatBotService {
     private final ChatClient chatClient;
     private final QdrantService qdrantService;
     private final HistoryService historyService;
+    private final AsyncPostChatProcessingService asyncPostChatProcessingService;
+
     private final HistoryRepository historyRepository;
     private final ChatMemoryRepository chatMemoryRepository;
 
-    // KafkaTemplate 주입
-    private final KafkaTemplate<String, ChatPostProcessEvent> kafkaTemplate;
-
     @Value("${custom.ai.system-message}")
     private String systemMessageTemplate;
-
-    // Kafka 토픽 이름 -> 추후 application.yml로 이동 고려
-    private static final String POST_PROCESSING_TOPIC = "chat-post-processing";
 
     // 핵심 로직
     // 멤버 조회 -> 벡터 검색 -> 프롬프트 생성 -> LLM 호출 (스트림) -> Kafka 이벤트 발행 -> 응답 반환
     @Transactional
     public Flux<ChatResponse> sendMessage(Long memberId, ChatRequest chatRequestDto, Long roomId) {
 
-        // 벡터 검색 (판례, 법령) (블로킹)
+        // 벡터 검색 (판례, 법령)
         List<Document> similarCaseDocuments = qdrantService.searchDocument(chatRequestDto.getMessage(), "type", "판례");
         List<Document> similarLawDocuments = qdrantService.searchDocument(chatRequestDto.getMessage(), "type", "법령");
 
         String caseContext = formatting(similarCaseDocuments);
         String lawContext = formatting(similarLawDocuments);
 
-        // 채팅방 조회 또는 생성 (블로킹)
+        // 채팅방 조회 또는 생성
         History history = getOrCreateRoom(memberId, roomId);
 
-        // 메시지 기억 관리 (User 메시지 추가)
+        // 메시지 기억 관리
         ChatMemory chatMemory = saveChatMemory(chatRequestDto, history);
 
         // 프롬프트 생성
         Prompt prompt = getPrompt(caseContext, lawContext, chatMemory, history);
-
-        // 준비된 데이터를 담은 컨텍스트 객체 반환
-        //return new PreparedChatContext(prompt, history, similarCaseDocuments, similarLawDocuments);
 
         return chatClient.prompt(prompt)
                 .stream()
                 .content()
                 .collectList()
                 .map(fullResponseList -> String.join("", fullResponseList))
-                .doOnNext(fullResponse -> {
-
-                    // Document를 DTO로 변환
-                    List<DocumentDto> caseDtos = similarCaseDocuments.stream().map(DocumentDto::from).collect(Collectors.toList());
-                    List<DocumentDto> lawDtos = similarLawDocuments.stream().map(DocumentDto::from).collect(Collectors.toList());
-
-                    // Kafka로 보낼 이벤트 객체
-                    ChatPostProcessEvent event = new ChatPostProcessEvent(
-                            history.getHistoryId(),
-                            chatRequestDto.getMessage(),
-                            fullResponse,
-                            caseDtos,
-                            lawDtos
-                    );
-
-                    // Kafka 이벤트 발행
-                    kafkaTemplate.send(POST_PROCESSING_TOPIC, event);
-
-                })
+                .doOnNext(fullResponse -> asyncPostChatProcessingService.processHandlerTasks(history.getHistoryId(), chatRequestDto.getMessage(), fullResponse, similarCaseDocuments, similarLawDocuments))
                 .map(fullResponse -> createChatResponse(history, fullResponse, similarCaseDocuments, similarLawDocuments))
                 .flux()
                 .onErrorResume(throwable -> {
@@ -176,23 +148,4 @@ public class ChatBotService {
                 .build();
     }
 
-    /**
-     * 블로킹 작업에서 준비된 데이터를 담는 컨텍스트 클래스
-     * 리액티브 체인에서 데이터를 전달하기 위한 내부 클래스
-     */
-    private static class PreparedChatContext {
-        final Prompt prompt;
-        final History history;
-        final List<Document> similarCaseDocuments;
-        final List<Document> similarLawDocuments;
-
-        PreparedChatContext(Prompt prompt, History history,
-                            List<Document> similarCaseDocuments,
-                            List<Document> similarLawDocuments) {
-            this.prompt = prompt;
-            this.history = history;
-            this.similarCaseDocuments = similarCaseDocuments;
-            this.similarLawDocuments = similarLawDocuments;
-        }
-    }
 }
