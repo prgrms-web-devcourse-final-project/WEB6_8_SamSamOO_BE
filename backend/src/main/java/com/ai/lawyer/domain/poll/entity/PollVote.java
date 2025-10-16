@@ -1,11 +1,15 @@
 package com.ai.lawyer.domain.poll.entity;
 
-import com.ai.lawyer.domain.member.entity.Member;
 import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "poll_vote")
+@Table(name = "poll_vote",
+    uniqueConstraints = @UniqueConstraint(
+        name = "uk_poll_vote_member_poll",
+        columnNames = {"member_id", "poll_id"}
+    )
+)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
