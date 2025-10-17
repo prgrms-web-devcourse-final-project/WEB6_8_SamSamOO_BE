@@ -112,7 +112,6 @@ public class PollServiceImpl implements PollService {
         }
 
         Member member = AuthUtil.getMemberOrThrow(memberId);
-        // enum 비교로 안전하게 역할 검사 (Role 타입 이름은 실제 프로젝트에 맞춰 조정)
         if (!(member.getRole().name().equals("USER") || member.getRole().name().equals("ADMIN"))) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "투표 권한이 없습니다.");
         }
