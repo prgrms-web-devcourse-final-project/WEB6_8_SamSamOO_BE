@@ -28,6 +28,7 @@ public interface PollService {
 
     // ===== 투표 관련 =====
     PollVoteDto vote(Long pollId, Long pollItemsId, Long memberId);
+    PollVoteDto voteByIndex(Long pollId, int index, Long memberId);
 
     // ===== 투표 취소 관련 =====
     void cancelVote(Long pollId, Long memberId);
@@ -37,7 +38,7 @@ public interface PollService {
     PollDto updatePoll(Long pollId, PollUpdateDto pollUpdateDto, Long memberId);
     void patchUpdatePoll(Long pollId, PollUpdateDto pollUpdateDto);
     void closePoll(Long pollId);
-     void deletePoll(Long pollId, Long memberId);
+    void deletePoll(Long pollId, Long memberId);
 
     // ===== 검증 관련 =====
     void validatePollCreate(PollCreateDto dto);

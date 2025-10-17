@@ -17,6 +17,7 @@ spring:
       connection-timeout: 30000
       max-lifetime: 1800000          # MySQL wait_timeout(기본 28800)보다 짧게
   jpa:
+    show-sql: false
     open-in-view: false              # 프로덕션 권장
     hibernate:
       ddl-auto: ${PROD_JPA_HIBERNATE_DDL_AUTO} # 운영 DB는 보통 validate (또는 none)
@@ -83,9 +84,19 @@ custom:
     url: ${PROD_FRONTEND_URL}
   cookie:
     domain: ${PROD_COOKIE_DOMAIN:.trybalaw.com} # 운영환경: 모든 서브도메인에서 쿠키 공유
+    secure: true # HTTPS 환경에서는 반드시 true
+    same-site: None # 크로스 도메인 쿠키 전송 허용 (api.trybalaw.com <-> www.trybalaw.com)
 
 sentry:
   dsn: ${PROD_SENTRY_DSN}
   environment: "prod"
   release: "my-app@0.1.0-prod"
   send-default-pii: true
+
+logging:
+  level:
+    org.hibernate.SQL: WARN                # SQL 문 로그 줄이기
+    org.hibernate.orm.jdbc.bind: OFF       # 바인딩 파라미터 로그 끔(Hibernate 6)
+    org.hibernate.type.descriptor.jdbc: OFF
+    org.springframework.jdbc.core: ERROR   # JdbcTemplate 디버그 억제
+    com.zaxxer.hikari: INFO                # 커넥션 풀 상태만 간결하게

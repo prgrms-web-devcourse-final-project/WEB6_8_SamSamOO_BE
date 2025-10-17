@@ -419,25 +419,30 @@ docker run -d \
   -c 'ollama serve & sleep 5 && ollama pull daynice/kure-v1:567m && wait'
 
 echo "${var.github_access_token_1}" | docker login ghcr.io -u ${var.github_access_token_1_owner} --password-stdin
-# zookeeper 설치
-docker run -d \
-  --name zookeeper \
-  --network common \
-  -p 2181:2181 \
-  -e ALLOW_ANONYMOUS_LOGIN=yes \
-  bitnami/zookeeper:latest
-
-# kafka
-docker run -d \
-  --name kafka \
-  --network common \
-  -p 9092:9092 \
-  -e KAFKA_BROKER_ID=1 \
-  -e KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181 \
-  -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT \
-  -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092 \
-  -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
-  confluentinc/cp-kafka:7.6.0
+# # zookeeper 설치 (카프카용, 필요시 주석 해제)
+# docker run -d \
+#   --name zookeeper \
+#   --restart unless-stopped \
+#   --network common \
+#   -p 2181:2181 \
+#   -e ZOOKEEPER_CLIENT_PORT=2181 \
+#   -e ZOOKEEPER_TICK_TIME=2000 \
+#   confluentinc/cp-zookeeper:7.8.0
+#
+# # kafka
+# docker run -d \
+#   --name kafka \
+#   --restart unless-stopped \
+#   --network common \
+#   -p 9092:9092 \
+#   -v kafka-data:/var/lib/kafka/data \
+#   -e KAFKA_BROKER_ID=1 \
+#   -e KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181 \
+#   -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT \
+#   -e KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092 \
+#   -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092 \
+#   -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
+#   confluentinc/cp-kafka:7.8.0
 
 
 

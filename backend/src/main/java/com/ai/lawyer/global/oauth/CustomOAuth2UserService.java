@@ -48,10 +48,12 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             member = createOAuth2Member(userInfo);
         } else {
             // 기존 OAuth2 회원 로그인
-            log.info("기존 OAuth2 사용자 로그인: email={}, provider={}", userInfo.getEmail(), registrationId);
+            log.info("기존 OAuth2 사용자 로그인: email={}, provider={}, memberId={}", userInfo.getEmail(), registrationId, member.getMemberId());
         }
 
-        oauth2MemberRepository.save(member);
+        // 엔티티를 저장하고 영속화된 엔티티를 반환받아야 memberId가 할당됨
+        member = oauth2MemberRepository.save(member);
+        log.info("OAuth2 회원 저장 완료: memberId={}, loginId={}", member.getMemberId(), member.getLoginId());
 
         // OAuth2 provider의 access token을 Redis에 저장 (연동 해제용)
         saveOAuth2ProviderAccessToken(userInfo.getEmail(), accessToken);

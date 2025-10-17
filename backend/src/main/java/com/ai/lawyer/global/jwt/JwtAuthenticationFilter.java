@@ -162,6 +162,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             Long memberId = tokenProvider.getMemberIdFromToken(token);
             String loginId = tokenProvider.getLoginIdFromToken(token);
             String role = tokenProvider.getRoleFromToken(token);
+            String loginType = tokenProvider.getLoginTypeFromToken(token);
 
             if (memberId == null) {
                 log.warn(LOG_MEMBER_ID_EXTRACTION_FAILED);
@@ -174,7 +175,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             // memberId를 principal로 하는 인증 객체 생성
             // getName()은 memberId를 반환 (PollController 호환)
-            // getDetails()는 loginId를 반환 (MemberController 호환)
+            // getDetails()는 loginId와 loginType을 포함한 맵을 반환
             UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(memberId, null, authorities) {
                     @Override
@@ -184,11 +185,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                     @Override
                     public Object getDetails() {
-                        return loginId;
+                        return java.util.Map.of(
+                            "loginId", loginId != null ? loginId : "",
+                            "loginType", loginType != null ? loginType : "LOCAL"
+                        );
                     }
                 };
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
+            log.debug("JWT 인증 설정 완료: memberId={}, loginId={}, loginType={}", memberId, loginId, loginType);
         } catch (Exception e) {
             log.warn(LOG_SET_AUTH_FAILED, e.getMessage());
         }

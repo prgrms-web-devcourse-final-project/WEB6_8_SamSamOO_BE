@@ -4,12 +4,10 @@ import com.ai.lawyer.domain.poll.dto.*;
 import com.ai.lawyer.domain.poll.entity.*;
 import com.ai.lawyer.domain.poll.repository.*;
 import com.ai.lawyer.domain.member.entity.Member;
-import com.ai.lawyer.domain.post.dto.PostDto;
 import com.ai.lawyer.domain.post.entity.Post;
 import com.ai.lawyer.domain.post.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -113,47 +111,67 @@ public class PollServiceImpl implements PollService {
         if (!(member.getRole().name().equals("USER") || member.getRole().name().equals("ADMIN"))) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "투표 권한이 없습니다.");
         }
-        // 기존 투표 내역 조회
-        var existingVoteOpt = pollVoteRepository.findByMember_MemberIdAndPoll_PollId(memberId, pollId);
-        if (existingVoteOpt.isPresent()) {
-            PollVote existingVote = existingVoteOpt.get();
-            if (existingVote.getPollOptions().getPollItemsId().equals(pollItemsId)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 투표하셨습니다.");
-            } else {
-                pollVoteRepository.deleteByMember_MemberIdAndPoll_PollId(memberId, pollId);
-                PollVote pollVote = PollVote.builder()
-                        .poll(poll)
-                        .pollOptions(pollOptions)
-                        .member(member)
-                        .build();
-                PollVote savedVote = pollVoteRepository.save(pollVote);
-                Long voteCount = pollVoteRepository.countByPollOptionId(pollItemsId);
-                return PollVoteDto.builder()
-                        .pollVoteId(savedVote.getPollVoteId())
-                        .pollId(pollId)
-                        .pollItemsId(pollItemsId)
-                        .memberId(memberId)
-                        .voteCount(voteCount)
-                        .message("투표 항목을 변경하였습니다.")
-                        .build();
+
+        try {
+            // 기존 투표 내역 조회
+            var existingVoteOpt = pollVoteRepository.findByMemberIdAndPoll_PollId(memberId, pollId);
+            if (existingVoteOpt.isPresent()) {
+                PollVote existingVote = existingVoteOpt.get();
+                if (existingVote.getPollOptions().getPollItemsId().equals(pollItemsId)) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 투표하셨습니다.");
+                } else {
+                    pollVoteRepository.deleteByMemberIdAndPoll_PollId(memberId, pollId);
+                    PollVote pollVote = PollVote.builder()
+                            .poll(poll)
+                            .pollOptions(pollOptions)
+                            .memberId(memberId)
+                            .build();
+                    PollVote savedVote = pollVoteRepository.save(pollVote);
+                    Long voteCount = pollVoteRepository.countByPollOptionId(pollItemsId);
+                    return PollVoteDto.builder()
+                            .pollVoteId(savedVote.getPollVoteId())
+                            .pollId(pollId)
+                            .pollItemsId(pollItemsId)
+                            .memberId(memberId)
+                            .voteCount(voteCount)
+                            .message("투표 항목을 변경하였습니다.")
+                            .build();
+                }
             }
+            // 기존 투표 내역이 없으면 정상 투표
+            PollVote pollVote = PollVote.builder()
+                    .poll(poll)
+                    .pollOptions(pollOptions)
+                    .memberId(memberId)
+                    .build();
+            PollVote savedVote = pollVoteRepository.save(pollVote);
+            Long voteCount = pollVoteRepository.countByPollOptionId(pollItemsId);
+            return PollVoteDto.builder()
+                    .pollVoteId(savedVote.getPollVoteId())
+                    .pollId(pollId)
+                    .pollItemsId(pollItemsId)
+                    .memberId(memberId)
+                    .voteCount(voteCount)
+                    .message("투표가 완료되었습니다.")
+                    .build();
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            // 동시성 문제로 인한 중복 투표 시도 (unique constraint violation)
+            log.warn("중복 투표 시도 감지 - memberId: {}, pollId: {}", memberId, pollId, e);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 투표하셨습니다. 중복 투표는 불가능합니다.");
         }
-        // 기존 투표 내역이 없으면 정상 투표
-        PollVote pollVote = PollVote.builder()
-                .poll(poll)
-                .pollOptions(pollOptions)
-                .member(member)
-                .build();
-        PollVote savedVote = pollVoteRepository.save(pollVote);
-        Long voteCount = pollVoteRepository.countByPollOptionId(pollItemsId);
-        return PollVoteDto.builder()
-                .pollVoteId(savedVote.getPollVoteId())
-                .pollId(pollId)
-                .pollItemsId(pollItemsId)
-                .memberId(memberId)
-                .voteCount(voteCount)
-                .message("투표가 완료되었습니다.")
-                .build();
+    }
+
+    @Override
+    public PollVoteDto voteByIndex(Long pollId, int index, Long memberId) {
+        List<PollOptions> options = getPollOptions(pollId);
+        if (options == null || options.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "투표 항목이 존재하지 않습니다.");
+        }
+        if (index < 1 || index > options.size()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "index가 옵션 범위를 벗어났습니다.");
+        }
+        Long pollItemsId = options.get(index - 1).getPollItemsId();
+        return vote(pollId, pollItemsId, memberId);
     }
 
     @Override
@@ -220,6 +238,8 @@ public class PollServiceImpl implements PollService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "투표를 찾을 수 없습니다."));
         poll.setStatus(Poll.PollStatus.CLOSED);
         poll.setClosedAt(java.time.LocalDateTime.now());
+        //예약 종료 시간도 현재 종료로 바꿈 추후 삭제
+        poll.setReservedCloseAt(java.time.LocalDateTime.now());
         pollRepository.save(poll);
     }
 
@@ -227,7 +247,7 @@ public class PollServiceImpl implements PollService {
     public void deletePoll(Long pollId, Long memberId) {
         Poll poll = pollRepository.findById(pollId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "투표를 찾을 수 없습니다."));
-        if (poll.getPost() == null || !poll.getPost().getMember().getMemberId().equals(memberId)) {
+        if (poll.getPost() == null || !poll.getPost().getMemberId().equals(memberId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "본인만 투표를 삭제할 수 있습니다.");
         }
         // 1. 이 Poll을 참조하는 Post가 있으면 연결 해제
@@ -297,7 +317,7 @@ public class PollServiceImpl implements PollService {
     public PollDto updatePoll(Long pollId, PollUpdateDto pollUpdateDto, Long memberId) {
         Poll poll = pollRepository.findById(pollId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "수정할 투표를 찾을 수 없습니다."));
-        if (!poll.getPost().getMember().getMemberId().equals(memberId)) {
+        if (!poll.getPost().getMemberId().equals(memberId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "본인만 투표를 수정할 수 있습니다.");
         }
         if (getVoteCountByPollId(pollId) > 0) {
@@ -428,7 +448,7 @@ public class PollServiceImpl implements PollService {
             Long voteCount = pollVoteRepository.countByPollOptionId(option.getPollItemsId());
             boolean voted = false;
             if (memberId != null) {
-                voted = !pollVoteRepository.findByMember_MemberIdAndPollOptions_PollItemsId(memberId, option.getPollItemsId()).isEmpty();
+                voted = !pollVoteRepository.findByMemberIdAndPollOptions_PollItemsId(memberId, option.getPollItemsId()).isEmpty();
             }
             List<PollStaticsDto> statics = null;
             if (withStatistics && poll.getStatus() == Poll.PollStatus.CLOSED) {
@@ -526,7 +546,7 @@ public class PollServiceImpl implements PollService {
 
     @Override
     public void cancelVote(Long pollId, Long memberId) {
-        pollVoteRepository.findByMember_MemberIdAndPoll_PollId(memberId, pollId)
+        pollVoteRepository.findByMemberIdAndPoll_PollId(memberId, pollId)
                 .ifPresent(pollVoteRepository::delete);
     }
 }

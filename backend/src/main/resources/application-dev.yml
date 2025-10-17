@@ -17,18 +17,6 @@ spring:
       password: ${DEV_REDIS_PASSWORD}
       embedded: false
 
-  kafka:
-    bootstrap-servers: localhost:9092
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-    consumer:
-      group-id: chat-processing-group  # 컨슈머 그룹 ID
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-      properties:
-        spring.json.trusted.packages: "*"
-
   batch:
     job:
       enabled: false     # 최소 한번 시작
@@ -71,4 +59,6 @@ custom:
   frontend:
     url: ${DEV_FRONTEND_URL}
   cookie:
-    domain: ${DEV_COOKIE_DOMAIN}
+    domain: ${DEV_COOKIE_DOMAIN:} # 개발환경: 도메인 설정 없음 (localhost)
+    secure: false # HTTP 환경 (localhost)
+    same-site: Lax # 개발환경에서는 Lax로 충분

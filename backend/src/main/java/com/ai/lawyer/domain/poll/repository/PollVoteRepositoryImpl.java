@@ -12,7 +12,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 import com.querydsl.core.Tuple;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.ai.lawyer.domain.poll.dto.PollAgeStaticsDto.AgeGroupCountDto;
 import com.ai.lawyer.domain.poll.dto.PollGenderStaticsDto.GenderCountDto;
@@ -91,23 +94,29 @@ public class PollVoteRepositoryImpl implements PollVoteRepositoryCustom {
                 pollVote.count())
                 .from(pollVote)
                 .join(pollVote.getPollOptions(), pollOptions)
-                .join(pollVote.getMember(), member)
+                .join(member).on(pollVote.getMemberId().eq(member.getMemberId()))
                 .where(pollOptions.getPollItemsId().in(pollOptionIds))
                 .groupBy(pollOptions.getPollItemsId(), member.getGender(), member.getAge())
                 .fetch();
-        return tuples.stream()
-                .map(t -> {
-                    String gender = t.get(1, String.class);
-                    Integer age = t.get(2, Integer.class);
-                    String ageGroup = getAgeGroup(age);
-                    Long voteCount = t.get(3, Long.class);
-                    return PollStaticsDto.builder()
-                            .gender(gender)
-                            .ageGroup(ageGroup)
-                            .voteCount(voteCount)
-                            .build();
-                })
-                .toList();
+
+        // gender와 ageGroup별로 voteCount 합산
+        Map<String, Integer> staticsMap = new HashMap<>();
+        for (Tuple t : tuples) {
+            Member.Gender genderEnum = t.get(1, Member.Gender.class);
+            String gender = genderEnum != null ? genderEnum.name() : "기타";
+            Integer age = t.get(2, Integer.class);
+            String ageGroup = getAgeGroup(age);
+            Long voteCount = t.get(3, Long.class);
+            String key = gender + "_" + ageGroup;
+            staticsMap.put(key, staticsMap.getOrDefault(key, 0) + voteCount.intValue());
+        }
+
+        List<PollStaticsDto> result = new ArrayList<>();
+        for (Map.Entry<String, Integer> entry : staticsMap.entrySet()) {
+            String[] key = entry.getKey().split("_");
+            result.add(new PollStaticsDto(key[0], key[1], entry.getValue().longValue()));
+        }
+        return result;
     }
 
     private String getAgeGroup(Integer age) {
@@ -138,7 +147,7 @@ public class PollVoteRepositoryImpl implements PollVoteRepositoryCustom {
                 pollVote.count())
                 .from(pollVote)
                 .join(pollVote.getPollOptions(), pollOptions)
-                .join(pollVote.getMember(), member)
+                .join(member).on(pollVote.getMemberId().eq(member.getMemberId()))
                 .where(pollOptions.getPoll().getPollId().eq(pollId))
                 .groupBy(pollOptions.getOption(),
                         new com.querydsl.core.types.dsl.CaseBuilder()
@@ -168,7 +177,7 @@ public class PollVoteRepositoryImpl implements PollVoteRepositoryCustom {
                 pollVote.count())
                 .from(pollVote)
                 .join(pollVote.getPollOptions(), pollOptions)
-                .join(pollVote.getMember(), member)
+                .join(member).on(pollVote.getMemberId().eq(member.getMemberId()))
                 .where(pollOptions.getPoll().getPollId().eq(pollId))
                 .groupBy(pollOptions.getOption(), member.getGender())
                 .fetch();
