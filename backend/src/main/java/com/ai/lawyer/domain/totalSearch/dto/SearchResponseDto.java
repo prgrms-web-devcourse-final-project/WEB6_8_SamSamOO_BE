@@ -1,4 +1,4 @@
-package com.ai.lawyer.domain.search.dto;
+package com.ai.lawyer.domain.totalSearch.dto;
 
 import com.ai.lawyer.global.dto.PageResponseDto;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -13,10 +13,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class SearchResponseDto {
 
-    @Schema(description = "법령 검색 결과 페이지 (없으면 null)")
+    @Schema(description = "법령 검색 결과 페이지")
     private PageResponseDto laws;
 
-    @Schema(description = "판례 검색 결과 페이지 (없으면 null)")
+    @Schema(description = "판례 검색 결과 페이지")
     private PageResponseDto precedents;
 }
 

@@ -1,4 +1,4 @@
-package com.ai.lawyer.domain.search.dto;
+package com.ai.lawyer.domain.totalSearch.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;

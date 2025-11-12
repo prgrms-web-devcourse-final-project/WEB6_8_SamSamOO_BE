@@ -1,11 +1,11 @@
-package com.ai.lawyer.domain.search.service;
+package com.ai.lawyer.domain.totalSearch.service;
 
 import com.ai.lawyer.domain.law.dto.LawSearchRequestDto;
 import com.ai.lawyer.domain.law.service.LawService;
 import com.ai.lawyer.domain.precedent.dto.PrecedentSearchRequestDto;
 import com.ai.lawyer.domain.precedent.service.PrecedentService;
-import com.ai.lawyer.domain.search.dto.SearchRequestDto;
-import com.ai.lawyer.domain.search.dto.SearchResponseDto;
+import com.ai.lawyer.domain.totalSearch.dto.SearchRequestDto;
+import com.ai.lawyer.domain.totalSearch.dto.SearchResponseDto;
 import com.ai.lawyer.global.dto.PageResponseDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -62,7 +62,6 @@ public class SearchServiceImpl implements SearchService {
                 });
             }
 
-            // Wait for both futures (if present)
             if (lawFuture != null) {
                 Object lawResult = lawFuture.join();
                 response.setLaws(lawResult == null ? null : (PageResponseDto) lawResult);
@@ -73,7 +72,6 @@ public class SearchServiceImpl implements SearchService {
                 response.setPrecedents(precResult == null ? null : (PageResponseDto) precResult);
             }
 
-            // If both are null and both were requested, throw to indicate overall failure
             if (request.isIncludeLaws() && request.isIncludePrecedents()
                     && response.getLaws() == null && response.getPrecedents() == null) {
                 throw new RuntimeException("법령 및 판례 검색 모두 실패");

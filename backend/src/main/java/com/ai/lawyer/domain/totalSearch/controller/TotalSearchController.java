@@ -1,8 +1,8 @@
-package com.ai.lawyer.domain.search.controller;
+package com.ai.lawyer.domain.totalSearch.controller;
 
-import com.ai.lawyer.domain.search.dto.SearchRequestDto;
-import com.ai.lawyer.domain.search.dto.SearchResponseDto;
-import com.ai.lawyer.domain.search.service.SearchService;
+import com.ai.lawyer.domain.totalSearch.dto.SearchRequestDto;
+import com.ai.lawyer.domain.totalSearch.dto.SearchResponseDto;
+import com.ai.lawyer.domain.totalSearch.service.SearchService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -16,14 +16,14 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/search")
+@RequestMapping("/api/totalSearch")
 @Tag(name = "통합 검색", description = "법령 + 판례 통합 검색 API")
-public class SearchController {
+public class TotalSearchController {
 
     private final SearchService searchService;
 
-    @PostMapping("/combined")
-    @Operation(summary = "법령 + 판례 통합 검색", description = "법령과 판례를 함께 검색합니다. includeLaws/includePrecedents 플래그로 선택 가능합니다.")
+    @PostMapping("/search")
+    @Operation(summary = "법령 + 판례 통합 검색", description = "법령과 판례를 함께 검색합니다.")
     public ResponseEntity<?> combinedSearch(@RequestBody SearchRequestDto request) {
         try {
             SearchResponseDto response = searchService.combinedSearch(request);
