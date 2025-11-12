@@ -22,6 +22,8 @@ import java.time.LocalDateTime;
 
 import com.ai.lawyer.global.util.AuthUtil;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.context.ApplicationEventPublisher;
+import com.ai.lawyer.domain.poll.event.PollVotedEvent;
 
 @Service
 @Transactional
@@ -34,6 +36,7 @@ public class PollServiceImpl implements PollService {
     private final PollVoteRepository pollVoteRepository;
     private final PollStaticsRepository pollStaticsRepository;
     private final PostRepository postRepository;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Override
     public PollDto createPoll(PollCreateDto request, Long memberId) {
@@ -120,7 +123,12 @@ public class PollServiceImpl implements PollService {
             // 1) 기존 투표가 있는지 조회
             var existingOpt = pollVoteRepository.findByMemberIdAndPoll_PollId(memberId, pollId);
             if (existingOpt.isPresent()) {
-                return handleExistingVote(existingOpt.get(), pollOptions, pollId, pollItemsId, memberId);
+                PollVoteDto result = handleExistingVote(existingOpt.get(), pollOptions, pollId, pollItemsId, memberId);
+                // idempotent 응답(같은 항목)인 경우에는 브로드캐스트하지 않음
+                if (!"이미 해당 항목에 투표하셨습니다.".equals(result.getMessage())) {
+                    applicationEventPublisher.publishEvent(new PollVotedEvent(pollId, result));
+                }
+                return result;
             }
             // 2) 신규 투표 생성
             PollVote newVote = PollVote.builder()
@@ -129,13 +137,19 @@ public class PollServiceImpl implements PollService {
                     .memberId(memberId)
                     .build();
             PollVote saved = pollVoteRepository.save(newVote);
-            return buildPollVote(saved, pollId, pollItemsId, memberId, "투표가 완료되었습니다.");
+            PollVoteDto dto = buildPollVote(saved, pollId, pollItemsId, memberId, "투표가 완료되었습니다.");
+            applicationEventPublisher.publishEvent(new PollVotedEvent(pollId, dto));
+            return dto;
         } catch (DataIntegrityViolationException e) {
             // 동시성(경합)으로 인해 이미 다른 쓰레드가 투표를 만들어 중복 제약에 걸린 경우 복구 처리
             log.warn("중복 투표 시도 감지 - memberId: {}, pollId: {}", memberId, pollId, e);
             var existingAfterOpt = pollVoteRepository.findByMemberIdAndPoll_PollId(memberId, pollId);
             if (existingAfterOpt.isPresent()) {
-                return handleExistingVote(existingAfterOpt.get(), pollOptions, pollId, pollItemsId, memberId);
+                PollVoteDto result = handleExistingVote(existingAfterOpt.get(), pollOptions, pollId, pollItemsId, memberId);
+                if (!"이미 해당 항목에 투표하셨습니다.".equals(result.getMessage())) {
+                    applicationEventPublisher.publishEvent(new PollVotedEvent(pollId, result));
+                }
+                return result;
             }
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 투표하셨습니다. 중복 투표는 불가능합니다.");
         }
