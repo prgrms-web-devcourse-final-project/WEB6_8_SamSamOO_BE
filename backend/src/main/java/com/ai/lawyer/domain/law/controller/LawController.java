@@ -45,7 +45,7 @@ public class LawController {
         try {
             Page<LawsDto> laws = lawService.searchLaws(searchRequest);
             return ResponseEntity.ok(PageResponseDto.from(laws));
-        }catch (Exception e){
+        } catch (Exception e) {
             log.error("법령 목록 검색 에러 : " + e.getMessage());
             return ResponseEntity.badRequest().body("법령 목록 검색 에러 : " + e.getMessage());
         }
@@ -58,7 +58,7 @@ public class LawController {
         try {
             Law law = lawService.getLawWithAllChildren(id);
             return ResponseEntity.ok(law);
-        }catch (Exception e){
+        } catch (Exception e) {
             log.error("법령 상세 조회 에러 : " + e.getMessage());
             return ResponseEntity.badRequest().body("법령 상세 조회 에러 : " + e.getMessage());
         }
