@@ -1,6 +1,64 @@
 spring:
   datasource:
-    url: jdbc:h2:./db_dev;MODE=PostgreSQL
-    username: sa
-    password:
-    driver-class-name: org.h2.Driver
+    url: ${DEV_DATASOURCE_URL}
+    username: ${DEV_DATASOURCE_USERNAME}
+    password: ${DEV_DATASOURCE_PASSWORD}
+    driver-class-name: ${DEV_DATASOURCE_DRIVER}
+  jpa:
+    hibernate:
+      ddl-auto: ${DEV_JPA_HIBERNATE_DDL_AUTO}
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+  data:
+    redis:
+      host: ${DEV_REDIS_HOST}
+      port: ${DEV_REDIS_PORT}
+      password: ${DEV_REDIS_PASSWORD}
+      embedded: false
+
+  batch:
+    job:
+      enabled: false     # 최소 한번 시작
+    jdbc:
+      initialize-schema: always
+
+  task:
+    scheduling:
+      shutdown:
+        await-termination: true
+        await-termination-period: 60s
+  lifecycle:
+    timeout-per-shutdown-phase: 60s
+
+  datasource-meta:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    jdbc-url: jdbc:mysql://localhost:3306/meta_db?useSSL=false&useUnicode=true&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
+    username: root
+    password: balaw
+  security:
+    oauth2:
+      client:
+        registration:
+          kakao:
+            redirect-uri: ${DEV_OAUTH2_KAKAO_REDIRECT_URI:http://localhost:8080/login/oauth2/code/kakao}
+          naver:
+            redirect-uri: ${DEV_OAUTH2_NAVER_REDIRECT_URI:http://localhost:8080/login/oauth2/code/naver}
+  ai:
+    vectorstore:
+      qdrant:
+        host: ${DEV_QDRANT_HOST}
+        port: ${DEV_QDRANT_PORT}
+
+custom:
+  cors:
+    allowed-origins: ${DEV_CORS_ALLOWED_ORIGINS}
+  oauth2:
+    redirect-url: ${DEV_OAUTH2_SUCCESS_REDIRECT_URL}
+    failure-url: ${DEV_OAUTH2_FAILURE_REDIRECT_URL}
+  frontend:
+    url: ${DEV_FRONTEND_URL}
+  cookie:
+    domain: ${DEV_COOKIE_DOMAIN:} # 개발환경: 도메인 설정 없음 (localhost)
+    secure: false # HTTP 환경 (localhost)
+    same-site: Lax # 개발환경에서는 Lax로 충분

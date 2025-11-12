@@ -1,0 +1,7 @@
+batch:
+  page:
+    size:
+      precedent: 1        # 판례 개수
+      law: 1              # 법령 개수
+  scheduler:
+    run-every-minute: false     # 매 초마다 스케줄러 실행 여부

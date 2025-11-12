@@ -1,28 +1,89 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:latest
-    container_name: postgres
-    restart: always
+  mysql:
+    image: mysql:8.4
+    container_name: mysql
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASS}
+      MYSQL_DATABASE: balaw
+      MYSQL_PASSWORD: ${DEV_DATASOURCE_PASSWORD}
+      # 새 변수: 루트 계정 비번 (필수)
+      MYSQL_ROOT_PASSWORD: ${DEV_DB_ROOT_PASSWORD}
+      TZ: Asia/Seoul
     ports:
-      - "${DB_PORT}:${DB_PORT}"
+      # 호스트 포트는 원하는 값으로, 컨테이너는 3306 고정
+      - "${DEV_DATASOURCE_PORT:-3306}:3306"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
-  # Redis 서비스
+      - mysql-data:/var/lib/mysql
+      - ./sql:/sql      # 호스트 ./sql 폴더를 컨테이너 /sql에 마운트
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_0900_ai_ci
+      --default-time-zone=Asia/Seoul
+      --skip-log-bin
+      --lower-case-table-names=1
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${DEV_DATASOURCE_PASSWORD}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   redis:
-    image: redis:latest
+    image: redis:7.4
     container_name: redis
-    restart: always
+    restart: unless-stopped
     ports:
-      - "${REDIS_PORT}:${REDIS_PORT}"
+      - "${DEV_REDIS_PORT:-6379}:6379"
     volumes:
       - redis-data:/data
+    command: >
+      redis-server --appendonly yes
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  qdrant:
+    image: qdrant/qdrant
+    container_name: qdrant-new
+    restart: unless-stopped
+    ports:
+      - "6333:6333"   # HTTP API
+      - "6334:6334" # gRPC API
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:6333/healthz" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    entrypoint: [ "/bin/sh", "-c" ]
+    command: >
+      "ollama serve &
+       sleep 5 && 
+       ollama pull daynice/kure-v1:567m && 
+       wait"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:11434/api/version" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
 volumes:
-  postgres-data:
+  mysql-data:
   redis-data:
+  qdrant-data:
+  ollama-data:

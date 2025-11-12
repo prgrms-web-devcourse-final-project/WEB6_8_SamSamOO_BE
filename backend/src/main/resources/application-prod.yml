@@ -1,14 +1,102 @@
 spring:
   datasource:
-    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
-    driver-class-name: org.postgresql.Driver
-    username: ${DB_USER}
-    password: ${DB_PASS}
+    url: ${PROD_DATASOURCE_URL}
+    driver-class-name: ${PROD_DATASOURCE_DRIVER}
+    username: ${PROD_DATASOURCE_USERNAME}
+    password: ${PROD_DATASOURCE_PASSWORD}
+  datasource-meta:
+    jdbc-url: jdbc:mysql://mysql:3306/meta_db?useSSL=false&useUnicode=true&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
+    driver-class-name: ${PROD_DATASOURCE_DRIVER}
+    username: ${PROD_DATASOURCE_USERNAME}
+    password: ${PROD_DATASOURCE_PASSWORD}
+
+    hikari:
+      maximum-pool-size: 20          # 트래픽에 맞춰 조정
+      minimum-idle: 5
+      idle-timeout: 30000
+      connection-timeout: 30000
+      max-lifetime: 1800000          # MySQL wait_timeout(기본 28800)보다 짧게
   jpa:
+    show-sql: false
+    open-in-view: false              # 프로덕션 권장
     hibernate:
-      ddl-auto: validate
-  thymeleaf:
-    cache: true
+      ddl-auto: ${PROD_JPA_HIBERNATE_DDL_AUTO} # 운영 DB는 보통 validate (또는 none)
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect  # 부트가 자동 감지하지만 명시해도 OK
+        format_sql: false
+  sql:
+    init:
+      mode: never
+  data:
+    redis:
+      host: ${PROD_REDIS_HOST}
+      port: ${PROD_REDIS_PORT}
+      password: ${PROD_REDIS_PASSWORD}
+      embedded: false
+  kafka:
+    bootstrap-servers: kafka:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: chat-processing-group  # 컨슈머 그룹 ID
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+  task:
+    scheduling:
+      shutdown:
+        await-termination: true
+        await-termination-period: 60s
+  lifecycle:
+    timeout-per-shutdown-phase: 60s
+
+  security:
+    oauth2:
+      client:
+        registration:
+          kakao:
+            redirect-uri: ${PROD_OAUTH2_KAKAO_REDIRECT_URI:https://api.trybalaw.com/login/oauth2/code/kakao}
+          naver:
+            redirect-uri: ${PROD_OAUTH2_NAVER_REDIRECT_URI:https://api.trybalaw.com/login/oauth2/code/naver}
+  ai:
+    ollama:
+      base-url: http://ollama:11434
+      embedding:
+        options:
+          model: daynice/kure-v1:567m
+
+    vectorstore:
+      qdrant:
+        host: ${PROD_QDRANT_HOST}
+        port: ${PROD_QDRANT_PORT}
+        collection-name: legal_cases
+        vector-size: 1536
+custom:
+  cors:
+    allowed-origins: ${PROD_CORS_ALLOWED_ORIGINS}
+  oauth2:
+    redirect-url: ${PROD_OAUTH2_SUCCESS_REDIRECT_URL}
+    failure-url: ${PROD_OAUTH2_FAILURE_REDIRECT_URL}
+  frontend:
+    url: ${PROD_FRONTEND_URL}
+  cookie:
+    domain: ${PROD_COOKIE_DOMAIN:.trybalaw.com} # 운영환경: 모든 서브도메인에서 쿠키 공유
+    secure: true # HTTPS 환경에서는 반드시 true
+    same-site: None # 크로스 도메인 쿠키 전송 허용 (api.trybalaw.com <-> www.trybalaw.com)
+
+sentry:
+  dsn: ${PROD_SENTRY_DSN}
+  environment: "prod"
+  release: "my-app@0.1.0-prod"
+  send-default-pii: true
+
 logging:
   level:
-    root: INFO
+    org.hibernate.SQL: WARN                # SQL 문 로그 줄이기
+    org.hibernate.orm.jdbc.bind: OFF       # 바인딩 파라미터 로그 끔(Hibernate 6)
+    org.hibernate.type.descriptor.jdbc: OFF
+    org.springframework.jdbc.core: ERROR   # JdbcTemplate 디버그 억제
+    com.zaxxer.hikari: INFO                # 커넥션 풀 상태만 간결하게

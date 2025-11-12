@@ -1,0 +1,62 @@
+name: Create branch from issue
+on:
+  issues:
+    types: [opened, labeled]  # 이슈 생성 또는 라벨 붙을 때 작동
+
+jobs:
+  create-branch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Decide branch prefix
+        id: prefix
+        run: |
+          PREFIX="feat" # 기본값
+          for label in ${{ join(github.event.issue.labels.*.name, ' ') }}; do
+            if [[ "$label" =~ ^(feat|bug|refactor|chore)$ ]]; then
+              PREFIX=$label
+              break
+            fi
+          done
+          echo "prefix=$PREFIX" >> $GITHUB_OUTPUT
+
+      - name: Get custom branch name from issue body
+        id: custom
+        run: |
+          CUSTOM=$(echo "${{ github.event.issue.body }}" | grep -oP '(?<=/branch-name ).*' || true)
+          if [ -n "$CUSTOM" ]; then
+            echo "custom_name=$CUSTOM" >> $GITHUB_OUTPUT
+          else
+            echo "custom_name=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create branch
+        run: |
+          ISSUE_NUMBER=${{ github.event.issue.number }}
+          ISSUE_TITLE="${{ github.event.issue.title }}"
+          
+          # 영어/숫자만 남기고, 나머지는 - 로 치환
+          SANITIZED_TITLE=$(echo "$ISSUE_TITLE" | iconv -t ascii//translit | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-')
+          
+          if [ -n "${{ steps.custom.outputs.custom_name }}" ]; then
+            RAW_NAME="${{ steps.custom.outputs.custom_name }}"
+            # 앞뒤 공백 제거
+            CUSTOM_NAME=$(echo "$RAW_NAME" | xargs)
+            BRANCH_NAME="${{ steps.prefix.outputs.prefix }}/${ISSUE_NUMBER}-${CUSTOM_NAME}"
+          else
+            BRANCH_NAME="${{ steps.prefix.outputs.prefix }}/${ISSUE_NUMBER}-${SANITIZED_TITLE}"
+          fi
+          
+          echo "Creating branch: $BRANCH_NAME"
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          DEFAULT_BRANCH=${{ github.event.repository.default_branch }}
+          git fetch origin $DEFAULT_BRANCH
+          git checkout -b "$BRANCH_NAME" origin/$DEFAULT_BRANCH
+          git push origin "$BRANCH_NAME"
