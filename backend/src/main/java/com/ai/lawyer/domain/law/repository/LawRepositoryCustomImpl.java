@@ -103,9 +103,9 @@ public class LawRepositoryCustomImpl implements LawRepositoryCustom {
 
         List<LawsDto> content = query.fetch();
 
-        if (content.isEmpty()) {
-            return new PageImpl<>(content, pageable, 0);
-        }
+//        if (content.isEmpty()) {
+//            return new PageImpl<>(content, pageable, 0);
+//        }
 
         // 조회한 법령 ID 목록 추출
         List<Long> lawIds = content.stream()

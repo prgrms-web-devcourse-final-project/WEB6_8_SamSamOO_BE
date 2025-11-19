@@ -18,5 +18,7 @@ public class SearchResponseDto {
 
     @Schema(description = "판례 검색 결과 페이지")
     private PageResponseDto precedents;
-}
 
+    @Schema(description = "법령 + 판례 통합 총 건수")
+    private long lawPrecTotalElements;
+}

@@ -72,6 +72,11 @@ public class SearchServiceImpl implements SearchService {
                 response.setPrecedents(precResult == null ? null : (PageResponseDto) precResult);
             }
 
+            // 통합 total 계산: laws.totalElements + precedents.totalElements
+            long lawsTotal = response.getLaws() != null ? response.getLaws().getTotalElements() : 0L;
+            long precTotal = response.getPrecedents() != null ? response.getPrecedents().getTotalElements() : 0L;
+            response.setLawPrecTotalElements(lawsTotal + precTotal);
+
             if (request.isIncludeLaws() && request.isIncludePrecedents()
                     && response.getLaws() == null && response.getPrecedents() == null) {
                 throw new RuntimeException("법령 및 판례 검색 모두 실패");
