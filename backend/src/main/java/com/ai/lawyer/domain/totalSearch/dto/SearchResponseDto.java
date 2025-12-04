@@ -21,4 +21,7 @@ public class SearchResponseDto {
 
     @Schema(description = "법령 + 판례 통합 총 건수")
     private long lawPrecTotalElements;
+
+    @Schema(description = "법령 + 판례 통합 총 페이지 수")
+    private int lawPrecTotalPages;
 }
