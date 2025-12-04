@@ -10,6 +10,7 @@ import com.ai.lawyer.global.dto.PageResponseDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -30,8 +31,22 @@ public class SearchServiceImpl implements SearchService {
             CompletableFuture<?> precFuture = null;
 
             if (request.isIncludeLaws()) {
+                // lawName에 명시값이 없으면 공통 키워드를 fallback으로 사용
+                // 예: keyword="형사", lawName="" -> lawName="형사"
+                if (StringUtils.hasText(request.getKeyword()) && !StringUtils.hasText(request.getLawName())) {
+                    request.setLawName(request.getKeyword());
+                }
+
+                String lawNameForSearch = StringUtils.hasText(request.getLawName()) ? request.getLawName() : request.getKeyword();
+
                 LawSearchRequestDto lawReq = LawSearchRequestDto.builder()
-                        .lawName(request.getKeyword())
+                        .lawName(lawNameForSearch)
+                        .lawField(request.getLawField())
+                        .ministry(request.getMinistry())
+                        .promulgationDateStart(request.getPromulgationDateStart())
+                        .promulgationDateEnd(request.getPromulgationDateEnd())
+                        .enforcementDateStart(request.getEnforcementDateStart())
+                        .enforcementDateEnd(request.getEnforcementDateEnd())
                         .pageNumber(request.getPageNumber())
                         .pageSize(request.getPageSize())
                         .build();
@@ -49,6 +64,8 @@ public class SearchServiceImpl implements SearchService {
             if (request.isIncludePrecedents()) {
                 PrecedentSearchRequestDto precReq = new PrecedentSearchRequestDto();
                 precReq.setKeyword(request.getKeyword());
+                precReq.setSentencingDateStart(request.getSentencingDateStart());
+                precReq.setSentencingDateEnd(request.getSentencingDateEnd());
                 precReq.setPageNumber(request.getPageNumber());
                 precReq.setPageSize(request.getPageSize());
 
@@ -76,6 +93,11 @@ public class SearchServiceImpl implements SearchService {
             long lawsTotal = response.getLaws() != null ? response.getLaws().getTotalElements() : 0L;
             long precTotal = response.getPrecedents() != null ? response.getPrecedents().getTotalElements() : 0L;
             response.setLawPrecTotalElements(lawsTotal + precTotal);
+
+            // 통합 total pages 계산: laws.totalPages + precedents.totalPages
+            int lawsPages = response.getLaws() != null ? response.getLaws().getTotalPages() : 0;
+            int precPages = response.getPrecedents() != null ? response.getPrecedents().getTotalPages() : 0;
+            response.setLawPrecTotalPages(lawsPages + precPages);
 
             if (request.isIncludeLaws() && request.isIncludePrecedents()
                     && response.getLaws() == null && response.getPrecedents() == null) {
