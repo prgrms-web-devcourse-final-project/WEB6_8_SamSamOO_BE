@@ -56,6 +56,7 @@ public class SecurityConfig {
             "/api/precedent/**",      // 판례 (공개)
             "/api/law/**",            // 법령 (공개)
             "/api/law-word/**",       // 법률 용어 (공개)
+            "/api/totalSearch/**",    // 통합검색 (공개)
             "/api/home/**",         // 홈 (공개)
             "/api/chat/**",        // 챗봇
             "/h2-console/**",          // H2 콘솔 (개발용)
